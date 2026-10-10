@@ -50,3 +50,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Local dashboard backup
+16_dashboard_backup.py
+
+# Local dashboard backup
+16_dashboard_backup.py

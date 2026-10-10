@@ -1,5 +1,7 @@
 from pathlib import Path
 from datetime import datetime, UTC
+import os
+import tempfile
 
 import joblib
 import numpy as np
@@ -177,6 +179,7 @@ except requests.RequestException as error:
     raise SystemExit(1)
 
 data = response.json()
+retrieved_at_utc = datetime.now(UTC).isoformat()
 
 if data.get("error"):
     raise ValueError(
@@ -410,7 +413,7 @@ print(
 
 
 # ============================================================
-# 11. INTERPOLATE OCCASIONAL GAPS
+# 11. IDENTIFY REQUIRED NUMERIC INPUTS
 # ============================================================
 
 numeric_columns = [
@@ -434,17 +437,8 @@ numeric_columns = [
 ]
 
 
-for column in numeric_columns:
-
-    forecast[column] = (
-
-        forecast[column]
-
-        .interpolate(
-            limit_direction="both"
-        )
-    )
-
+# Missing meteorological inputs are never imputed. Require genuine values
+# for the current and previous hour; otherwise keep the saved prediction.
 
 # ============================================================
 # 12. REMOVE INCOMPLETE ROWS
@@ -511,6 +505,10 @@ latest = (
 latest_time = (
     latest["valid_time"]
 )
+
+
+if latest_time != current_hour:
+    raise ValueError("Current-hour ECMWF inputs are incomplete or unavailable.")
 
 
 # ============================================================
@@ -683,6 +681,13 @@ if missing_model_features:
     )
 
 
+if len(features) != 29 or int(model.n_features_in_) != 29:
+    raise ValueError("Expected the existing 29-feature Random Forest.")
+if list(model.feature_names_in_) != features:
+    raise ValueError("The feature list does not match the trained model order.")
+if not np.isclose(threshold, 0.35):
+    raise ValueError("This research system requires the selected 35% threshold.")
+
 prediction_df = (
     prediction_df[
         features
@@ -699,6 +704,9 @@ print(
 # ============================================================
 # 18. MAKE PREDICTION
 # ============================================================
+
+if not np.isfinite(prediction_df.to_numpy(dtype=float)).all():
+    raise ValueError("Nonfinite model input; prediction was not updated.")
 
 storm_probability = (
 
@@ -880,6 +888,9 @@ result = {
     "forecast_source":
         "Open-Meteo ECMWF",
 
+    "forecast_retrieved_at": retrieved_at_utc,
+    "forecast_issue_time": "",  # API response does not provide a run issue timestamp.
+
     "forecast_input_time":
         latest_time,
 
@@ -952,12 +963,21 @@ result = {
 }
 
 
-pd.DataFrame(
-    [result]
-).to_csv(
-    OUTPUT_FILE,
-    index=False
-)
+# Atomically replace only after successful inference; readers keep the old CSV
+# if a request, validation or write fails.
+with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", dir=MODEL_DIR,
+                                 encoding="utf-8", newline="", delete=False) as handle:
+    temporary_prediction = Path(handle.name)
+    try:
+        pd.DataFrame([result]).to_csv(handle,index=False)
+    except Exception:
+        handle.close()
+        temporary_prediction.unlink(missing_ok=True)
+        raise
+try:
+    os.replace(temporary_prediction,OUTPUT_FILE)
+finally:
+    temporary_prediction.unlink(missing_ok=True)
 
 
 print("\nPrediction saved to:")
