@@ -166,6 +166,51 @@ class SmsTests(unittest.TestCase):
         self.assertIn('MATATIELE SMS TEST',body)
         self.assertNotIn('Storm risk',body)
 
+    def test_manual_actions_connectivity_uses_existing_test_message_and_reserves_reruns(self):
+        from test_scheduled_sms_worker import load_worker
+        with patch.dict(sms.os.environ, {'GITHUB_ACTIONS':'true', 'GITHUB_EVENT_NAME':'workflow_dispatch',
+                'SMS_TEST_CONFIRMED':'true', 'GITHUB_RUN_ID':'12345',
+                'GITHUB_REPOSITORY':'example/research', 'GH_TOKEN':'dummy-only', 'ENABLE_REAL_SMS':'false'}):
+            worker=load_worker()
+            with patch.object(worker,'reserve_hour',side_effect=[1,None]) as reserve, \
+                 patch.object(worker,'report') as report, patch.object(worker.subprocess,'run') as inference, \
+                 patch.object(sms,'send_storm_sms') as storm:
+                worker.main(['--test-sms'])
+                worker.main(['--test-sms'])
+                self.assertEqual(reserve.call_args.args[0],'CONNECTIVITY-TEST-RUN-12345')
+                report.assert_called_once()
+                inference.assert_not_called()
+                storm.assert_not_called()
+        self.client.messages.create.assert_called_once()
+        self.assertEqual(self.client.messages.create.call_args.kwargs['body'],
+                         'MATATIELE SMS TEST. Notification service check only. NO WEATHER WARNING.')
+
+    def test_manual_actions_connectivity_rejects_schedule_unconfirmed_and_multiple_recipients(self):
+        from test_scheduled_sms_worker import load_worker
+        base={'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'workflow_dispatch','SMS_TEST_CONFIRMED':'true',
+              'GITHUB_RUN_ID':'12345','GITHUB_REPOSITORY':'example/research','GH_TOKEN':'dummy-only'}
+        for changed in [{'GITHUB_EVENT_NAME':'schedule'}, {'SMS_TEST_CONFIRMED':'false'},
+                        {'GITHUB_ACTIONS':'false'}, {'GITHUB_RUN_ID':''},
+                        {'ALERT_TO_NUMBERS':'+15555550101,+15555550102'}, {'TWILIO_AUTH_TOKEN':''}]:
+            with self.subTest(changed=changed),patch.dict(sms.os.environ,{**base,**changed}):
+                worker=load_worker()
+                with patch.object(worker,'reserve_hour') as reserve:
+                    with self.assertRaises(worker.WorkerError):worker.main(['--test-sms'])
+                    reserve.assert_not_called()
+        self.client.messages.create.assert_not_called()
+
+    def test_connectivity_uncertainty_does_not_retry_within_worker(self):
+        from test_scheduled_sms_worker import load_worker
+        with patch.dict(sms.os.environ, {'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'workflow_dispatch',
+                'SMS_TEST_CONFIRMED':'true','GITHUB_RUN_ID':'12345',
+                'GITHUB_REPOSITORY':'example/research','GH_TOKEN':'dummy-only'}):
+            worker=load_worker()
+            self.client.messages.create.side_effect=TimeoutError('private provider error')
+            with patch.object(worker,'reserve_hour',side_effect=[1,None]),patch.object(worker,'report'):
+                with self.assertRaises(worker.WorkerError):worker.main(['--test-sms'])
+                worker.main(['--test-sms'])
+        self.client.messages.create.assert_called_once()
+
     def test_actual_twilio_constructor_is_used_without_network(self):
         with patch('twilio.rest.Client') as constructor:
             # setUp replaces the factory; call its original implementation through
