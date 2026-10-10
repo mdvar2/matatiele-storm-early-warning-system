@@ -1,21 +1,37 @@
-# Matatiele Smart Resilient Storm Early Warning System
+# 🌩️ Matatiele Smart Resilient Storm Early Warning System
 
 **Academic research title:** Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele
 
 **Status: Beta prototype** | Matatiele, Eastern Cape, South Africa
 
-This project investigates a forecast-driven, machine-learning approach to next-hour
-storm warning for communities with limited connectivity. The current Beta combines
-an ERA5-trained Random Forest, genuine ECMWF forecasts from Open-Meteo, a Streamlit
-dashboard, and guarded Twilio SMS integration. It also includes an independent
-GitHub Actions worker that currently runs in **dry-run mode only**.
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Random Forest](https://img.shields.io/badge/Model-Random_Forest-19764B)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+![Research Beta prototype](https://img.shields.io/badge/Research-Beta_prototype-D49A00)
 
-The Beta is an Internet-dependent research system. Raspberry Pi deployment, local
-sensors, offline operation and field validation in Matatiele remain future work.
-It is not an official meteorological warning service or a substitute for SAWS and
-local disaster-management guidance.
+## Project overview
 
-## Current implementation
+Rural communities around Matatiele can face limited access to timely weather
+information and warnings. This research investigates how machine learning and
+resilient communication could support next-hour storm awareness in such settings.
+
+The current Beta combines an ERA5-trained Random Forest, genuine ECMWF forecasts
+from Open-Meteo, an interactive Streamlit dashboard and guarded Twilio integration.
+An independent GitHub Actions worker performs **dry-run checks only**. It retrieves
+and predicts using real data without sending SMS.
+
+The Beta remains Internet-dependent. Sensors, Raspberry Pi deployment, offline
+operation and field validation are future work, not demonstrated capabilities.
+
+## Quick navigation
+
+[Overview](#project-overview) | [Key features](#key-features) | [Architecture](#system-architecture) | [Dashboard](#dashboard-showcase)
+
+[Alpha to Beta](#alpha-to-beta-progression) | [Model and data](#machine-learning-and-weather-data) | [SMS and automation](#sms-and-automation) | [Testing](#testing-and-validation)
+
+[Getting started](#getting-started) | [Project structure](#project-structure) | [Limitations](#limitations-and-future-work) | [Disclaimer](#academic-disclaimer)
+
+## Key features
 
 | Component | Current behavior |
 | --- | --- |
@@ -30,7 +46,127 @@ local disaster-management guidance.
 | Worker schedule | Hourly at minute 12 UTC; manual workflow dispatch also available |
 | Verified automation scope | One successful manual GitHub Actions dry-run; recurring execution and unattended SMS delivery unproven |
 
-### Model and data pipeline
+## System architecture
+
+Historical training produces the saved model. Live inference uses that model;
+regional rainfall visualisation remains a separate forecast product.
+
+```mermaid
+flowchart TB
+    subgraph Training["Historical model development"]
+        ERA5["ERA5 reanalysis"] --> PREP["Preprocessing and engineered next-hour labels"]
+        PREP --> TRAIN["29-feature Random Forest training"]
+        TRAIN --> MODEL["Saved model and selected 35% threshold"]
+    end
+
+    subgraph Inference["Genuine live inference and weather display"]
+        ECMWF["ECMWF forecasts via Open-Meteo"] --> INPUT["Unit conversion and 29-feature preparation"]
+        MODEL --> RF["Random Forest inference"]
+        INPUT --> RF
+        RF --> RESULT["Validated next-hour probability"]
+        RESULT --> DASH["Dashboard risk display and CSV history"]
+        ECMWF --> REGIONAL["Actual regional precipitation samples"]
+        REGIONAL --> MAP["Interpolated rainfall map and six-hour weather chart"]
+    end
+
+    subgraph Notifications["Guarded SMS decision pathways"]
+        RESULT --> WARN{"Fresh prediction at or above 35%?"}
+        WARN -->|No| NONE["No warning submission"]
+        WARN -->|Dashboard path| ADMIN["Administrator confirmation and local duplicate check"]
+        ADMIN --> TWILIO["Twilio submission; delivery not confirmed"]
+        WARN -->|Worker path| MODE{"Live mode approved and enabled?"}
+        MODE -->|"No - current configuration"| DRY["Dry-run output; no SMS or issue writes"]
+        MODE -->|"Future live path"| LEDGER["Serialized GitHub issue reservation"]
+        LEDGER -->|"New reservation only"| TWILIO
+    end
+```
+
+Dashboard refreshes require an open app session. The independent worker does not.
+Failed or stale inputs are ineligible for warning submission; saved dashboard
+results remain explicitly labelled outdated.
+
+## Dashboard showcase
+
+Run [16_dashboard.py](16_dashboard.py) for the current interface.
+
+> **Screenshot showcase:** Ready for genuine dashboard captures. No screenshots
+> are embedded until reviewed image assets are available in the repository.
+
+The overview, rainfall map and risk-analysis views are the suggested captures.
+
+The navy sidebar
+provides native expand/collapse controls and these seven navigation pages:
+
+| Page | Purpose |
+| --- | --- |
+| Dashboard | Status cards, rainfall map, forecast weather, next-hour risk gauge, six-hour precipitation chart, regional detail map and recent predictions |
+| Live Forecast | Forecast-input and prediction-valid timestamps, CAPE, dew point and the genuine six-hour weather forecast |
+| Weather Map | Regional forecast rainfall on satellite imagery with geographic reference labels |
+| Risk Analysis | Actual next-hour result versus the 35% threshold, input conditions and recorded prediction history |
+| Historical Data | Genuine saved prediction records and weather conditions from CSV history |
+| Alerts & Notifications | Warning/SMS configuration status and administrator-only SMS log access |
+| About | Research purpose, model/data sources, Beta status and disclaimer |
+
+### Satellite maps and rainfall
+
+Maps use Esri World Imagery with the World Boundaries and Places reference layer.
+Reference tiles supply available place names and boundaries as users zoom and pan.
+Matatiele retains its prominent marker; Cedarville, Mount Fletcher, Maluti (Maloti)
+and Qacha's Nek have additional local labels. These towns are geographic references,
+not additional Random Forest prediction locations.
+
+Regional forecasts sample 25 surrounding ECMWF grid locations and a separate
+Matatiele request. The rainfall overlay uses the returned grid coordinates and
+bilinear spatial interpolation only to visualise values between the real samples.
+The semi-transparent millimetre legend, valid hour and retrieval time describe
+**forecast precipitation, not live radar or observed rainfall**. Interpolation
+does not add independently measured weather data or fine-scale forecast skill.
+
+The six-hour chart contains actual precipitation forecasts. The Random Forest
+produces a separate next-hour result; the dashboard does not invent a six-hour
+model-probability forecast. Risk-history charts display recorded predictions.
+
+<details>
+<summary><strong>Refresh, timestamps and saved history</strong></summary>
+
+While an app session is open, the dashboard checks refresh state every minute.
+Weather/model retrieval is due approximately every 15 minutes and when the input
+hour changes. **Refresh weather and model** provides a manual option, limited to
+one request per minute. Navigation itself does not send SMS.
+
+The dashboard records genuine successful predictions in
+`outputs/model_live/prediction_history.csv`, retaining one record per prediction
+hour, and saves regional forecasts in `regional_ecmwf_forecast.csv`. These generated
+files are not committed to Git. Streamlit hosting may have an ephemeral filesystem;
+local CSV history is not a durable cloud database.
+
+Displayed timestamps use **SAST (UTC+2)**. Forecast retrieval time, forecast-input
+hour and next-hour prediction target are distinguished. The API response does not
+supply the ECMWF model-run issue time, so retrieval time is not labelled as issue
+time. Failed, expired, old or unverifiable results receive an explicit outdated-data
+warning. An unverified regional rainfall overlay is withheld; stale saved model
+results are not presented as current or eligible for dashboard warning SMS.
+
+</details>
+
+## Alpha-to-Beta progression
+
+| Area | Earlier Alpha scope | Current Beta scope |
+| --- | --- | --- |
+| Research status | Proof-of-concept software warning workflow | More complete research prototype with explicit validation boundaries |
+| Forecast/model interface | Initial historical-model and live-forecast integration | Existing 29-feature model retained; finite-input, feature-order and freshness safeguards |
+| Dashboard | Initial monitoring and demonstration interface | Seven consistently styled pages, responsive header/sidebar, risk/history views |
+| Geographic display | Limited geographic presentation | Satellite rainfall maps, genuine grid interpolation, nearby labels and zoom-dependent reference tiles |
+| Simulation | Presentation warning demonstration | Administrator-only isolated preview; real products remain genuine and SMS is disabled in preview |
+| Notifications | Twilio warning/test functions and local duplicate log | Existing functions retained; explicit dashboard confirmation and an independent dry-run worker |
+| Cross-run protection | Local execution/log protection | Implemented GitHub issue reservations with serialized workflow execution; mocked safety verification |
+| Automation evidence | Concept and manual component demonstrations | Successful local real-data dry-run and one manually dispatched Actions run |
+| Low-connectivity hardware | Proposed sensors/edge architecture | Still future work; Beta remains Internet-dependent |
+
+The comparison describes implementation maturity, not independently established
+forecast skill, improved storm-detection accuracy or proven community warning impact.
+
+## Machine learning and weather data
 
 Historical development proceeds through loading, cleaning, merging, storm labelling,
 feature engineering, model preparation and training. ERA5 is reanalysis, not a
@@ -81,61 +217,9 @@ in millimetres and is not a separate prediction for every labelled town.
 The threshold controls the warning decision; it does not replace or fabricate the
 model probability. Invalid or unavailable probabilities are marked unavailable.
 
-## Streamlit dashboard
+## SMS and automation
 
-Run [16_dashboard.py](16_dashboard.py) for the current interface. The navy sidebar
-provides native expand/collapse controls and these seven navigation pages:
-
-| Page | Purpose |
-| --- | --- |
-| Dashboard | Status cards, rainfall map, forecast weather, next-hour risk gauge, six-hour precipitation chart, regional detail map and recent predictions |
-| Live Forecast | Forecast-input and prediction-valid timestamps, CAPE, dew point and the genuine six-hour weather forecast |
-| Weather Map | Regional forecast rainfall on satellite imagery with geographic reference labels |
-| Risk Analysis | Actual next-hour result versus the 35% threshold, input conditions and recorded prediction history |
-| Historical Data | Genuine saved prediction records and weather conditions from CSV history |
-| Alerts & Notifications | Warning/SMS configuration status and administrator-only SMS log access |
-| About | Research purpose, model/data sources, Beta status and disclaimer |
-
-### Satellite maps and rainfall
-
-Maps use Esri World Imagery with the World Boundaries and Places reference layer.
-Reference tiles supply available place names and boundaries as users zoom and pan.
-Matatiele retains its prominent marker; Cedarville, Mount Fletcher, Maluti (Maloti)
-and Qacha's Nek have additional local labels. These towns are geographic references,
-not additional Random Forest prediction locations.
-
-Regional forecasts sample 25 surrounding ECMWF grid locations and a separate
-Matatiele request. The rainfall overlay uses the returned grid coordinates and
-bilinear spatial interpolation only to visualise values between the real samples.
-The semi-transparent millimetre legend, valid hour and retrieval time describe
-**forecast precipitation, not live radar or observed rainfall**. Interpolation
-does not add independently measured weather data or fine-scale forecast skill.
-
-The six-hour chart contains actual precipitation forecasts. The Random Forest
-produces a separate next-hour result; the dashboard does not invent a six-hour
-model-probability forecast. Risk-history charts display recorded predictions.
-
-### Refresh, timestamps and saved history
-
-While an app session is open, the dashboard checks refresh state every minute.
-Weather/model retrieval is due approximately every 15 minutes and when the input
-hour changes. **Refresh weather and model** provides a manual option, limited to
-one request per minute. Navigation itself does not send SMS.
-
-The dashboard records genuine successful predictions in
-`outputs/model_live/prediction_history.csv`, retaining one record per prediction
-hour, and saves regional forecasts in `regional_ecmwf_forecast.csv`. These generated
-files are not committed to Git. Streamlit hosting may have an ephemeral filesystem;
-local CSV history is not a durable cloud database.
-
-Displayed timestamps use **SAST (UTC+2)**. Forecast retrieval time, forecast-input
-hour and next-hour prediction target are distinguished. The API response does not
-supply the ECMWF model-run issue time, so retrieval time is not labelled as issue
-time. Failed, expired, old or unverifiable results receive an explicit outdated-data
-warning. An unverified regional rainfall overlay is withheld; stale saved model
-results are not presented as current or eligible for dashboard warning SMS.
-
-## Administrator controls and Twilio SMS
+### Administrator-confirmed dashboard actions
 
 The dashboard uses a password-protected administrator session with login/logout.
 `ADMIN_PASSWORD` is read from Streamlit secrets or the process environment. This
@@ -171,7 +255,7 @@ pending and delivered submissions block repeats; failed/undelivered statuses are
 retryable under the existing SMS logic. A missing or lost local log weakens this
 protection. Provider acceptance is not proof of delivery: check Twilio Console.
 
-## Independent scheduled worker
+### Independent scheduled worker
 
 [18_scheduled_sms_worker.py](18_scheduled_sms_worker.py) runs the same genuine
 forecast/model inference in a separate process. It does not require the dashboard
@@ -191,7 +275,8 @@ variable is set. Future live execution requires both `--live` and
 `ENABLE_REAL_SMS=true`, within GitHub Actions. No live activation is instructed or
 implied by this README; explicit project-owner approval is required first.
 
-### Durable warning-hour reservations
+<details>
+<summary><strong>Cross-run reservations, recovery and limitations</strong></summary>
 
 The worker's implemented live path uses GitHub repository issues rather than relying
 on a fresh runner's local CSV:
@@ -221,7 +306,53 @@ still overlap; do not operate both live-send paths simultaneously. Neither a led
 reservation nor a successful workflow proves that a handset received a warning.
 See [README_SMS_SETUP.md](README_SMS_SETUP.md) for implementation-specific setup.
 
-## Installation and local execution
+</details>
+
+## Testing and validation
+
+Evidence recorded on **10 October 2026**:
+
+| Check | Evidence | What it establishes |
+| --- | --- | --- |
+| Worker safety tests | **10 tests passed** in `tests/test_scheduled_sms_worker.py` | Mocked failure handling, dry-run isolation and cross-instance reservation behavior; no real SMS |
+| Compilation and static checks | Python compilation, worker/dashboard type checks and workflow linting passed during Beta implementation | Syntax, typing and configuration checks; not forecast accuracy or delivery validation |
+| Local genuine dry-run | **5.33%** storm probability, **35%** threshold, target **19:00 SAST on 10 October 2026**; below threshold | Actual local ECMWF retrieval and Random Forest inference; no SMS or issue writes |
+| GitHub manual workflow | [Scheduled Matatiele Storm Check, run #1](https://github.com/mdvar2/matatiele-storm-early-warning-system/actions/runs/38069340892): `workflow_dispatch`, **success**, **43 seconds** | One successful manual workflow execution; not proof of recurring scheduling or unattended SMS |
+| Dashboard/browser checks | Seven pages, sidebar navigation, header visibility, desktop/mobile layouts and map pan/zoom checked during Beta development | Interface behavior in the tested environments; not a field deployment |
+
+Run #1 was verified through public GitHub run metadata: start
+`2026-10-10T16:51:23Z`, completion update `2026-10-10T16:52:06Z`. The 43 seconds
+refer to the workflow run, not an SMS delivery time. The local dry-run's 5.33% is
+one model output, not an accuracy metric or a permanent current-risk value.
+
+<details>
+<summary><strong>Safety-test coverage and non-sending check commands</strong></summary>
+
+The 10 isolated safety tests cover default/explicit dry-run, live activation gating,
+forecast execution failure, invalid forecast values/timestamps, missing credentials,
+below-threshold behavior, sanitized GitHub errors, duplicate protection across fresh
+worker instances after success/failure, closed-issue pagination and failed reservations.
+Forecast requests, inference and SMS calls are mocked for these tests. Test fixtures
+never enter operational forecasts or dashboard charts.
+
+To rerun non-sending checks:
+
+```powershell
+python -m py_compile 16_dashboard.py 12_live_forecast_and_predict.py sms_alert.py 18_scheduled_sms_worker.py
+python -m unittest discover -s tests -p test_scheduled_sms_worker.py -v
+```
+
+</details>
+
+**Implemented but not yet demonstrated:** real unattended SMS delivery, end-to-end
+live GitHub issue reservations with actual Twilio submission, recurring hourly
+execution, delivery to every configured recipient, long-term uptime and field
+performance in Matatiele. The current evidence must not be described as fully
+validated SMS automation.
+
+## Getting started
+
+### Install and run locally
 
 Use **Python 3.12**, matching the current GitHub workflow. From the repository root:
 
@@ -263,7 +394,8 @@ runs dry-run, including when a warning threshold is reached. No push or pull-req
 trigger is configured. The hourly schedule is implemented, but recurring execution
 has not yet been demonstrated in the recorded evidence.
 
-### Secure configuration
+<details>
+<summary><strong>Secure configuration</strong></summary>
 
 | Setting | Purpose |
 | --- | --- |
@@ -286,61 +418,9 @@ secrets populated. Keep actual credentials, administrator passwords, recipient
 lists and private SMS logs out of commits, README examples, screenshots and public
 issues. `.env` and `.streamlit/secrets.toml` are ignored by this repository.
 
-## Testing evidence and validation boundaries
+</details>
 
-Evidence recorded on **10 October 2026**:
-
-| Check | Evidence | What it establishes |
-| --- | --- | --- |
-| Worker safety tests | **10 tests passed** in `tests/test_scheduled_sms_worker.py` | Mocked failure handling, dry-run isolation and cross-instance reservation behavior; no real SMS |
-| Compilation and static checks | Python compilation, worker/dashboard type checks and workflow linting passed during Beta implementation | Syntax, typing and configuration checks; not forecast accuracy or delivery validation |
-| Local genuine dry-run | **5.33%** storm probability, **35%** threshold, target **19:00 SAST on 10 October 2026**; below threshold | Actual local ECMWF retrieval and Random Forest inference; no SMS or issue writes |
-| GitHub manual workflow | [Scheduled Matatiele Storm Check, run #1](https://github.com/mdvar2/matatiele-storm-early-warning-system/actions/runs/38069340892): `workflow_dispatch`, **success**, **43 seconds** | One successful manual workflow execution; not proof of recurring scheduling or unattended SMS |
-| Dashboard/browser checks | Seven pages, sidebar navigation, header visibility, desktop/mobile layouts and map pan/zoom checked during Beta development | Interface behavior in the tested environments; not a field deployment |
-
-Run #1 was verified through public GitHub run metadata: start
-`2026-10-10T16:51:23Z`, completion update `2026-10-10T16:52:06Z`. The 43 seconds
-refer to the workflow run, not an SMS delivery time. The local dry-run's 5.33% is
-one model output, not an accuracy metric or a permanent current-risk value.
-
-The 10 isolated safety tests cover default/explicit dry-run, live activation gating,
-forecast execution failure, invalid forecast values/timestamps, missing credentials,
-below-threshold behavior, sanitized GitHub errors, duplicate protection across fresh
-worker instances after success/failure, closed-issue pagination and failed reservations.
-Forecast requests, inference and SMS calls are mocked for these tests. Test fixtures
-never enter operational forecasts or dashboard charts.
-
-To rerun non-sending checks:
-
-```powershell
-python -m py_compile 16_dashboard.py 12_live_forecast_and_predict.py sms_alert.py 18_scheduled_sms_worker.py
-python -m unittest discover -s tests -p test_scheduled_sms_worker.py -v
-```
-
-**Implemented but not yet demonstrated:** real unattended SMS delivery, end-to-end
-live GitHub issue reservations with actual Twilio submission, recurring hourly
-execution, delivery to every configured recipient, long-term uptime and field
-performance in Matatiele. The current evidence must not be described as fully
-validated SMS automation.
-
-## Alpha-to-Beta development
-
-| Area | Earlier Alpha scope | Current Beta scope |
-| --- | --- | --- |
-| Research status | Proof-of-concept software warning workflow | More complete research prototype with explicit validation boundaries |
-| Forecast/model interface | Initial historical-model and live-forecast integration | Existing 29-feature model retained; finite-input, feature-order and freshness safeguards |
-| Dashboard | Initial monitoring and demonstration interface | Seven consistently styled pages, responsive header/sidebar, risk/history views |
-| Geographic display | Limited geographic presentation | Satellite rainfall maps, genuine grid interpolation, nearby labels and zoom-dependent reference tiles |
-| Simulation | Presentation warning demonstration | Administrator-only isolated preview; real products remain genuine and SMS is disabled in preview |
-| Notifications | Twilio warning/test functions and local duplicate log | Existing functions retained; explicit dashboard confirmation and an independent dry-run worker |
-| Cross-run protection | Local execution/log protection | Implemented GitHub issue reservations with serialized workflow execution; mocked safety verification |
-| Automation evidence | Concept and manual component demonstrations | Successful local real-data dry-run and one manually dispatched Actions run |
-| Low-connectivity hardware | Proposed sensors/edge architecture | Still future work; Beta remains Internet-dependent |
-
-The comparison describes implementation maturity, not independently established
-forecast skill, improved storm-detection accuracy or proven community warning impact.
-
-## Repository guide
+## Project structure
 
 | File/directory | Role |
 | --- | --- |
@@ -380,5 +460,13 @@ forecast skill, improved storm-detection accuracy or proven community warning im
 - **Field assessment:** community engagement, multilingual warnings, disaster-management
   coordination and field validation in Matatiele remain future research activities.
 
-This academic Beta supports continued research and controlled demonstrations.
-Safety decisions should follow official SAWS and local disaster-management guidance.
+## Academic disclaimer
+
+**This is an academic research Beta prototype, not an official SAWS warning service.**
+It must not replace warnings from recognised meteorological authorities or local
+disaster-management guidance. Model probabilities are uncertain estimates of an
+engineered storm class, and simulation previews are demonstration-only.
+
+The completed checks demonstrate software behavior in tested environments. They
+do not establish forecast accuracy, reliable unattended SMS delivery or community
+warning effectiveness. Safety decisions should follow official guidance.
