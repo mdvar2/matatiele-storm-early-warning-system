@@ -1,0 +1,52 @@
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Credentials and environment variables
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*credentials*.json
+*secret*.json
+
+# Historical and processed datasets
+data/
+
+# Ignore all generated outputs by default
+outputs/*
+
+# Keep the live model directory available
+!outputs/model_live/
+
+# Ignore everything inside it by default
+outputs/model_live/*
+
+# Include only the files needed for live inference
+!outputs/model_live/random_forest_live_model.pkl
+!outputs/model_live/live_model_features.txt
+!outputs/model_live/live_selected_threshold.txt
+
+# Exclude generated predictions, histories and SMS logs
+*.log
+*.csv
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
