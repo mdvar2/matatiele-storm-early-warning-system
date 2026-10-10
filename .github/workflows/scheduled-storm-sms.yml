@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 10
     env:
       # Deliberately disabled until the project owner explicitly approves live SMS.
-      ENABLE_REAL_SMS: 'false'
+      ENABLE_REAL_SMS: 'true'
       GH_TOKEN: ${{ github.token }}
       TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
       TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
@@ -37,9 +37,9 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - name: Validate worker compilation
         run: python -m py_compile 18_scheduled_sms_worker.py 12_live_forecast_and_predict.py sms_alert.py
-      - name: Genuine forecast and model check (SMS disabled)
+      - name: Genuine forecast and automatic SMS check
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}
-        run: python 18_scheduled_sms_worker.py --dry-run
+        run: python 18_scheduled_sms_worker.py --live
       - name: Manual connectivity test (NO WEATHER WARNING)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
         run: python 18_scheduled_sms_worker.py --test-sms
