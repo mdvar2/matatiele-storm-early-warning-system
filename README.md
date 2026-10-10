@@ -6,6 +6,12 @@
 
 **[Explore the live dashboard](https://matatiele-storm-early-warning-system-jykpxrtek3zejgqfk5xvr.streamlit.app)**
 
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?logo=streamlit&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-Random%20Forest-F7931E?logo=scikitlearn&logoColor=white)
+![Twilio](https://img.shields.io/badge/Twilio-SMS-F22F46?logo=twilio&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Scheduled%20Checks-2088FF?logo=githubactions&logoColor=white)
+
 ## Overview
 
 A machine-learning research prototype designed to support earlier awareness of potential storms in Matatiele. It combines historical weather data, genuine forecasts, a Random Forest classifier, interactive weather visualisations and SMS integration. The current Beta is Internet-dependent; resilient offline deployment is a future research goal.
@@ -21,36 +27,18 @@ A machine-learning research prototype designed to support earlier awareness of p
 
 ## System Architecture
 
-Historical model training is separate from live prediction. Forecast rainfall maps and Random Forest storm probabilities are different outputs.
+A simplified overview of the current Beta. Historical ERA5 data was used to train the model; live predictions use ECMWF forecasts. SMS warning delivery remains disabled.
 
 ```mermaid
-%%{init: {"themeVariables": {"fontSize": "12px"}, "flowchart": {"nodeSpacing": 16, "rankSpacing": 22, "padding": 8, "diagramPadding": 8, "useMaxWidth": true}}}%%
-flowchart TB
-    subgraph Training["Historical model development"]
-        ERA5["ERA5 reanalysis"] --> PREP["Preprocessing and engineered next-hour labels"]
-        PREP --> TRAIN["29-feature Random Forest training"]
-        TRAIN --> MODEL["Saved model and selected 35% threshold"]
-    end
-
-    subgraph Inference["Genuine live inference and weather display"]
-        ECMWF["ECMWF forecasts via Open-Meteo"] --> INPUT["Unit conversion and 29-feature preparation"]
-        MODEL --> RF["Random Forest inference"]
-        INPUT --> RF
-        RF --> RESULT["Validated next-hour probability"]
-        RESULT --> DASH["Dashboard risk display and CSV history"]
-        ECMWF --> REGIONAL["Actual regional precipitation samples"]
-        REGIONAL --> MAP["Interpolated rainfall map and six-hour weather chart"]
-    end
-
-    subgraph Notifications["Guarded SMS decision pathways"]
-        RESULT --> WARN{"Fresh prediction at or above 35%?"}
-        WARN -->|No| NONE["No warning submission"]
-        ADMIN["Administrator-confirmed test SMS; no weather warning"] --> TWILIO["Twilio submission; delivery not confirmed"]
-        WARN -->|Worker path| MODE{"Live mode approved and enabled?"}
-        MODE -->|"No - current configuration"| DRY["Dry-run output; no SMS or issue writes"]
-        MODE -->|"Future live path"| LEDGER["Serialized GitHub issue reservation"]
-        LEDGER -->|"New reservation only"| TWILIO
-    end
+%%{init: {"themeVariables": {"fontSize": "11px"}, "flowchart": {"nodeSpacing": 12, "rankSpacing": 16, "padding": 4, "diagramPadding": 4, "useMaxWidth": true}}}%%
+flowchart LR
+    A["ERA5 training data"] --> B["Saved Random Forest"]
+    C["ECMWF / Open-Meteo"] --> D["Live prediction"]
+    B --> D
+    D --> E["Streamlit dashboard"]
+    C --> F["Rainfall map"]
+    D --> G["GitHub Actions check"]
+    G --> H["SMS disabled / dry-run"]
 ```
 
 ## Getting Started
