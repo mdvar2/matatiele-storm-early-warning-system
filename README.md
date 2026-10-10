@@ -52,6 +52,7 @@ Historical training produces the saved model. Live inference uses that model;
 regional rainfall visualisation remains a separate forecast product.
 
 ```mermaid
+%%{init: {"themeVariables": {"fontSize": "12px"}, "flowchart": {"nodeSpacing": 16, "rankSpacing": 22, "padding": 8, "diagramPadding": 8, "useMaxWidth": true}}}%%
 flowchart TB
     subgraph Training["Historical model development"]
         ERA5["ERA5 reanalysis"] --> PREP["Preprocessing and engineered next-hour labels"]
@@ -354,21 +355,129 @@ validated SMS automation.
 
 ### Install and run locally
 
-Use **Python 3.12**, matching the current GitHub workflow. From the repository root:
+Use Windows PowerShell and run these steps in order. The prototype loads the
+saved model; none of these commands retrains it.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m streamlit run 16_dashboard.py
-```
+1. **Clone the repository and open the project directory.** Git must be installed.
 
-The default local address is `http://localhost:8501` unless another port is selected.
-Existing requirements pin `scikit-learn==1.9.0` for model compatibility. Ensure the
-three model artifacts listed above are present; normal dashboard execution loads
-the existing model and does not retrain it. Historical datasets/generated training
-outputs are excluded from Git and are needed separately only for reproducing model
-development.
+   ```powershell
+   git clone https://github.com/mdvar2/matatiele-storm-early-warning-system.git
+   cd matatiele-storm-early-warning-system
+   ```
+
+2. **Verify Python 3.12 is installed.** This matches the GitHub Actions workflow.
+   If the command fails, install Python 3.12 with the Windows Python launcher,
+   then reopen PowerShell.
+
+   ```powershell
+   py -3.12 --version
+   ```
+
+3. **Create and activate a virtual environment.** Confirm that its `python`
+   command reports Python 3.12 before continuing.
+
+   ```powershell
+   py -3.12 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python --version
+   ```
+
+4. **Install the repository dependencies.** Run this from the project root with
+   the virtual environment active. `requirements.txt` pins
+   `scikit-learn==1.9.0` for compatibility with the saved Random Forest.
+
+   ```powershell
+   python -m pip install -r requirements.txt
+   python -m pip check
+   ```
+
+5. **Check all three saved model artifacts.** Each command must find its file.
+   If one is missing, restore the existing artifact from the repository before
+   running inference; do not train a replacement as part of this setup.
+
+   ```powershell
+   Get-Item .\outputs\model_live\random_forest_live_model.pkl
+   Get-Item .\outputs\model_live\live_model_features.txt
+   Get-Item .\outputs\model_live\live_selected_threshold.txt
+   ```
+
+   Historical datasets/generated training outputs are excluded from Git and are
+   needed separately only for reproducing model development. They are not needed
+   to run the Beta with its saved model.
+
+6. **Launch the dashboard.** Keep this terminal open and visit
+   [http://localhost:8501](http://localhost:8501), or the local URL printed by
+   Streamlit. Stop the server with **Ctrl+C** when finished.
+
+   ```powershell
+   python -m streamlit run 16_dashboard.py
+   ```
+
+   Internet access is required for genuine ECMWF/Open-Meteo forecasts and map
+   tiles. The dashboard automatically requests forecasts and model predictions;
+   its **Refresh weather and model** button provides a manual refresh. Ordinary
+   viewing and refresh do not send SMS. Administrator credentials are not needed
+   to view the seven pages; leave SMS buttons unused during reproduction tests.
+
+7. **Run genuine live inference safely, if testing the pipeline separately.**
+   Use a second PowerShell terminal in the same project directory and activate
+   the same environment before running either inference command.
+
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   python 12_live_forecast_and_predict.py --dashboard-next-hour
+   ```
+
+   This is the option used by the dashboard. It selects genuine ECMWF inputs at
+   the next complete hourly boundary and computes the existing model's target
+   one hour after that input. For example, at 20:29 SAST, the input is 21:00 and
+   the target ends at 22:00, covering 21:00 to 22:00. It is not a rolling 60-minute
+   window. Successful results are saved to
+   `outputs/model_live/dashboard_forecast_prediction.csv`.
+
+   To test the existing current-hour selection used by the scheduled worker:
+
+   ```powershell
+   python 12_live_forecast_and_predict.py
+   ```
+
+   That command uses the current hourly input and its one-hour-ahead target,
+   saving `outputs/model_live/live_forecast_prediction.csv`. At 20:29 SAST its
+   20:00 input targets the hour ending at 21:00, an interval already underway.
+   Both commands retrieve actual forecasts, use the saved 29-feature model and
+   35% threshold, and send no SMS. Successful runs update prediction CSVs, not
+   trained model artifacts. Probabilities vary with real forecasts; failed
+   retrievals do not create substitute weather values.
+
+8. **Run all available tests without sending SMS.** Use the activated environment
+   from the project root, either in the second terminal or after stopping
+   Streamlit.
+
+   ```powershell
+   python -m unittest discover -s tests -v
+   ```
+
+   The current suite has 29 tests covering forecast timing/target alignment and
+   scheduled-worker safeguards. It uses deterministic timing fixtures and mocked
+   external operations; it does not request forecasts, submit SMS or write GitHub
+   reservations. Passing tests verify these checks, not storm-forecast accuracy.
+
+9. **Troubleshoot common local setup issues.**
+
+   - **Activation blocked:** use the virtual environment's interpreter directly,
+     for example `.\.venv\Scripts\python.exe -m streamlit run 16_dashboard.py`;
+     replace `python` with that path for installation, inference and tests too.
+     No PowerShell execution-policy change is required.
+   - **Missing packages or model-version warnings:** confirm `python --version`
+     reports 3.12, rerun the requirements installation in the virtual environment,
+     and check `python -m pip check`. Keep the repository's scikit-learn pin.
+   - **Port 8501 already in use:** run
+     `python -m streamlit run 16_dashboard.py --server.port 8502` and open
+     [http://localhost:8502](http://localhost:8502).
+   - **Unavailable forecasts or tiles:** check Internet access and retry the
+     manual refresh. Saved results labelled outdated are not current forecasts.
+   - **Import errors after updating source files:** stop Streamlit with **Ctrl+C**
+     and restart it from the active environment to reload imported modules.
 
 A verified public Streamlit deployment address is not currently recorded here.
 Use the local command above; a public link will be added only after its deployment
