@@ -42,7 +42,7 @@ operation and field validation are future work, not demonstrated capabilities.
 | Warning threshold | Selected probability threshold of **0.35 (35%)** |
 | Dashboard | Seven Streamlit pages, satellite maps, forecast conditions, risk analysis and CSV history |
 | Regional rainfall | ECMWF IFS 0.25-degree samples, interpolated for display; not radar |
-| SMS | Administrator-confirmed dashboard actions; separate scheduled worker implemented but sending disabled |
+| SMS | Administrator test SMS; Actions-only storm warnings, with real sending disabled |
 | Worker schedule | Hourly at minute 12 UTC; manual workflow dispatch also available |
 | Verified automation scope | One successful manual GitHub Actions dry-run; recurring execution and unattended SMS delivery unproven |
 
@@ -73,8 +73,7 @@ flowchart TB
     subgraph Notifications["Guarded SMS decision pathways"]
         RESULT --> WARN{"Fresh prediction at or above 35%?"}
         WARN -->|No| NONE["No warning submission"]
-        WARN -->|Dashboard path| ADMIN["Administrator confirmation and local duplicate check"]
-        ADMIN --> TWILIO["Twilio submission; delivery not confirmed"]
+        ADMIN["Administrator-confirmed test SMS; no weather warning"] --> TWILIO["Twilio submission; delivery not confirmed"]
         WARN -->|Worker path| MODE{"Live mode approved and enabled?"}
         MODE -->|"No - current configuration"| DRY["Dry-run output; no SMS or issue writes"]
         MODE -->|"Future live path"| LEDGER["Serialized GitHub issue reservation"]
@@ -159,7 +158,7 @@ results are not presented as current or eligible for dashboard warning SMS.
 | Dashboard | Initial monitoring and demonstration interface | Seven consistently styled pages, responsive header/sidebar, risk/history views |
 | Geographic display | Limited geographic presentation | Satellite rainfall maps, genuine grid interpolation, nearby labels and zoom-dependent reference tiles |
 | Simulation | Presentation warning demonstration | Administrator-only isolated preview; real products remain genuine and SMS is disabled in preview |
-| Notifications | Twilio warning/test functions and local duplicate log | Existing functions retained; explicit dashboard confirmation and an independent dry-run worker |
+| Notifications | Twilio warning/test functions and local duplicate log | Existing functions retained; administrator test SMS and an Actions-only dry-run warning worker |
 | Cross-run protection | Local execution/log protection | Implemented GitHub issue reservations with serialized workflow execution; mocked safety verification |
 | Automation evidence | Concept and manual component demonstrations | Successful local real-data dry-run and one manually dispatched Actions run |
 | Low-connectivity hardware | Proposed sensors/edge architecture | Still future work; Beta remains Internet-dependent |
@@ -228,33 +227,30 @@ Beta password gate is not a complete production identity/access-management syste
 
 Authenticated administrators can:
 
-- Review a current threshold-crossing prediction and explicitly confirm a warning SMS.
+- Review current predictions; storm-warning submission is reserved for GitHub Actions.
 - Use **Send Test SMS** to submit a clearly labelled connectivity test when configured.
 - View the limited SMS status log.
 - Enable the controlled **Administrator test preview**.
 
-Opening or refreshing the public dashboard does not automatically send SMS. A real
-warning action requires administrator access, configured Twilio values, a fresh
-prediction at or above 35%, and explicit confirmation. Test SMS is a real provider
-submission, distinct from the safe worker dry-run, and must not be clicked during
-routine non-destructive testing.
+The dashboard cannot send storm-warning SMS. GitHub Actions is the sole warning
+sender, preventing dashboard/worker duplicate warnings. Administrator test SMS
+remains a real provider submission, clearly labelled NO WEATHER WARNING, and must
+not be clicked during routine non-destructive testing.
 
 The controlled simulation preview shows a clearly labelled fixed **60% test
 probability** separately from the genuine results. It does not change weather
 inputs, maps, model output or history, and dashboard SMS controls are disabled
-while that preview is enabled. The worker never uses simulation helpers. Legacy
-validation scripts that can send simulated SMS are not safe dry-run commands.
+while that preview is enabled. The worker never uses simulation helpers. `17_validate_warning_pipeline.py` now runs only mocked worker safety tests and cannot send SMS.
 
 [sms_alert.py](sms_alert.py) supports multiple comma-separated E.164 recipients
 through `ALERT_TO_NUMBERS`; repeated recipient entries are deduplicated. The current
 warning text is a short Matatiele model-risk alert with safety guidance, not a
 complete report of every forecast variable.
 
-Dashboard duplicate protection uses a canonical UTC prediction-hour key and
-recipient-specific entries in `outputs/model_live/sms_alert_log.csv`. Accepted,
-pending and delivered submissions block repeats; failed/undelivered statuses are
-retryable under the existing SMS logic. A missing or lost local log weakens this
-protection. Provider acceptance is not proof of delivery: check Twilio Console.
+The local CSV records recipient-specific submissions. Uncertain outcomes block
+retries. Partial submissions report `partial` rather than complete success; the
+worker fails the run and retains its GitHub reservation for manual review.
+Provider acceptance is not proof of delivery: check Twilio Console.
 
 ### Independent scheduled worker
 
@@ -302,8 +298,8 @@ live run. Ledger/API failure, missing credentials, invalid/nonfinite forecast
 values, an unexpected source/location/threshold, or an expired target stops sending.
 Raw provider errors are not posted publicly.
 
-Dashboard manual sending and worker reservations use **separate ledgers**. They can
-still overlap; do not operate both live-send paths simultaneously. Neither a ledger
+Dashboard test records and worker reservations remain separate, but the dashboard
+weather-warning path has been removed. Do not introduce another live warning sender. Neither a ledger
 reservation nor a successful workflow proves that a handset received a warning.
 See [README_SMS_SETUP.md](README_SMS_SETUP.md) for implementation-specific setup.
 
@@ -515,10 +511,13 @@ has not yet been demonstrated in the recorded evidence.
 | `ALERT_TO_NUMBERS` | Comma-separated, consented E.164 recipient numbers |
 | `GITHUB_REPOSITORY`, `GH_TOKEN` | Repository and workflow token for the future live ledger path |
 
-The current `sms_alert.py` reads Twilio configuration from **environment variables**;
-putting Twilio values only in `st.secrets` does not configure that module. A `.env`
-file is not automatically loaded by the current code. Use an appropriate environment
-or secrets manager that injects those variables into the process. Do not place real
+For the local dashboard, copy `.streamlit/secrets.toml.example` to the ignored
+`.streamlit/secrets.toml` file and fill in all five values privately. Restart
+Streamlit after editing. Dashboard administrator and Twilio settings use this
+file with environment-variable fallback; command-line/GitHub Actions workers
+retain environment-based configuration. A `.env` file is not automatically loaded.
+The local TOML file is plaintext, not encrypted; restrict access and avoid sharing
+or publishing it. Do not place real
 credentials in shell commands that will be shared or retained in public evidence.
 
 The GitHub workflow references repository Actions secrets for the four Twilio

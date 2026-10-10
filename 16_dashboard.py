@@ -26,11 +26,12 @@ import pandas as pd
 import streamlit as st
 import pydeck as pdk
 from pydeck.types import String
+from app_config import get_setting
 from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
                              interval_label, timestamp_labels, next_complete_hour_endpoint,
                              is_next_complete_prediction,
                              TARGET_LABEL, GENERATED_LABEL)
-from sms_alert import sms_is_configured, send_storm_sms, send_test_sms
+from sms_alert import sms_is_configured, send_test_sms
 
 BASE = Path(__file__).resolve().parent
 MODEL = BASE / 'outputs' / 'model_live'
@@ -135,13 +136,7 @@ st.html("""<style>
 </style>""")
 
 def secret(name):
-    try:
-        value = st.secrets.get(name, '')
-        if value:
-            return str(value)
-    except Exception:
-        pass
-    return os.environ.get(name, '')
+    return get_setting(name)
 
 def run_prediction() -> bool:
     """Run only inference: this script imports no SMS module."""
@@ -542,14 +537,11 @@ hist=load_history()
 if stale:
     st.warning('⚠️ **Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or no longer matches the next complete hourly interval. This is NOT a current storm-risk assessment. Refresh is required.')
 
-# Only an explicit admin click can send SMS. Opening a dashboard never sends messages.
+# GitHub Actions is the sole storm-warning sender; dashboard tests remain manual.
 if is_admin and test_mode:
     st.info('Simulation is a local preview. SMS sending is disabled in presentation test mode.')
-if is_admin and not test_mode and not stale and threshold<=real_prob<=1 and configured:
-    st.error('A current saved prediction meets the warning threshold. Review the forecast before sending.')
-    if st.button('Confirm and send storm warning SMS',key='live_sms'):
-        result=send_storm_sms(prediction_for=str(latest.get('prediction_for','')),storm_probability=real_prob,threshold=threshold,temperature_c=number(latest,'temperature_c'),precipitation_mm=number(latest,'precipitation_mm'),cape=number(latest,'cape'),wind_gust_ms=number(latest,'wind_gust_ms'),location='Matatiele')
-        (st.success if result.get('sent') else st.warning)('SMS accepted by provider.' if result.get('sent') else 'SMS not sent. Review private server logs.')
+if is_admin and not test_mode and not stale and threshold<=real_prob<=1:
+    st.error('The current prediction meets the warning threshold. Storm warning SMS is reserved for the scheduled GitHub Actions worker; this dashboard cannot send weather warnings.')
 
 # Show real data in every chart. Do not invent a spatial rainfall/radar field.
 forecast_status='OUTDATED' if stale else 'FIXED HOURLY TARGET'
@@ -687,7 +679,7 @@ if page=='📱 Alerts & Notifications':
     a,b,c=st.columns(3)
     with a:status_card('Dashboard warnings','OUTDATED' if stale else 'AVAILABLE','Saved forecast freshness' if stale else 'Genuine forecast risk classification','warning','amber' if stale else 'green',compact=True)
     with b:status_card('Twilio SMS','CONFIGURED' if configured else 'NOT CONFIGURED','Credential presence, not delivery confirmation','wifi','blue' if configured else 'gray',compact=True)
-    with c:status_card('SMS trigger','ADMIN ONLY','Explicit administrator confirmation required','model','blue',compact=True)
+    with c:status_card('SMS trigger','ACTIONS ONLY','Storm warnings: scheduled worker; test SMS: administrator','model','blue',compact=True)
     if is_admin and SMS_LOG.exists():
         try:
             log=pd.read_csv(SMS_LOG)

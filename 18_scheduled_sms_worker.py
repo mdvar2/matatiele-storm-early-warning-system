@@ -167,7 +167,7 @@ def main(argv=None):
             cape=float(row['cape']), wind_gust_ms=float(row['wind_gust_ms']),
             location='Matatiele')
         status = result.get('status', 'unknown')
-        if status not in {'sent','duplicate','failed','not_configured','not_required'}:
+        if status not in {'sent','partial','duplicate','failed','not_configured','not_required'}:
             status='unknown'
         # Never publish phone numbers, message bodies or Twilio secrets to issues.
         report(issue, f'SMS submission status: **{status}**. Check Twilio Console for delivery.')

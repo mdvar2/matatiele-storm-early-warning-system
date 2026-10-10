@@ -9,7 +9,7 @@
 - `tests/test_scheduled_sms_worker.py`: isolated safety and durable-ledger tests.
 
 The dashboard, trained model, 29 features, 35% threshold, forecast pipeline and
-existing `sms_alert.py` are unchanged. Generated CSV files remain ignored by Git.
+SMS message wording are preserved. Generated CSV files remain ignored by Git.
 The ZIP's compiled bytecode is deliberately excluded.
 
 ## First dry-run test
@@ -67,8 +67,7 @@ Only safe status strings are posted; credentials and recipients are excluded.
 
 The list/create operation relies on this serialized workflow and is not an atomic
 transaction for independent concurrent callers. Do not launch another live worker
-outside this concurrency group. The dashboard's manual SMS path uses its existing
-local log and does not share the GitHub ledger: avoid simultaneous live-send paths.
+outside this concurrency group. GitHub Actions is the sole real storm-warning sender. The dashboard has no storm-warning send button or function call; administrators retain the explicit Send Test SMS connectivity check, labelled NO WEATHER WARNING. Dashboard forecast refreshes never send weather warnings. Its local CSV records test submissions; it is not a shared Actions reservation store.
 GitHub schedules can be delayed and are not a guaranteed emergency delivery service.
 Submitted SMS is not confirmed delivery; check Twilio Console separately.
 
@@ -81,3 +80,30 @@ python -m unittest discover -s tests -p test_scheduled_sms_worker.py -v
 
 Tests mock all forecast, GitHub and SMS side effects. Test fixtures are only test
 inputs; they never replace genuine production forecasts or enter the dashboard.
+
+## Final Beta sender policy and configuration
+
+Real storm warnings are reserved for `18_scheduled_sms_worker.py` inside the single
+`matatiele-hourly-sms` Actions concurrency group. Do not add another warning sender
+or invoke the low-level SMS warning helper independently. The worker refreshes
+ECMWF, requires a fresh valid Matatiele Random Forest output, and uses the existing
+35% threshold. Both live activation gates remain disabled in the workflow.
+
+A partial submission returns `partial`, with submitted and failed/uncertain counts;
+it never reports complete success. The worker marks the run unsuccessful and
+retains its issue reservation for manual review. Timeout, unknown acceptance or
+missing provider ID must never cause an automatic retry. Review each recipient
+in Twilio Console before any recovery; issue reservations are not delivery receipts.
+Do not delete reservations to force retries, which can duplicate accepted messages.
+
+Local administrator/Twilio settings belong in ignored `.streamlit/secrets.toml`.
+The committed `.streamlit/secrets.toml.example` contains empty placeholders only.
+Actions uses encrypted repository secrets `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, and `ALERT_TO_NUMBERS`; CLI workers do
+not load the local Streamlit file. Never commit the private file or secret values.
+
+`17_validate_warning_pipeline.py` now runs only mocked worker safety tests; its
+former simulated 60% warning submission is removed. It cannot submit SMS.
+Successful API submission remains distinct from confirmed recipient delivery.
+Live automatic SMS still requires explicit owner approval and deployment of the
+reviewed local files together, including `app_config.py`.
