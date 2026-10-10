@@ -1,914 +1,384 @@
-# 🌩️ Matatiele Smart Resilient Storm Early Warning System
+# Matatiele Smart Resilient Storm Early Warning System
 
-## Research Project
+**Academic research title:** Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele
 
-**Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele**
+**Status: Beta prototype** | Matatiele, Eastern Cape, South Africa
 
----
+This project investigates a forecast-driven, machine-learning approach to next-hour
+storm warning for communities with limited connectivity. The current Beta combines
+an ERA5-trained Random Forest, genuine ECMWF forecasts from Open-Meteo, a Streamlit
+dashboard, and guarded Twilio SMS integration. It also includes an independent
+GitHub Actions worker that currently runs in **dry-run mode only**.
 
-## 1. Project Overview
+The Beta is an Internet-dependent research system. Raspberry Pi deployment, local
+sensors, offline operation and field validation in Matatiele remain future work.
+It is not an official meteorological warning service or a substitute for SAWS and
+local disaster-management guidance.
 
-The Matatiele Smart Resilient Storm Early Warning System is an Alpha proof-of-concept developed to demonstrate a machine-learning-based approach to next-hour storm prediction and early warning for Matatiele, South Africa.
+## Current implementation
 
-The system uses historical weather data to train a Random Forest machine-learning model and uses live forecast data to generate operational storm predictions.
+| Component | Current behavior |
+| --- | --- |
+| Model | Random Forest classifier, 300 trees, 29 live-compatible input features |
+| Historical development data | ERA5 atmospheric reanalysis; project preprocessing and engineered storm labels |
+| Operational inputs | Actual ECMWF forecast variables retrieved through Open-Meteo |
+| Prediction horizon | One next-hour storm prediction from the current forecast-input hour |
+| Warning threshold | Selected probability threshold of **0.35 (35%)** |
+| Dashboard | Seven Streamlit pages, satellite maps, forecast conditions, risk analysis and CSV history |
+| Regional rainfall | ECMWF IFS 0.25-degree samples, interpolated for display; not radar |
+| SMS | Administrator-confirmed dashboard actions; separate scheduled worker implemented but sending disabled |
+| Worker schedule | Hourly at minute 12 UTC; manual workflow dispatch also available |
+| Verified automation scope | One successful manual GitHub Actions dry-run; recurring execution and unattended SMS delivery unproven |
 
-The current Alpha prototype demonstrates the complete warning workflow:
+### Model and data pipeline
 
-1. Retrieve live weather forecast data.
-2. Prepare the required model features.
-3. Run the trained Random Forest classifier.
-4. Calculate the probability of storm conditions.
-5. Compare the probability against the warning threshold.
-6. Display the risk through the Streamlit dashboard.
-7. Send an SMS warning when the warning threshold is reached.
+Historical development proceeds through loading, cleaning, merging, storm labelling,
+feature engineering, model preparation and training. ERA5 is reanalysis, not a
+network of local Matatiele sensors. The training target is an engineered next-hour
+storm label, rather than independently verified local storm events.
 
-The broader research project focuses on designing a resilient warning system suitable for low-connectivity environments.
+[14_train_live_compatible_random_forest.py](14_train_live_compatible_random_forest.py)
+uses a chronological 80/20 train/test split and a balanced Random Forest with
+300 trees. [15_evaluate_live_threshold.py](15_evaluate_live_threshold.py) compares
+thresholds and selects the best F1 threshold in its evaluation data. The currently
+saved decision threshold is **35%**. Independent threshold validation and
+probability calibration remain research tasks; no accuracy, precision, recall,
+F1 or ROC-AUC result is asserted here without its supporting evaluation record.
 
-The current Alpha validates the software, machine-learning, dashboard, and SMS-warning components of this architecture. A future full deployment would extend the system with local weather sensors, edge processing, local storage, and communication mechanisms suitable for environments where Internet connectivity is unreliable.
-
----
-
-## 2. Problem Statement
-
-Communities in rural and low-connectivity environments may have limited access to timely weather information and early-warning services.
-
-Severe weather can create risks to:
-
-- people;
-- livestock;
-- agriculture;
-- infrastructure;
-- transport;
-- communication systems; and
-- local economic activities.
-
-The purpose of this project is therefore to investigate how machine learning and resilient warning technologies can be combined to provide useful storm early warnings for communities such as Matatiele.
-
----
-
-## 3. Project Objectives
-
-The main objectives of the project are to:
-
-- develop a machine-learning model capable of identifying potential storm conditions;
-- use historical weather information for model training;
-- use live forecast information for operational predictions;
-- estimate next-hour storm probability;
-- classify storm risk based on the predicted probability;
-- provide a simple and understandable early-warning dashboard;
-- deliver SMS notifications when warning conditions are detected;
-- prevent duplicate SMS warnings for the same prediction period;
-- provide a controlled testing environment for demonstrating warning behaviour;
-- investigate an architecture suitable for low-connectivity environments; and
-- establish a foundation for future integration with local weather sensors and edge-computing devices.
-
----
-
-## 4. Current Alpha Implementation
-
-The current system is an **Alpha proof-of-concept**.
-
-It currently implements:
-
-- Random Forest machine learning;
-- historical ERA5 weather data processing;
-- live Open-Meteo / ECMWF forecast retrieval;
-- next-hour storm prediction;
-- storm probability estimation;
-- risk-level classification;
-- a configurable warning threshold;
-- a Streamlit monitoring dashboard;
-- prediction history;
-- automatic SMS warning logic;
-- Twilio SMS integration;
-- duplicate-warning protection;
-- manual test SMS functionality; and
-- controlled Presentation Test Mode.
-
-The Alpha demonstrates that the main prediction-to-warning workflow can operate successfully.
-
----
-
-## 5. Current Alpha Architecture
+The deployed artifacts are:
 
 ```text
-       Historical ERA5 Data
-               |
-               v
-      Data Preparation
-               |
-               v
-      Feature Engineering
-               |
-               v
-     Random Forest Training
-               |
-               v
-        Trained Model
-
-
-LIVE OPERATION
-==============
-
-Open-Meteo / ECMWF Forecast
-               |
-               v
-      Feature Preparation
-               |
-               v
-      Random Forest Model
-               |
-               v
-       Storm Probability
-               |
-               v
-      Risk Classification
-               |
-               v
-      35% Alert Threshold
-               |
-          +----+----+
-          |         |
-          v         v
-     Dashboard    SMS Warning
-                    |
-                    v
-                  Twilio
+outputs/model_live/random_forest_live_model.pkl
+outputs/model_live/live_model_features.txt
+outputs/model_live/live_selected_threshold.txt
 ```
 
----
-
-## 6. Machine-Learning Model
-
-The prediction system uses a **Random Forest classifier**.
-
-Random Forest was selected because it is suitable for classification problems involving multiple environmental variables and can model nonlinear relationships between weather conditions.
-
-The model is trained using historical weather observations and generates a probability representing the likelihood of storm conditions.
-
-### Model
-
-```text
-Algorithm: Random Forest Classifier
-Number of Trees: 300
-Prediction Type: Binary storm classification
-Prediction Horizon: Next hour
-```
-
-The dashboard uses the probability generated by the Random Forest model to determine the current storm risk.
-
-The warning threshold is currently configured at:
-
-```text
-35%
-```
-
-When the storm probability reaches or exceeds this threshold, the system treats the prediction as a storm-warning condition.
-
----
-
-## 7. Risk Classification
-
-The dashboard divides storm probability into four operational risk categories.
-
-| Probability | Risk Level |
-|---|---|
-| 0–9% | LOW |
-| 10–19% | ELEVATED |
-| 20–34% | MODERATE |
-| 35% and above | WARNING |
-
-The **35% warning threshold** is displayed on the Prediction History graph so that the relationship between model probability and warning activation can be clearly observed.
-
-The threshold is part of the warning decision layer and does not manually replace the Random Forest prediction.
-
----
-
-## 8. Weather Data
-
-### Historical Data
-
-Historical weather data used during model development originates from:
-
-```text
-ERA5
-```
-
-The historical datasets are used for:
-
-- cleaning;
-- preprocessing;
-- feature engineering;
-- storm labelling;
-- training;
-- testing; and
-- evaluation of the Random Forest classifier.
-
-### Live Forecast Data
-
-The Alpha system uses:
-
-```text
-Open-Meteo / ECMWF forecast data
-```
-
-for operational next-hour prediction.
-
-The live forecast variables displayed on the dashboard include weather measurements such as:
-
-- temperature;
-- dew point;
-- cloud cover;
-- precipitation;
-- showers;
-- CAPE;
-- wind speed;
-- wind gust; and
-- mean sea-level pressure.
-
-The exact feature set used by the machine-learning model is prepared by the project's feature-processing pipeline.
-
----
-
-## 9. Dashboard
-
-The user interface is developed using **Streamlit**.
-
-The dashboard is designed to provide a simple early-warning interface rather than exposing unnecessary machine-learning complexity to the end user.
-
-The main dashboard displays:
-
-- live forecast status;
-- Random Forest status;
-- current risk level;
-- last update time;
-- storm probability;
-- alert threshold;
-- temperature;
-- wind gust;
-- next-hour storm risk;
-- forecast input time;
-- prediction valid time;
-- current forecast conditions;
-- warning-delivery status;
-- prediction history; and
-- SMS notification status.
-
-The interface uses visual risk indicators to make warning information easier to understand.
-
----
-
-## 10. Prediction History
-
-The system maintains a prediction history showing previous storm predictions.
-
-The history includes information such as:
-
-- prediction time;
-- storm probability;
-- prediction status;
-- temperature;
-- CAPE; and
-- wind gust.
-
-The Prediction History graph uses a fixed:
-
-```text
-0% – 100%
-```
-
-probability scale.
-
-A visible line at:
-
-```text
-35%
-```
-
-shows the warning threshold.
-
-This makes it possible to visually identify when a predicted storm probability approaches or exceeds the warning level.
-
----
-
-## 11. SMS Warning System
-
-The system integrates with **Twilio** for SMS delivery.
-
-When the Random Forest prediction reaches the configured warning threshold, the notification pipeline can automatically send an SMS warning to configured recipients.
-
-The SMS warning can include information such as:
-
-- storm probability;
-- warning threshold;
-- prediction validity period;
-- temperature;
-- rainfall;
-- CAPE;
-- wind gust; and
-- location.
-
-### Automatic Warning Logic
-
-```text
-Random Forest Prediction
-          |
-          v
-   Storm Probability
-          |
-          v
-Probability >= 35% ?
-       /       \
-     NO         YES
-     |           |
-     v           v
-No SMS      Check Duplicate
-                 |
-                 v
-          Warning already sent?
-              /       \
-            YES        NO
-             |          |
-             v          v
-          Do not      Send SMS
-          resend       warning
-```
-
----
-
-## 12. Duplicate-Warning Protection
-
-The system includes duplicate-warning protection.
-
-This prevents the same storm warning from being repeatedly sent for the same prediction period.
-
-For example:
-
-```text
-First warning attempt:
-Status: SENT
-
-Second attempt for same prediction:
-Status: DUPLICATE
-SMS not sent again
-```
-
-This feature reduces unnecessary repeated alerts and SMS usage.
-
----
-
-## 13. Presentation Test Mode
-
-The dashboard contains a controlled **Presentation Test Mode**.
-
-This mode exists because real storm conditions cannot be guaranteed during a system demonstration.
-
-When enabled, the interface can demonstrate how the system responds to a simulated storm-warning condition.
-
-Example test values include:
-
-```text
-Storm Probability: 60%
-Warning Threshold: 35%
-Temperature: 23.5 °C
-Precipitation: 8.4 mm
-CAPE: 1450 J/kg
-Wind Gust: 18.0 m/s
-```
-
-Because:
-
-```text
-60% >= 35%
-```
-
-the interface demonstrates a storm-warning state.
-
-### Important
-
-Presentation Test Mode:
-
-- does NOT retrain the Random Forest model;
-- does NOT modify the real live forecast;
-- does NOT change the production model;
-- does NOT represent an actual weather warning; and
-- is clearly identified as a controlled simulation.
-
-Its purpose is only to demonstrate the warning workflow safely.
-
----
-
-## 14. Test SMS
-
-The dashboard also provides a:
-
-```text
-Send Test SMS
-```
-
-function.
-
-This allows SMS configuration to be verified without waiting for a real storm prediction.
-
-A test SMS is different from an automatic storm warning.
-
-The button is intended for:
-
-- configuration testing;
-- demonstrations;
-- verifying Twilio connectivity; and
-- confirming that the destination phone can receive messages.
-
----
-
-## 15. Automatic Warning Pipeline Validation
-
-A controlled validation script is included to test the automatic warning pipeline.
-
-The validation checks:
-
-1. SMS configuration.
-2. Simulated storm conditions.
-3. Warning-threshold logic.
-4. Automatic SMS delivery.
-5. Duplicate-warning protection.
-
-A successful test produces a result similar to:
-
-```text
-VALIDATION RESULT
-=================
-
-SUCCESS
-
-Automatic SMS warning delivery works.
-Duplicate-warning protection works.
-
-The automatic notification pipeline passed the test.
-```
-
-The validation process does not modify the trained Random Forest model or live forecast files.
-
----
-
-## 16. Low-Connectivity Research Focus
-
-The research project specifically targets:
-
-**low-connectivity environments.**
-
-The current Alpha still depends on Internet connectivity for certain services, particularly:
-
-- retrieving live forecast information; and
-- communicating with the Twilio SMS service.
-
-Therefore, the current implementation should not be described as a completely offline system.
-
-Instead, it serves as a proof-of-concept for the machine-learning and warning workflow that could later be deployed using a more resilient architecture.
-
----
-
-## 17. Intended Full Low-Connectivity Architecture
-
-A future deployment could use local weather sensors and edge computing.
-
-```text
-       Local Weather Sensors
-                |
-                v
-         Edge Device
-                |
-                v
-      Local Data Processing
-                |
-                v
-      Random Forest Model
-                |
-                v
-       Storm Probability
-                |
-                v
-       Warning Decision
-                |
-         +------+------+
-         |             |
-         v             v
-    Local Display    GSM / SMS
-         |
-         v
-    Local Storage
-         |
-         v
-Cloud Synchronisation
-when connectivity returns
-```
-
-In this architecture, the trained machine-learning model could operate locally on an edge device.
-
-Local sensors could provide weather observations without requiring continuous access to an Internet weather API.
-
----
-
-## 18. Proposed Sensor Integration
-
-With suitable hardware and funding, the full system could be extended with local environmental sensors.
-
-Potential measurements could include:
-
-- temperature;
-- humidity;
-- atmospheric pressure;
-- rainfall;
-- wind speed;
-- wind direction; and
-- other storm-related atmospheric measurements.
-
-The sensor data could be collected by a local edge-computing device and processed close to the community where the warning is required.
-
-This would reduce dependence on continuous Internet connectivity.
-
-### Important
-
-Local weather sensors are part of the **proposed future architecture** and are **not currently implemented in the Alpha prototype**.
-
----
-
-## 19. Resilience Strategy
-
-The intended resilient design would reduce reliance on continuous cloud connectivity.
-
-A future system could:
-
-- collect weather measurements locally;
-- store observations locally;
-- execute the trained Random Forest model on an edge device;
-- generate warnings locally;
-- deliver warnings through available communication channels;
-- continue collecting data during Internet outages; and
-- synchronise stored information when connectivity becomes available again.
-
-This architecture is intended to make the warning system more appropriate for rural and low-connectivity environments.
-
----
-
-## 20. Project Structure
-
-The project contains scripts for the different stages of the machine-learning and operational pipeline.
-
-Example structure:
-
-```text
-Matatiele_System/
-│
-├── 01_load_data.py
-├── 02_clean_data.py
-├── 03_create_labels.py
-├── 04_merge_data.py
-├── 05_feature_engineering.py
-├── 06_prepare_model_data.py
-├── 07_train_random_forest.py
-├── 08_evaluate_threshold.py
-├── 09_predict_storm.py
-├── 10_predict.py
-├── 11_auto_update_and_predict.py
-├── 12_live_forecast_and_predict.py
-├── 14_train_live_compatible_random_forest.py
-├── 15_evaluate_live_threshold.py
-├── 16_dashboard.py
-├── 17_validate_warning_pipeline.py
-├── sms_alert.py
-├── requirements.txt
-└── README.md
-```
-
-Additional generated datasets, models, prediction files, logs, and configuration files may also exist in the project directory.
-
----
-
-## 21. Installation
-
-### Requirements
-
-The system requires:
-
-```text
-Python 3.x
-```
-
-Install the project dependencies using:
+The 29 features comprise location coordinates, current forecast variables,
+calendar variables and previous-hour forecast variables. The exact names and
+order are defined in [live_model_features.txt](outputs/model_live/live_model_features.txt).
+The inference code checks feature count, feature order and finite numeric values
+against the saved model.
+
+[12_live_forecast_and_predict.py](12_live_forecast_and_predict.py) fetches genuine
+ECMWF forecasts from Open-Meteo, performs the existing unit conversions and feature
+preparation, and applies the trained model. It atomically saves a successful
+prediction to `outputs/model_live/live_forecast_prediction.csv`. A failed retrieval
+or inference does not turn an older CSV into a fresh assessment.
+
+The Random Forest probability is an estimate of the project's next-hour storm
+class, not a guarantee that a storm will occur. It is distinct from precipitation
+in millimetres and is not a separate prediction for every labelled town.
+
+### Risk classification
+
+| Model probability | Dashboard classification |
+| --- | --- |
+| Below 10% | LOW |
+| 10% to below 20% | ELEVATED |
+| 20% to below 35% | MODERATE |
+| 35% or above | WARNING |
+
+The threshold controls the warning decision; it does not replace or fabricate the
+model probability. Invalid or unavailable probabilities are marked unavailable.
+
+## Streamlit dashboard
+
+Run [16_dashboard.py](16_dashboard.py) for the current interface. The navy sidebar
+provides native expand/collapse controls and these seven navigation pages:
+
+| Page | Purpose |
+| --- | --- |
+| Dashboard | Status cards, rainfall map, forecast weather, next-hour risk gauge, six-hour precipitation chart, regional detail map and recent predictions |
+| Live Forecast | Forecast-input and prediction-valid timestamps, CAPE, dew point and the genuine six-hour weather forecast |
+| Weather Map | Regional forecast rainfall on satellite imagery with geographic reference labels |
+| Risk Analysis | Actual next-hour result versus the 35% threshold, input conditions and recorded prediction history |
+| Historical Data | Genuine saved prediction records and weather conditions from CSV history |
+| Alerts & Notifications | Warning/SMS configuration status and administrator-only SMS log access |
+| About | Research purpose, model/data sources, Beta status and disclaimer |
+
+### Satellite maps and rainfall
+
+Maps use Esri World Imagery with the World Boundaries and Places reference layer.
+Reference tiles supply available place names and boundaries as users zoom and pan.
+Matatiele retains its prominent marker; Cedarville, Mount Fletcher, Maluti (Maloti)
+and Qacha's Nek have additional local labels. These towns are geographic references,
+not additional Random Forest prediction locations.
+
+Regional forecasts sample 25 surrounding ECMWF grid locations and a separate
+Matatiele request. The rainfall overlay uses the returned grid coordinates and
+bilinear spatial interpolation only to visualise values between the real samples.
+The semi-transparent millimetre legend, valid hour and retrieval time describe
+**forecast precipitation, not live radar or observed rainfall**. Interpolation
+does not add independently measured weather data or fine-scale forecast skill.
+
+The six-hour chart contains actual precipitation forecasts. The Random Forest
+produces a separate next-hour result; the dashboard does not invent a six-hour
+model-probability forecast. Risk-history charts display recorded predictions.
+
+### Refresh, timestamps and saved history
+
+While an app session is open, the dashboard checks refresh state every minute.
+Weather/model retrieval is due approximately every 15 minutes and when the input
+hour changes. **Refresh weather and model** provides a manual option, limited to
+one request per minute. Navigation itself does not send SMS.
+
+The dashboard records genuine successful predictions in
+`outputs/model_live/prediction_history.csv`, retaining one record per prediction
+hour, and saves regional forecasts in `regional_ecmwf_forecast.csv`. These generated
+files are not committed to Git. Streamlit hosting may have an ephemeral filesystem;
+local CSV history is not a durable cloud database.
+
+Displayed timestamps use **SAST (UTC+2)**. Forecast retrieval time, forecast-input
+hour and next-hour prediction target are distinguished. The API response does not
+supply the ECMWF model-run issue time, so retrieval time is not labelled as issue
+time. Failed, expired, old or unverifiable results receive an explicit outdated-data
+warning. An unverified regional rainfall overlay is withheld; stale saved model
+results are not presented as current or eligible for dashboard warning SMS.
+
+## Administrator controls and Twilio SMS
+
+The dashboard uses a password-protected administrator session with login/logout.
+`ADMIN_PASSWORD` is read from Streamlit secrets or the process environment. This
+Beta password gate is not a complete production identity/access-management system.
+
+Authenticated administrators can:
+
+- Review a current threshold-crossing prediction and explicitly confirm a warning SMS.
+- Use **Send Test SMS** to submit a clearly labelled connectivity test when configured.
+- View the limited SMS status log.
+- Enable the controlled **Administrator test preview**.
+
+Opening or refreshing the public dashboard does not automatically send SMS. A real
+warning action requires administrator access, configured Twilio values, a fresh
+prediction at or above 35%, and explicit confirmation. Test SMS is a real provider
+submission, distinct from the safe worker dry-run, and must not be clicked during
+routine non-destructive testing.
+
+The controlled simulation preview shows a clearly labelled fixed **60% test
+probability** separately from the genuine results. It does not change weather
+inputs, maps, model output or history, and dashboard SMS controls are disabled
+while that preview is enabled. The worker never uses simulation helpers. Legacy
+validation scripts that can send simulated SMS are not safe dry-run commands.
+
+[sms_alert.py](sms_alert.py) supports multiple comma-separated E.164 recipients
+through `ALERT_TO_NUMBERS`; repeated recipient entries are deduplicated. The current
+warning text is a short Matatiele model-risk alert with safety guidance, not a
+complete report of every forecast variable.
+
+Dashboard duplicate protection uses a canonical UTC prediction-hour key and
+recipient-specific entries in `outputs/model_live/sms_alert_log.csv`. Accepted,
+pending and delivered submissions block repeats; failed/undelivered statuses are
+retryable under the existing SMS logic. A missing or lost local log weakens this
+protection. Provider acceptance is not proof of delivery: check Twilio Console.
+
+## Independent scheduled worker
+
+[18_scheduled_sms_worker.py](18_scheduled_sms_worker.py) runs the same genuine
+forecast/model inference in a separate process. It does not require the dashboard
+to be open, render maps, refresh regional forecast samples, or append dashboard
+prediction history. It validates a freshly retrieved single-row prediction before
+considering the warning threshold.
+
+[scheduled-storm-sms.yml](.github/workflows/scheduled-storm-sms.yml) uses Python 3.12,
+installs the existing requirements, checks compilation and runs the worker. It
+provides an hourly cron trigger (`12 * * * *`) and `workflow_dispatch` for a manual
+run. GitHub schedules are best-effort, can be delayed and depend on repository and
+Actions settings; they are not a guaranteed emergency notification service.
+
+**SMS sending remains disabled:** the workflow hard-codes `ENABLE_REAL_SMS: 'false'`
+and invokes `--dry-run`. The CLI also defaults to dry-run even if an environment
+variable is set. Future live execution requires both `--live` and
+`ENABLE_REAL_SMS=true`, within GitHub Actions. No live activation is instructed or
+implied by this README; explicit project-owner approval is required first.
+
+### Durable warning-hour reservations
+
+The worker's implemented live path uses GitHub repository issues rather than relying
+on a fresh runner's local CSV:
+
+1. The fixed `matatiele-hourly-sms` concurrency group serializes workflow executions.
+2. The worker checks all pages of issues, including closed issues, for the canonical
+   `[SMS-LEDGER]` prediction-hour title.
+3. An existing reservation blocks another submission for that hour.
+4. A new reservation is created **before** the Twilio function is called.
+5. Only safe submission status information is posted; recipients and credentials
+   are excluded. Dry-run creates no reservations or issue comments.
+
+This mechanism survives separate runners but is not a transactional delivery
+system. Its list/create sequence relies on workflow serialization; unrelated
+concurrent senders are not protected. Do not delete reservations or edit their
+titles. A failure, uncertain response, timeout or interruption after reservation
+requires manual review and receives no automatic retry. This conservative policy
+can suppress an unsent warning in exchange for reducing duplicate risk.
+
+Issues must be enabled and the workflow token needs `issues: write` for a future
+live run. Ledger/API failure, missing credentials, invalid/nonfinite forecast
+values, an unexpected source/location/threshold, or an expired target stops sending.
+Raw provider errors are not posted publicly.
+
+Dashboard manual sending and worker reservations use **separate ledgers**. They can
+still overlap; do not operate both live-send paths simultaneously. Neither a ledger
+reservation nor a successful workflow proves that a handset received a warning.
+See [README_SMS_SETUP.md](README_SMS_SETUP.md) for implementation-specific setup.
+
+## Installation and local execution
+
+Use **Python 3.12**, matching the current GitHub workflow. From the repository root:
 
 ```powershell
-pip install -r requirements.txt
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m streamlit run 16_dashboard.py
 ```
 
-The project uses Python libraries associated with:
+The default local address is `http://localhost:8501` unless another port is selected.
+Existing requirements pin `scikit-learn==1.9.0` for model compatibility. Ensure the
+three model artifacts listed above are present; normal dashboard execution loads
+the existing model and does not retrain it. Historical datasets/generated training
+outputs are excluded from Git and are needed separately only for reproducing model
+development.
 
-- data processing;
-- machine learning;
-- Streamlit;
-- forecast retrieval;
-- graphing;
-- model persistence; and
-- SMS communication.
+A verified public Streamlit deployment address is not currently recorded here.
+Use the local command above; a public link will be added only after its deployment
+address has been confirmed.
 
----
-
-## 22. Running the Dashboard
-
-Navigate to the project directory:
+### Safe dry-run
 
 ```powershell
-cd "C:\path\to\219010727_Gwinya"
+python 18_scheduled_sms_worker.py --dry-run
 ```
 
-Then run:
+This requests genuine forecasts and runs the model, updating the latest prediction
+CSV after successful inference. It sends no SMS, writes no GitHub issues and requires
+no Twilio credentials. Older saved predictions are rejected for warning decisions
+if retrieval fails. Do not expect a fixed probability: it changes with the forecast.
+
+### GitHub Actions execution
+
+Once the workflow and model artifacts are present on the repository's default
+branch, open **Actions > Scheduled Matatiele Storm Check > Run workflow**. Review
+the forecast/threshold/target output and conclusion. The current workflow always
+runs dry-run, including when a warning threshold is reached. No push or pull-request
+trigger is configured. The hourly schedule is implemented, but recurring execution
+has not yet been demonstrated in the recorded evidence.
+
+### Secure configuration
+
+| Setting | Purpose |
+| --- | --- |
+| `ADMIN_PASSWORD` | Dashboard administrator login; Streamlit secrets or process environment |
+| `TWILIO_ACCOUNT_SID` | Twilio account identifier |
+| `TWILIO_AUTH_TOKEN` | Twilio authentication secret |
+| `TWILIO_FROM_NUMBER` | Configured sender number |
+| `ALERT_TO_NUMBERS` | Comma-separated, consented E.164 recipient numbers |
+| `GITHUB_REPOSITORY`, `GH_TOKEN` | Repository and workflow token for the future live ledger path |
+
+The current `sms_alert.py` reads Twilio configuration from **environment variables**;
+putting Twilio values only in `st.secrets` does not configure that module. A `.env`
+file is not automatically loaded by the current code. Use an appropriate environment
+or secrets manager that injects those variables into the process. Do not place real
+credentials in shell commands that will be shared or retained in public evidence.
+
+The GitHub workflow references repository Actions secrets for the four Twilio
+settings and uses the provided GitHub token. Dry-run does not need those Twilio
+secrets populated. Keep actual credentials, administrator passwords, recipient
+lists and private SMS logs out of commits, README examples, screenshots and public
+issues. `.env` and `.streamlit/secrets.toml` are ignored by this repository.
+
+## Testing evidence and validation boundaries
+
+Evidence recorded on **10 October 2026**:
+
+| Check | Evidence | What it establishes |
+| --- | --- | --- |
+| Worker safety tests | **10 tests passed** in `tests/test_scheduled_sms_worker.py` | Mocked failure handling, dry-run isolation and cross-instance reservation behavior; no real SMS |
+| Compilation and static checks | Python compilation, worker/dashboard type checks and workflow linting passed during Beta implementation | Syntax, typing and configuration checks; not forecast accuracy or delivery validation |
+| Local genuine dry-run | **5.33%** storm probability, **35%** threshold, target **19:00 SAST on 10 October 2026**; below threshold | Actual local ECMWF retrieval and Random Forest inference; no SMS or issue writes |
+| GitHub manual workflow | [Scheduled Matatiele Storm Check, run #1](https://github.com/mdvar2/matatiele-storm-early-warning-system/actions/runs/38069340892): `workflow_dispatch`, **success**, **43 seconds** | One successful manual workflow execution; not proof of recurring scheduling or unattended SMS |
+| Dashboard/browser checks | Seven pages, sidebar navigation, header visibility, desktop/mobile layouts and map pan/zoom checked during Beta development | Interface behavior in the tested environments; not a field deployment |
+
+Run #1 was verified through public GitHub run metadata: start
+`2026-10-10T16:51:23Z`, completion update `2026-10-10T16:52:06Z`. The 43 seconds
+refer to the workflow run, not an SMS delivery time. The local dry-run's 5.33% is
+one model output, not an accuracy metric or a permanent current-risk value.
+
+The 10 isolated safety tests cover default/explicit dry-run, live activation gating,
+forecast execution failure, invalid forecast values/timestamps, missing credentials,
+below-threshold behavior, sanitized GitHub errors, duplicate protection across fresh
+worker instances after success/failure, closed-issue pagination and failed reservations.
+Forecast requests, inference and SMS calls are mocked for these tests. Test fixtures
+never enter operational forecasts or dashboard charts.
+
+To rerun non-sending checks:
 
 ```powershell
-streamlit run 16_dashboard.py
+python -m py_compile 16_dashboard.py 12_live_forecast_and_predict.py sms_alert.py 18_scheduled_sms_worker.py
+python -m unittest discover -s tests -p test_scheduled_sms_worker.py -v
 ```
 
-Streamlit should open the dashboard in a browser.
-
-The local address is normally:
-
-```text
-http://localhost:8501
-```
-
----
-
-## 23. Updating the Live Forecast
-
-The dashboard provides an:
-
-```text
-Update Live Forecast
-```
-
-control.
-
-This triggers the operational workflow used to retrieve updated forecast information and generate a new next-hour prediction.
-
-The resulting prediction is then reflected in the dashboard and prediction history.
-
----
-
-## 24. Twilio Configuration
-
-The SMS system requires Twilio configuration.
-
-The following values are required:
-
-```text
-TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN
-TWILIO_FROM_NUMBER
-ALERT_TO_NUMBERS
-```
-
-Example PowerShell configuration:
-
-```powershell
-$Env:TWILIO_ACCOUNT_SID="YOUR_ACCOUNT_SID"
-$Env:TWILIO_AUTH_TOKEN="YOUR_AUTH_TOKEN"
-$Env:TWILIO_FROM_NUMBER="+1XXXXXXXXXX"
-$Env:ALERT_TO_NUMBERS="+27XXXXXXXXX"
-```
-
-Then start the dashboard from the same environment:
-
-```powershell
-streamlit run 16_dashboard.py
-```
-
----
-
-## 25. Security
-
-Twilio credentials must **never** be hard-coded directly into source code that will be submitted or uploaded to a public repository.
-
-Do not include real values for:
-
-```text
-TWILIO_ACCOUNT_SID
-TWILIO_AUTH_TOKEN
-```
-
-in the README or source code.
-
-Credentials should be stored using:
-
-- environment variables;
-- a local `.env` file excluded from version control; or
-- another secure secrets-management mechanism.
-
-Example `.gitignore` entries:
-
-```text
-.env
-.streamlit/secrets.toml
-__pycache__/
-*.pyc
-```
-
-Any credentials accidentally exposed publicly should be rotated.
-
----
-
-## 26. SMS Configuration Persistence
-
-Environment variables entered only into a temporary terminal session may disappear when that terminal or VS Code session is closed.
-
-For development, credentials can instead be loaded from a local configuration mechanism such as a `.env` file.
-
-Example:
-
-```text
-TWILIO_ACCOUNT_SID=YOUR_ACCOUNT_SID
-TWILIO_AUTH_TOKEN=YOUR_AUTH_TOKEN
-TWILIO_FROM_NUMBER=YOUR_TWILIO_NUMBER
-ALERT_TO_NUMBERS=YOUR_DESTINATION_NUMBER
-```
-
-The `.env` file must remain private and should not be included in the submitted public source repository.
-
----
-
-## 27. System Testing
-
-The system has been tested at several levels.
-
-### Machine-Learning Testing
-
-The Random Forest model is evaluated using historical weather data.
-
-### Live Forecast Testing
-
-The operational pipeline retrieves forecast data and transforms it into the format required by the trained model.
-
-### Dashboard Testing
-
-The Streamlit dashboard displays:
-
-- model status;
-- live forecast information;
-- storm probability;
-- risk classification;
-- prediction history; and
-- warning status.
-
-### SMS Testing
-
-The SMS subsystem can be tested independently using the Send Test SMS control.
-
-### Automatic Warning Testing
-
-The automatic warning pipeline can be tested using the controlled validation script.
-
-### Duplicate Protection Testing
-
-Repeated attempts to send the same prediction warning are blocked.
-
-### Presentation Testing
-
-Presentation Test Mode demonstrates the warning state without modifying the real machine-learning model or live forecast.
-
----
-
-## 28. Current Limitations
-
-The current Alpha prototype has several limitations.
-
-### Internet Dependency
-
-Live forecast retrieval currently requires Internet connectivity.
-
-### Twilio Dependency
-
-Twilio SMS delivery requires connectivity to the Twilio service.
-
-### Sensor Integration
-
-Local weather sensors have not yet been integrated.
-
-### Edge Computing
-
-The Random Forest model currently runs on the development computer rather than a dedicated field edge device.
-
-### Geographic Scope
-
-The system is designed around the Matatiele case study and has not yet been validated for wider geographic deployment.
-
-### Alpha Development Stage
-
-The system remains a research proof-of-concept and should not replace official meteorological warning services.
-
----
-
-## 29. Future Improvements
-
-Future development could include:
-
-- integration of local weather sensors;
-- deployment on a Raspberry Pi or similar edge-computing device;
-- local/offline weather-data storage;
-- offline prediction capability;
-- automatic synchronisation when Internet connectivity returns;
-- direct GSM/SMS communication;
-- reduced dependence on cloud-based services;
-- integration of additional storm indicators;
-- expanded historical storm datasets;
-- improved probability calibration;
-- additional model evaluation;
-- support for multiple communities;
-- multilingual warning messages;
-- configurable warning recipients;
-- improved warning escalation levels;
-- mobile-friendly dashboard deployment; and
-- field testing in Matatiele.
-
----
-
-## 30. Relationship Between the Alpha and the Research Proposal
-
-The current Alpha should be understood as a validation of the core concept.
-
-### Current Alpha
-
-```text
-ERA5 historical data
-        +
-Live ECMWF forecast data
-        ↓
-Random Forest
-        ↓
-Storm probability
-        ↓
-Risk assessment
-        ↓
-Dashboard
-        ↓
-SMS warning
-```
-
-### Intended Full System
-
-```text
-Local sensors
-      ↓
-Edge processing
-      ↓
-Random Forest
-      ↓
-Local warning decision
-      ↓
-Dashboard / GSM / SMS
-      ↓
-Local storage
-      ↓
-Cloud synchronisation when available
-```
-
-The Alpha therefore validates the main intelligence and warning pipeline before investment in the physical sensor and edge-computing infrastructure required for full deployment.
-
----
-
-## 31. Important Disclaimer
-
-This project is an academic Alpha proof-of-concept.
-
-It is **not an official meteorological warning service** and should not be used as a replacement for warnings issued by recognised weather authorities.
-
-Presentation Test Mode produces simulated warning conditions for demonstration purposes only.
-
-The purpose of the project is to demonstrate the technical feasibility of combining machine learning, weather data, resilient system design, and automated warning delivery.
-
----
-
-## 32. Conclusion
-
-The Matatiele Smart Resilient Storm Early Warning System demonstrates an end-to-end machine-learning early-warning workflow.
-
-The Alpha prototype combines:
-
-```text
-Historical Weather Data
-        +
-Live Forecast Data
-        +
-Random Forest Machine Learning
-        +
-Next-Hour Prediction
-        +
-Risk Classification
-        +
-Dashboard Visualisation
-        +
-Automatic SMS Warning
-```
-
-The current implementation demonstrates the software-based warning pipeline, while the proposed future architecture extends the system toward local sensing, edge processing, offline operation, and resilient communication.
-
-This provides a foundation for the research objective of developing a:
-
-**Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele.**
+**Implemented but not yet demonstrated:** real unattended SMS delivery, end-to-end
+live GitHub issue reservations with actual Twilio submission, recurring hourly
+execution, delivery to every configured recipient, long-term uptime and field
+performance in Matatiele. The current evidence must not be described as fully
+validated SMS automation.
+
+## Alpha-to-Beta development
+
+| Area | Earlier Alpha scope | Current Beta scope |
+| --- | --- | --- |
+| Research status | Proof-of-concept software warning workflow | More complete research prototype with explicit validation boundaries |
+| Forecast/model interface | Initial historical-model and live-forecast integration | Existing 29-feature model retained; finite-input, feature-order and freshness safeguards |
+| Dashboard | Initial monitoring and demonstration interface | Seven consistently styled pages, responsive header/sidebar, risk/history views |
+| Geographic display | Limited geographic presentation | Satellite rainfall maps, genuine grid interpolation, nearby labels and zoom-dependent reference tiles |
+| Simulation | Presentation warning demonstration | Administrator-only isolated preview; real products remain genuine and SMS is disabled in preview |
+| Notifications | Twilio warning/test functions and local duplicate log | Existing functions retained; explicit dashboard confirmation and an independent dry-run worker |
+| Cross-run protection | Local execution/log protection | Implemented GitHub issue reservations with serialized workflow execution; mocked safety verification |
+| Automation evidence | Concept and manual component demonstrations | Successful local real-data dry-run and one manually dispatched Actions run |
+| Low-connectivity hardware | Proposed sensors/edge architecture | Still future work; Beta remains Internet-dependent |
+
+The comparison describes implementation maturity, not independently established
+forecast skill, improved storm-detection accuracy or proven community warning impact.
+
+## Repository guide
+
+| File/directory | Role |
+| --- | --- |
+| `01_load_data.py` through `08_evaluate_threshold.py` | Historical data preparation and earlier model/evaluation stages |
+| `03_create_labels.py`, `06_prepare_model_data.py` | Engineered storm labels and next-hour target preparation |
+| `14_train_live_compatible_random_forest.py`, `15_evaluate_live_threshold.py` | Live-compatible model training and threshold evaluation |
+| `12_live_forecast_and_predict.py` | Genuine ECMWF inference and latest prediction CSV |
+| `16_dashboard.py` | Current Streamlit Beta dashboard |
+| `sms_alert.py` | Existing Twilio submission, recipient handling and local duplicate log |
+| `18_scheduled_sms_worker.py` | Independent scheduled check with dry-run default and future live reservation path |
+| `.github/workflows/scheduled-storm-sms.yml` | Manual/hourly Actions workflow, currently hard-disabled for SMS |
+| `tests/test_scheduled_sms_worker.py` | Ten isolated worker safety tests |
+| `outputs/model_live/` | Tracked model artifacts and locally generated prediction/history/SMS files |
+| `README_SMS_SETUP.md` | Detailed worker setup and reservation limitations |
+| `requirements.txt` | Runtime dependencies |
+
+## Limitations and future work
+
+- **Connectivity:** current forecasts, Esri tiles, Twilio and GitHub depend on network
+  services. Showing saved data with a warning is not autonomous offline forecasting.
+- **Scientific validation:** historical reanalysis and engineered storm labels are
+  proxies for local events. Forecast/reanalysis differences, probability calibration,
+  independent evaluation, false alarms and missed storms need further assessment.
+- **Spatial scope:** regional precipitation interpolation cannot resolve weather below
+  its source grid resolution. Only Matatiele has the displayed next-hour model result.
+- **Persistence and scheduling:** CSV history can be lost on ephemeral hosts. GitHub
+  schedules are best-effort; a persistent operational store and monitored scheduler
+  would be needed for stronger continuity.
+- **Notification reliability:** delivery callbacks, recipient reachability, auditing,
+  unified dashboard/worker deduplication and safe manual recovery remain to be validated
+  or improved. Reservations deliberately favor avoiding repeats over automatic retries.
+- **Security and operations:** stronger authentication, monitoring, access controls,
+  consent management and operational procedures are needed before wider deployment.
+- **Future low-connectivity deployment:** Raspberry Pi/edge inference, local sensors,
+  offline storage/operation, reconnection synchronization and resilient GSM communication
+  remain proposed work, with sensor-to-model feature compatibility to be established.
+- **Field assessment:** community engagement, multilingual warnings, disaster-management
+  coordination and field validation in Matatiele remain future research activities.
+
+This academic Beta supports continued research and controlled demonstrations.
+Safety decisions should follow official SAWS and local disaster-management guidance.
