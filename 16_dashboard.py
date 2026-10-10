@@ -26,11 +26,16 @@ import pandas as pd
 import streamlit as st
 import pydeck as pdk
 from pydeck.types import String
+from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
+                             interval_label, timestamp_labels, next_complete_hour_endpoint,
+                             is_next_complete_prediction,
+                             TARGET_LABEL, GENERATED_LABEL)
 from sms_alert import sms_is_configured, send_storm_sms, send_test_sms
 
 BASE = Path(__file__).resolve().parent
 MODEL = BASE / 'outputs' / 'model_live'
-PRED = MODEL / 'live_forecast_prediction.csv'
+# Separate result prevents dashboard selection from overwriting the SMS worker's input.
+PRED = MODEL / 'dashboard_forecast_prediction.csv'
 HISTORY = MODEL / 'prediction_history.csv'
 THRESHOLD = MODEL / 'live_selected_threshold.txt'
 LIVE_SCRIPT = BASE / '12_live_forecast_and_predict.py'
@@ -142,7 +147,7 @@ def run_prediction() -> bool:
     """Run only inference: this script imports no SMS module."""
     if not LIVE_SCRIPT.exists():return False
     try:
-        result=subprocess.run([sys.executable,str(LIVE_SCRIPT)],cwd=BASE,
+        result=subprocess.run([sys.executable,str(LIVE_SCRIPT),'--dashboard-next-hour'],cwd=BASE,
                               capture_output=True,text=True,timeout=150)
         if result.returncode:
             logging.error('ECMWF inference failed (exit %s); saved prediction retained.',result.returncode)
@@ -235,10 +240,6 @@ def numeric_series(values: pd.Series) -> pd.Series:
     """Keep numeric column conversion a Series for pandas and type checkers."""
     return pd.Series(pd.to_numeric(values,errors='coerce'),index=values.index,dtype='float64')
 
-def local_time(value):
-    dt=pd.to_datetime(value,utc=True,errors='coerce')
-    return dt.tz_convert(SAST) if pd.notna(dt) else None
-
 def weather_value(value: float, unit: str, precision: int=1) -> str:
     return f'{value:.{precision}f} {unit}' if math.isfinite(value) else 'Unavailable'
 
@@ -282,7 +283,7 @@ def fetch_regional_forecast() -> pd.DataFrame:
     combined=pd.concat(frames,ignore_index=True)
     future=pd.DataFrame(combined.loc[combined['forecast_hour']>datetime.now(UTC)])
     if future.empty:raise ValueError('No future ECMWF samples')
-    target=future['forecast_hour'].min()
+    target=next_complete_hour_endpoint(datetime.now(UTC))
     select=pd.DataFrame(future.loc[future['forecast_hour']==target])
     if len(select)!=26 or not np.isfinite(select['precipitation_mm']).all() or (select['precipitation_mm']<0).any():
         raise ValueError('Missing or invalid upcoming regional precipitation')
@@ -292,22 +293,17 @@ def upcoming_regional(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.Timestamp |
     if frame.empty:return pd.DataFrame(),None
     values=frame.copy()
     values['forecast_hour']=pd.to_datetime(values['forecast_hour'],utc=True,errors='coerce')
-    values=pd.DataFrame(values.loc[(values['forecast_hour']>datetime.now(UTC)) & (values['sample_id']<25)])
+    target=next_complete_hour_endpoint(datetime.now(UTC))
+    values=pd.DataFrame(values.loc[(values['forecast_hour']==target) & (values['sample_id']<25)])
     if values.empty:return pd.DataFrame(),None
-    target=pd.Timestamp(str(values['forecast_hour'].min()))
-    values=pd.DataFrame(values.loc[values['forecast_hour']==target])
     if len(values)!=25 or values['sample_id'].nunique()!=25:return pd.DataFrame(),None
     values['name']=values.apply(lambda row:f"ECMWF sample: {float(row['precipitation_mm']):.2f} mm",axis=1)
     valid_time=target.tz_convert(SAST)
     return values,valid_time if isinstance(valid_time,pd.Timestamp) else None
 
 def fetch_six_hour_weather() -> pd.DataFrame:
-    frame=refresh_state().regional.copy()
-    if frame.empty:return frame
-    frame['time']=pd.to_datetime(frame['forecast_hour'],utc=True,errors='coerce').dt.tz_convert(SAST)
-    frame=pd.DataFrame(frame.loc[(frame['sample_id']==25) & (frame['time']>datetime.now(SAST))])
-    frame['precipitation']=frame['precipitation_mm']
-    return frame.sort_values('time').head(6)
+    return six_hour_forecast(refresh_state().regional, datetime.now(SAST),complete_intervals=True)
+
 
 def make_rainfall_overlay(regional):
     """Local bilinear interpolation on returned ECMWF coordinates, not radar."""
@@ -320,10 +316,10 @@ def make_rainfall_overlay(regional):
     west,east=float(source_lon[0]),float(source_lon[-1])
     south,north=float(source_lat[0]),float(source_lat[-1])
     width,height=360,320
-    lons=np.linspace(west,east,width)
+    lons=np.linspace(west,east,width,retstep=False)
     # Match the basemap's Web Mercator pixel rows rather than linear latitude.
     mercator=np.log(np.tan(np.pi/4+np.deg2rad([north,south])/2))
-    lats=np.rad2deg(2*np.arctan(np.exp(np.linspace(mercator[0],mercator[1],height)))-np.pi/2)
+    lats=np.rad2deg(2*np.arctan(np.exp(np.linspace(float(mercator[0]),float(mercator[1]),height,retstep=False)))-np.pi/2)
     rows=np.stack([np.interp(lons,source_lon,row) for row in values])
     rainfall=np.stack([np.interp(lats,source_lat,rows[:,column]) for column in range(width)],axis=1)
     # Continuous palette: transparent for zero; blue, cyan, green, yellow, orange, red for rain.
@@ -379,7 +375,7 @@ def information_card(label: str, value: str, detail: str='') -> None:
 
 
 def render_forecast_chart(state: RefreshState) -> None:
-    panel_title('Next 6 hours forecast · Matatiele','clock')
+    panel_title('Next 6 hourly intervals · Matatiele','clock')
     try:
         six=fetch_six_hour_weather()
         chart_retrieved=local_time(state.regional.iloc[0].get('forecast_retrieved_at')) if not state.regional.empty else None
@@ -392,13 +388,15 @@ def render_forecast_chart(state: RefreshState) -> None:
             plot=pd.DataFrame(plot.loc[np.isfinite(plot['precipitation']) & (plot['precipitation']>=0)]).copy()
             if plot.empty:raise ValueError('Cached precipitation forecast expired or has no valid samples')
             plot['Hour (SAST)']=pd.Series(plot['time']).dt.strftime('%H:%M')
+            plot['Interval']=plot['time'].apply(interval_label)
+            if len(plot)<6:st.warning('Incomplete six-hour forecast: missing or invalid hourly samples; gaps are not filled.')
             chart=alt.Chart(plot).mark_bar(color='#277de0',cornerRadiusTopLeft=4,cornerRadiusTopRight=4).encode(
-                x=alt.X('Hour (SAST):O',title=None,axis=alt.Axis(labelAngle=0,labelFontSize=10)),
+                x=alt.X('Hour (SAST):O',title='Hour ending (SAST)',sort=forecast_axis_order(pd.Series(plot['time'])),axis=alt.Axis(labelAngle=0,labelFontSize=10)),
                 y=alt.Y('precipitation:Q',title='Forecast rainfall (mm)'),
-                tooltip=['Hour (SAST)',alt.Tooltip('precipitation:Q',title='Rainfall (mm)',format='.2f'),
+                tooltip=[alt.Tooltip('Interval:N',title='Rainfall interval (SAST)'),alt.Tooltip('precipitation:Q',title='Rainfall (mm)',format='.2f'),
                          alt.Tooltip('cloud_cover:Q',title='Cloud cover (%)',format='.0f')]).properties(height=225)
             st.altair_chart(chart.configure_axis(labelColor='#365577',titleColor='#203d60'),width='stretch')
-            st.caption(f'ECMWF IFS 0.25° via Open-Meteo · Valid {plot["time"].min():%d %b %Y %H:%M}–{plot["time"].max():%H:%M} SAST · {len(plot)} actual hourly samples. Precipitation, not model probabilities.')
+            st.caption(f'ECMWF IFS 0.25{chr(176)} via Open-Meteo | Hourly endpoints {plot["time"].min():%d %b %Y %H:%M} to {plot["time"].max():%d %b %Y %H:%M} SAST. Rainfall sums cover the preceding hour; selection starts with the next complete hourly interval. {len(plot)} genuine samples, not model probabilities.')
         else:st.info('No future hourly precipitation forecast available.')
     except Exception as exc:
         st.warning('Six-hour forecast unavailable or expired. No old precipitation values are shown; saved model predictions remain accessible.')
@@ -409,9 +407,10 @@ def render_history(hist: pd.DataFrame) -> None:
         display=hist.copy()
         display['prediction_for']=pd.to_datetime(display['prediction_for'],utc=True,errors='coerce')
         display=display.dropna(subset=['prediction_for']).sort_values('prediction_for',ascending=False).head(15)
-        display['Time (SAST)']=display['prediction_for'].dt.tz_convert(SAST).dt.strftime('%d %b %H:%M')
+        display[TARGET_LABEL]=display['prediction_for'].dt.tz_convert(SAST).dt.strftime('%d %b %H:%M')
         if 'storm_probability' in display:display['Probability (%)']=(numeric_series(pd.Series(display['storm_probability']))*100).round(1)
-        cols=['Time (SAST)']
+        display[GENERATED_LABEL]=[timestamp_labels({'prediction_generated_at':row.get('prediction_generated_at')})[GENERATED_LABEL] for _,row in display.iterrows()]
+        cols=[TARGET_LABEL,GENERATED_LABEL]
         if 'Probability (%)' in display:cols.append('Probability (%)')
         if 'storm_probability' in display:
             display['Risk']=numeric_series(pd.Series(display['storm_probability'])).apply(lambda v:risk(float(v),threshold)[0])
@@ -439,8 +438,9 @@ def render_recent_table(hist: pd.DataFrame) -> None:
         percent=f'{probability:.1%}' if math.isfinite(probability) and 0<=probability<=1 else 'Unavailable'
         rainfall=weather_value(number(row,'precipitation_mm'),'',1).strip()
         time_label=timestamp.strftime('%d %b %H:%M') if timestamp is not None else 'Unknown'
-        rows.append(f'<tr><td>{time_label}</td><td>{percent}</td><td><span class="table-badge" style="color:{color};background:{color}20">{label}</span></td><td>{rainfall}</td></tr>')
-    st.html('<table class="prediction-table"><thead><tr><th>Time (SAST)</th><th>Probability</th><th>Risk</th><th>Rain (mm)</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table><div class="table-note">Actual saved model predictions · All records in Historical Data</div>')
+        generated=html.escape(timestamp_labels({'prediction_generated_at':row.get('prediction_generated_at')})[GENERATED_LABEL])
+        rows.append(f'<tr><td title="Prediction generated (SAST): {generated}">{time_label}</td><td>{percent}</td><td><span class="table-badge" style="color:{color};background:{color}20">{label}</span></td><td>{rainfall}</td></tr>')
+    st.html('<table class="prediction-table"><thead><tr><th>Forecast target (SAST)</th><th>Probability</th><th>Risk</th><th>Rain (mm)</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table><div class="table-note">Target is the hour ending, not execution time. Rain is from the input hour. Actual saved model predictions · All records in Historical Data</div>')
 
 threshold=.35
 try:
@@ -451,8 +451,11 @@ except (OSError,ValueError):
     st.warning('Selected threshold file is unreadable. The dashboard uses the required 35%; model refresh may fail.')
 
 # Authentication. A password protects demo controls; it is not production-grade IAM.
+# Streamlit's recursive DeltaGenerator mixins confuse some Pylance versions.
+# Limit the typing workaround to the native sidebar; runtime object is unchanged.
+sidebar = cast(Any, st.sidebar)
 if 'admin_authenticated' not in st.session_state:st.session_state.admin_authenticated=False
-with st.sidebar:
+with sidebar:
     st.html(f'<div class="brand">{ui_icon("cloud")}<div><strong>Matatiele</strong><span>Storm Early Warning</span><small>Eastern Cape · Research Beta</small></div></div>')
     navigation = ['🏠 Dashboard','🌦️ Live Forecast','🗺️ Weather Map','📈 Risk Analysis','🕒 Historical Data','📱 Alerts & Notifications','ℹ️ About']
     if 'dashboard_page' not in st.session_state:st.session_state.dashboard_page=navigation[0]
@@ -490,11 +493,11 @@ with st.sidebar:
     else:test_mode=False
     if not is_admin:st.session_state.presentation_test_mode=False
 
-st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Machine-learning based next-hour storm monitoring and early warning.</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>ECMWF weather &amp; forecast · Research Beta</small></div></div>')
+st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Machine-learning based next-hour storm monitoring and early warning.</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
 
 st.session_state.refresh_clock_count=0
 refresh_clock()
-with st.sidebar:
+with sidebar:
     manual_refresh=st.button('Refresh weather and model',key='refresh_all',icon=':material/refresh:',width='stretch')
     st.caption('Automatic refresh every 15 minutes while open.')
 previous_attempt=refresh_state().last_attempt
@@ -504,7 +507,7 @@ if refresh_due(refresh_state(),datetime.now(SAST),manual_refresh):
 else:state=refresh_state()
 if manual_refresh and state.last_attempt==previous_attempt:
     st.caption('Refresh requests are limited to one per minute to protect the forecast service.')
-if state.last_attempt:st.sidebar.caption(f'Last attempt: {state.last_attempt:%d %b %H:%M} SAST')
+if state.last_attempt:sidebar.caption(f'Last attempt: {state.last_attempt:%d %b %H:%M} SAST')
 if state.prediction_error:st.warning(state.prediction_error+' OUTDATED DATA: the saved prediction is not a verified current assessment.')
 if state.regional_error:st.warning(state.regional_error)
 if state.history_error:st.warning(state.history_error)
@@ -520,10 +523,12 @@ if df.empty:st.warning('No saved model prediction is available. Regional forecas
 latest=df.iloc[-1] if not df.empty else pd.Series(dtype='object')
 valid=local_time(latest.get('prediction_for'))
 input_time=local_time(latest.get('forecast_input_time'))
+generated_time=local_time(latest.get('prediction_generated_at'))
 now=datetime.now(SAST)
 # A forecast is stale if its valid-for hour is already past.
 retrieved_time=local_time(latest.get('forecast_retrieved_at'))
 stale=bool(state.prediction_error) or valid is None or now>=valid.to_pydatetime() or retrieved_time is None or (now-retrieved_time.to_pydatetime()).total_seconds()>1800
+stale=stale or not is_next_complete_prediction(input_time,valid,now)
 
 # prediction_for is the next-hour target; a passed target must never look current.
 real_prob=number(latest,'storm_probability')
@@ -535,7 +540,7 @@ configured=sms_is_configured()
 hist=load_history()
 
 if stale:
-    st.warning('⚠️ **Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or the prediction target has passed. This is NOT a current storm-risk assessment. Refresh is required.')
+    st.warning('⚠️ **Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or no longer matches the next complete hourly interval. This is NOT a current storm-risk assessment. Refresh is required.')
 
 # Only an explicit admin click can send SMS. Opening a dashboard never sends messages.
 if is_admin and test_mode:
@@ -547,7 +552,7 @@ if is_admin and not test_mode and not stale and threshold<=real_prob<=1 and conf
         (st.success if result.get('sent') else st.warning)('SMS accepted by provider.' if result.get('sent') else 'SMS not sent. Review private server logs.')
 
 # Show real data in every chart. Do not invent a spatial rainfall/radar field.
-forecast_status='OUTDATED' if stale else 'UPCOMING TARGET'
+forecast_status='OUTDATED' if stale else 'FIXED HOURLY TARGET'
 model_status='FILE AVAILABLE' if (MODEL/'random_forest_live_model.pkl').exists() else 'MODEL FILE MISSING'
 if page=='🏠 Dashboard':
     cards=st.columns(5,gap='small')
@@ -558,6 +563,7 @@ if page=='🏠 Dashboard':
     with cards[3]:status_card('Alert threshold',f'{threshold:.0%}','For the next hour','warning','red')
     horizon=f'{input_time:%H:%M} – {valid:%H:%M} SAST' if input_time is not None and valid is not None else 'Target time unavailable'
     with cards[4]:status_card('Forecast horizon','Next 1 hour',horizon,'clock','blue',True)
+    st.caption(f'Target interval: {interval_label(valid)}. Next complete hourly interval, not a rolling 60-minute forecast. Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}.')
 
 layers: list[Any]=[]
 map_tooltip=cast(Any, {'text':'{name}', 'style':{'backgroundColor':'#13263f','color':'white'}})
@@ -614,7 +620,7 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
             value_text=f'{prob:.1%}' if usable else 'Unavailable'
             gauge=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 165" font-family="Arial, sans-serif"><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="#d4dce7" stroke-width="20" stroke-linecap="round"/><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="{level_color}" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="{gauge_value*100} 100"/><text x="130" y="102" text-anchor="middle" fill="#102b4b" font-size="34" font-weight="800">{value_text}</text><text x="130" y="135" text-anchor="middle" fill="#214573" font-size="14">Storm probability</text></svg>'
             keys=''.join(f'<div class="risk-key"><i style="background:{color}"></i>{label}</div>' for color,label in [('#30b262','Low (below 10%)'),('#ffc32d','Elevated (10-19%)'),('#fa782b','Moderate (20-34%)'),('#ed394b','Warning (35%+)')])
-            st.html(f'<div class="risk-status">{"OUTDATED / UNVERIFIED SAVED RESULT" if stale else "RANDOM FOREST - NEXT-HOUR TARGET"}</div><div class="risk-body"><div class="risk-gauge">{svg_image(gauge,"Storm probability "+value_text)}<span class="risk-badge" style="--accent:{level_color};--tint:{level_color}25">{level} RISK</span></div><div>{keys}</div></div>')
+            st.html(f'<div class="risk-status">{"OUTDATED / UNVERIFIED SAVED RESULT" if stale else "RANDOM FOREST - FIXED HOURLY TARGET"}</div><div class="risk-body"><div class="risk-gauge">{svg_image(gauge,"Storm probability "+value_text)}<span class="risk-badge" style="--accent:{level_color};--tint:{level_color}25">{level} RISK</span></div><div>{keys}</div></div>')
 
 
 if page=='🏠 Dashboard':
@@ -638,9 +644,10 @@ if page in ('🌦️ Live Forecast','📈 Risk Analysis'):
     panel_title('Forecast inputs and next-hour validity','clock')
     a,b,c,d=st.columns(4)
     with a:information_card('Forecast input (SAST)',input_time.strftime('%H:%M') if input_time is not None else 'Unknown',input_time.strftime('%d %b %Y') if input_time is not None else 'No input timestamp')
-    with b:information_card('Prediction valid (SAST)',valid.strftime('%H:%M') if valid is not None else 'Unknown',valid.strftime('%d %b %Y') if valid is not None else 'No prediction timestamp')
+    with b:information_card('Target hour ending (SAST)',valid.strftime('%H:%M') if valid is not None else 'Unknown',valid.strftime('%d %b %Y') if valid is not None else 'No prediction timestamp')
     with c:information_card('CAPE',weather_value(number(latest,'cape'),'J/kg',0),'Genuine ECMWF forecast input')
     with d:information_card('Dew point',weather_value(number(latest,'dewpoint_c'),chr(176)+'C'),'Genuine ECMWF forecast input')
+    st.caption(f'Target interval: {interval_label(valid)}. Next complete hourly interval, one hour ahead of the ECMWF input timestamp; not a rolling 60-minute forecast. Generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}.')
     if 'Live Forecast' in page:
         with st.container(border=True,key='live_six_card'):render_forecast_chart(state)
         st.caption('Six-hour precipitation and next-hour Random Forest probability are separate outputs.')
@@ -665,9 +672,9 @@ if page in ('🌦️ Live Forecast','📈 Risk Analysis'):
             series=series.dropna()
             valid_probabilities=numeric_series(pd.Series(series['Probability (%)'])).between(0,100)
             series=pd.DataFrame(series.loc[valid_probabilities]).sort_values(by='target').tail(24)
-            series['Time (SAST)']=series['target'].dt.tz_convert(SAST).dt.strftime('%d %b %Y %H:%M')
+            series[TARGET_LABEL]=series['target'].dt.tz_convert(SAST).dt.strftime('%d %b %Y %H:%M')
             if not series.empty:
-                points=alt.Chart(series).mark_line(point=True,color='#1268c4').encode(x=alt.X('Time (SAST):O',title='Recorded prediction target (SAST)',sort=None,axis=alt.Axis(labelAngle=-35)),y=alt.Y('Probability (%):Q',scale=alt.Scale(domain=[0,100])),tooltip=['Time (SAST):O',alt.Tooltip('Probability (%):Q',format='.2f')]).properties(height=230)
+                points=alt.Chart(series).mark_line(point=True,color='#1268c4').encode(x=alt.X('Forecast target (SAST):O',title='Recorded prediction target (SAST)',sort=None,axis=alt.Axis(labelAngle=-35)),y=alt.Y('Probability (%):Q',scale=alt.Scale(domain=[0,100])),tooltip=['Forecast target (SAST):O',alt.Tooltip('Probability (%):Q',format='.2f')]).properties(height=230)
                 line=alt.Chart(pd.DataFrame({'threshold':[35]})).mark_rule(color='#d93449',strokeDash=[6,4]).encode(y='threshold:Q')
                 st.altair_chart((points+line).configure_axis(labelColor='#365577',titleColor='#203d60'),width='stretch')
             else:st.info('No valid recorded probabilities available.')
@@ -699,7 +706,8 @@ if page=='ℹ️ About':
     st.html('<div class="research-notice"><strong>Academic research Beta</strong><br>This prototype is not an official meteorological warning service. Consult SAWS and local disaster-management guidance for safety decisions.</div>')
 
 with st.expander('Forecast source and timestamps'):
-    st.caption(f'Model forecast retrieved: {retrieved_time.strftime("%d %b %Y %H:%M:%S SAST") if retrieved_time is not None else "Unknown (legacy saved record)"} · Forecast input hour: {input_time.strftime("%d %b %Y %H:%M SAST") if input_time is not None else "Unknown"} · Next-hour target: {valid.strftime("%d %b %Y %H:%M SAST") if valid is not None else "Unknown"}')
+    st.caption(f'Model forecast retrieved: {retrieved_time.strftime("%d %b %Y %H:%M:%S SAST") if retrieved_time is not None else "Unknown (legacy saved record)"} · Forecast input hour: {input_time.strftime("%d %b %Y %H:%M SAST") if input_time is not None else "Unknown"} · Forecast target (hour ending): {valid.strftime("%d %b %Y %H:%M SAST") if valid is not None else "Unknown"}')
+    st.caption(f'Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}. Target interval: {interval_label(valid)}. Fixed hourly target, not a rolling 60-minute window. Instantaneous conditions are valid at their timestamp; rainfall covers the preceding hour.')
     st.caption('ECMWF run issue time is not supplied by this API response; retrieval time is recorded separately.')
 st.divider()
 st.caption('Matatiele Smart Resilient Storm Early Warning System · Academic research Beta · Forecast data: Open-Meteo / ECMWF · Historical model development: ERA5 · SAST (UTC+2)')

@@ -2,11 +2,18 @@ from pathlib import Path
 from datetime import datetime, UTC
 import os
 import tempfile
+import argparse
 
 import joblib
 import numpy as np
 import pandas as pd
 import requests
+from forecast_timing import model_input_hour
+
+parser = argparse.ArgumentParser(description='Genuine ECMWF / Random Forest inference; no SMS.')
+parser.add_argument('--dashboard-next-hour', action='store_true',
+                    help='Predict the next complete hourly interval using its genuine forecast input row; save separately from the SMS worker result.')
+args = parser.parse_args()
 
 
 # ============================================================
@@ -21,7 +28,8 @@ MODEL_FILE = MODEL_DIR / "random_forest_live_model.pkl"
 FEATURE_FILE = MODEL_DIR / "live_model_features.txt"
 THRESHOLD_FILE = MODEL_DIR / "live_selected_threshold.txt"
 
-OUTPUT_FILE = MODEL_DIR / "live_forecast_prediction.csv"
+OUTPUT_FILE = MODEL_DIR / ("dashboard_forecast_prediction.csv" if args.dashboard_next_hour
+                           else "live_forecast_prediction.csv")
 
 
 # ============================================================
@@ -467,21 +475,17 @@ print(
 # 13. FIND CURRENT FORECAST HOUR
 # ============================================================
 
-now_utc = pd.Timestamp(
-    datetime.now(UTC)
-)
+now_utc = datetime.now(UTC)
 
 
-current_hour = (
-    now_utc.floor("h")
-)
+current_hour = model_input_hour(now_utc, next_complete=args.dashboard_next_hour)
 
 
 available_current = forecast[
 
     forecast["valid_time"]
 
-    <=
+    ==
 
     current_hour
 
@@ -491,8 +495,7 @@ available_current = forecast[
 if available_current.empty:
 
     raise ValueError(
-        "No forecast hour is available "
-        "before the current UTC time."
+        "The selected forecast input hour is unavailable; no earlier row is substituted."
     )
 
 
@@ -508,7 +511,7 @@ latest_time = (
 
 
 if latest_time != current_hour:
-    raise ValueError("Current-hour ECMWF inputs are incomplete or unavailable.")
+    raise ValueError("Selected-hour ECMWF inputs are incomplete or unavailable.")
 
 
 # ============================================================
@@ -717,6 +720,9 @@ storm_probability = (
 )
 
 
+# Actual inference completion time, distinct from API retrieval and forecast validity.
+prediction_generated_at = datetime.now(UTC).isoformat()
+
 storm_prediction = int(
 
     storm_probability
@@ -889,6 +895,11 @@ result = {
         "Open-Meteo ECMWF",
 
     "forecast_retrieved_at": retrieved_at_utc,
+    "prediction_generated_at": prediction_generated_at,
+    "forecast_selection": "next_complete_hour" if args.dashboard_next_hour else "current_hour",
+    # Existing t+1 target is unchanged; precipitation at t+1 covers (t, t+1].
+    "target_interval_start": latest_time,
+    "target_interval_end": latest_time + pd.Timedelta(hours=1),
     "forecast_issue_time": "",  # API response does not provide a run issue timestamp.
 
     "forecast_input_time":
