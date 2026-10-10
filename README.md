@@ -1,35 +1,27 @@
-# ??? Matatiele Smart Resilient Storm Early Warning System
+# 🌩️ Matatiele Smart Resilient Storm Early Warning System
 
-**Academic research title:** Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele
+**Research project:** *Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele*
 
-**Status: Beta prototype** | Matatiele, Eastern Cape, South Africa
+**Status:** Academic Beta prototype · **Location:** Matatiele, Eastern Cape, South Africa
 
-**Deployed dashboard:** [https://matatiele-storm-early-warning-system-jykpxrtek3zejgqfk5xvr.streamlit.app](https://matatiele-storm-early-warning-system-jykpxrtek3zejgqfk5xvr.streamlit.app)
+**[Explore the live dashboard](https://matatiele-storm-early-warning-system-jykpxrtek3zejgqfk5xvr.streamlit.app)**
 
-## Project Overview
+## Overview
 
-This academic research Beta investigates how machine learning and SMS communication
-can improve storm awareness for communities around Matatiele with limited access
-to timely weather information. It combines an ERA5-trained Random Forest with
-genuine ECMWF forecasts, an interactive dashboard and guarded SMS integration;
-the current prototype requires Internet connectivity.
+A machine-learning research prototype designed to support earlier awareness of potential storms in Matatiele. It combines historical weather data, genuine forecasts, a Random Forest classifier, interactive weather visualisations and SMS integration. The current Beta is Internet-dependent; resilient offline deployment is a future research goal.
 
 ## Key Features
 
-- Genuine next-hour Random Forest predictions using 29 live-compatible features
-  and the selected **35% storm-warning threshold**.
-- Actual ECMWF forecast data retrieved through Open-Meteo.
-- Seven-page Streamlit dashboard with weather conditions, risk analysis and history.
-- Interactive satellite rainfall maps using genuine forecast samples, with
-  interpolation for visualisation; these are forecasts, not live radar.
-- Twilio SMS integration with administrator-controlled connectivity tests.
-- Independent scheduled monitoring through GitHub Actions, currently in safe dry-run
-  mode; real storm-warning submission is reserved for that worker.
+- **Next-hour storm prediction:** Random Forest model using 29 live-compatible features and a **35% warning threshold**.
+- **Live weather inputs:** ECMWF forecasts retrieved through Open-Meteo.
+- **Interactive dashboard:** Seven Streamlit pages covering forecasts, risk, maps, history and alerts.
+- **Rainfall visualisation:** Satellite-based map with interpolated regional forecast rainfall; **not live radar**.
+- **SMS integration:** Administrator-controlled Twilio test messages; real automatic storm-warning SMS remains disabled.
+- **Scheduled checks:** Independent GitHub Actions worker runs genuine predictions in safe dry-run mode.
 
 ## System Architecture
 
-Historical training is separate from live inference. Regional rainfall forecasts
-and Random Forest storm probabilities are distinct outputs.
+Historical model training is separate from live prediction. Forecast rainfall maps and Random Forest storm probabilities are different outputs.
 
 ```mermaid
 %%{init: {"themeVariables": {"fontSize": "12px"}, "flowchart": {"nodeSpacing": 16, "rankSpacing": 22, "padding": 8, "diagramPadding": 8, "useMaxWidth": true}}}%%
@@ -63,59 +55,43 @@ flowchart TB
 
 ## Getting Started
 
-1. **Clone the repository** and open it in Windows PowerShell:
+**1. Clone the repository**
 
-   ```powershell
-   git clone https://github.com/mdvar2/matatiele-storm-early-warning-system.git
-   cd matatiele-storm-early-warning-system
-   ```
+```powershell
+git clone https://github.com/mdvar2/matatiele-storm-early-warning-system.git
+cd matatiele-storm-early-warning-system
+```
 
-2. **Use Python 3.12**, create a virtual environment and install dependencies:
+**2. Set up Python 3.12 and install dependencies**
 
-   ```powershell
-   python --version
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   python -m pip install -r requirements.txt
-   ```
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
 
-3. **Configure private local settings** if using administrator or test SMS controls:
+**3. Start the dashboard**
 
-   ```powershell
-   Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
-   ```
+```powershell
+python -m streamlit run 16_dashboard.py
+```
 
-   Edit the copied file privately with your administrator password and Twilio settings.
-   The private file is Git-ignored; never commit credentials or recipient numbers.
-   GitHub Actions uses encrypted repository secrets, independently of this local file.
-   See [SMS setup and safety guidance](README_SMS_SETUP.md) for details.
+Open `http://localhost:8501`. Internet access is needed to retrieve current forecasts.
 
-4. **Launch the dashboard** and open `http://localhost:8501`:
+**Optional: Test the scheduled forecast check without sending SMS**
 
-   ```powershell
-   python -m streamlit run 16_dashboard.py
-   ```
+```powershell
+python 18_scheduled_sms_worker.py --dry-run
+```
 
-5. **Optionally check genuine forecasts safely** without sending SMS:
+Administrator SMS features require private settings in `.streamlit/secrets.toml`, created from `.streamlit/secrets.toml.example`. **Never commit passwords, Twilio credentials or recipient numbers.** See [SMS configuration and safety](README_SMS_SETUP.md).
 
-   ```powershell
-   python 18_scheduled_sms_worker.py --dry-run
-   ```
+## Beta Status and Limitations
 
-   The worker runs independently of the dashboard. Dry-run sends no SMS and writes
-   no GitHub warning reservations; leave real sending disabled.
+**Verified:** Genuine forecast/model inference, a manually received Twilio test SMS, 73 automated safety tests and successful GitHub Actions dry-runs.
 
-## Current Status and Limitations
+**Not yet verified:** Real unattended storm-warning delivery. Automatic SMS remains **disabled**; the dashboard cannot send storm warnings, and the independent worker is the designated future automatic sender.
 
-Manual Twilio test SMS delivery has been demonstrated. Automatic decision safeguards
-have passed **73 automated tests**, and GitHub scheduled dry-runs have succeeded.
-These checks verify software behaviour, not forecast accuracy or unattended delivery.
+**Future work:** Local sensors, Raspberry Pi/edge deployment, offline resilience, field validation and further assessment of forecast accuracy.
 
-**Real unattended storm-warning SMS delivery is not yet verified and remains disabled.**
-The dashboard retains manual test SMS only; the scheduled worker is the sole
-storm-warning sender. Provider submission is not confirmed recipient delivery.
-
-Autonomous offline/edge operation, Raspberry Pi deployment, local sensors and
-field validation in Matatiele remain future work. This is an academic research
-prototype, not an official SAWS warning service. For operational safeguards and
-configuration, see [README_SMS_SETUP.md](README_SMS_SETUP.md).
+> **Research disclaimer:** This is an academic Beta prototype, not an official South African Weather Service (SAWS) warning service. Follow official weather alerts and local disaster-management guidance.
