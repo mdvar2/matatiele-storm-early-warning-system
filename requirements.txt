@@ -1,8 +1,12 @@
+streamlit
+altair
 pandas
 numpy
+requests
+scikit-learn==1.9.0
+joblib
+twilio
 xarray
 netCDF4
-scikit-learn
-joblib
 matplotlib
 seaborn
