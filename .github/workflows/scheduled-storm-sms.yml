@@ -1,6 +1,12 @@
 name: Scheduled Matatiele Storm Check
 'on':
   workflow_dispatch:
+    inputs:
+      send_test_sms:
+        description: 'Send one connectivity SMS: NO WEATHER WARNING (verified trial recipient only)'
+        type: boolean
+        required: true
+        default: false
   schedule:
     - cron: '12 * * * *'
 permissions:
@@ -21,6 +27,7 @@ jobs:
       TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
       TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
       ALERT_TO_NUMBERS: ${{ secrets.ALERT_TO_NUMBERS }}
+      SMS_TEST_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,4 +38,8 @@ jobs:
       - name: Validate worker compilation
         run: python -m py_compile 18_scheduled_sms_worker.py 12_live_forecast_and_predict.py sms_alert.py
       - name: Genuine forecast and model check (SMS disabled)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}
         run: python 18_scheduled_sms_worker.py --dry-run
+      - name: Manual connectivity test (NO WEATHER WARNING)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
+        run: python 18_scheduled_sms_worker.py --test-sms

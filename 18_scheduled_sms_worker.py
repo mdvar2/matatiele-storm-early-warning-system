@@ -114,12 +114,44 @@ def validate_prediction(data, started, now):
     return row,probability,forecast_time
 
 
+def manual_connectivity_test():
+    """Explicit Actions dispatch only; durable run reservation prevents rerun SMS."""
+    if (os.getenv('GITHUB_ACTIONS', '').lower() != 'true'
+            or os.getenv('GITHUB_EVENT_NAME') != 'workflow_dispatch'
+            or os.getenv('SMS_TEST_CONFIRMED', '').lower() != 'true'):
+        fail('Connectivity SMS requires an explicitly confirmed manual Actions dispatch.')
+    run_id = os.getenv('GITHUB_RUN_ID', '')
+    if not run_id.isdigit() or not REPO or not TOKEN:
+        fail('Connectivity SMS requires GitHub run identity and ledger access.')
+    from sms_alert import sms_is_configured, _get_recipients, send_test_sms
+    if not sms_is_configured() or len(_get_recipients()) != 1:
+        fail('Connectivity SMS requires valid Twilio settings and exactly one verified trial recipient.')
+    # Separate namespace from forecast-hour warnings; same run ID across reruns.
+    issue = reserve_hour('CONNECTIVITY-TEST-RUN-' + run_id)
+    if issue is None:
+        print('Connectivity test already reserved for this run; no repeat SMS.')
+        return
+    try:
+        result = send_test_sms()
+        status = 'test_sent' if result.get('status') == 'test_sent' and result.get('sent') else 'failed_or_uncertain'
+        report(issue, f'Connectivity test: **{status}**. NO WEATHER WARNING. Review Twilio Console and confirm handset receipt.')
+        if status != 'test_sent':
+            fail('Connectivity submission failed or uncertain; review Twilio before a new manual dispatch.')
+        print('Connectivity SMS submitted: NO WEATHER WARNING. Delivery not confirmed; check your phone.')
+    except Exception:
+        fail('Connectivity test failed after reservation; no automatic retry. Review Twilio and the reservation privately.')
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     mode=parser.add_mutually_exclusive_group()
     mode.add_argument('--dry-run',action='store_true',help='Retrieve and predict; never send SMS or write GitHub issues (default).')
     mode.add_argument('--live',action='store_true',help='Requires ENABLE_REAL_SMS=true and the serialized Actions workflow.')
+    mode.add_argument('--test-sms',action='store_true',help='Confirmed manual Actions connectivity SMS only; no forecast or storm warning.')
     args=parser.parse_args(argv)
+    if args.test_sms:
+        manual_connectivity_test()
+        return
     live=args.live and os.getenv('ENABLE_REAL_SMS','').strip().lower()=='true'
     if args.live and not live:
         fail('Live activation disabled. Use --dry-run; no SMS sent.')

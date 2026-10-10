@@ -37,6 +37,26 @@ Scheduled runs need the model and feature/threshold files already tracked in Git
 
 ## SMS remains disabled
 
+### Manually triggered Actions connectivity test
+
+After publishing the reviewed changes, use **Actions > Scheduled Matatiele Storm
+Check > Run workflow** and explicitly select `send_test_sms` to request one real
+connectivity SMS. Leave it unselected for a genuine forecast dry-run. Scheduled
+events always remain dry-run; this option does not enable automatic storm warnings.
+
+Configure the four encrypted repository Twilio secrets and set `ALERT_TO_NUMBERS`
+to exactly your single Twilio-verified trial recipient, in E.164 format. Never put
+the number or credentials into workflow inputs or committed files. The worker
+checks configuration and recipient count; trial verification must be checked in
+Twilio Console. It calls the existing `send_test_sms()` with the unchanged message:
+`MATATIELE SMS TEST. Notification service check only. NO WEATHER WARNING.`
+
+A separate `CONNECTIVITY-TEST-RUN-` issue reservation blocks reruns of the same
+Actions run, including uncertain submissions. A new manual dispatch has a new run
+ID and can send another test, so review Twilio first after any uncertain outcome.
+Do not delete reservations. API acceptance is not delivery confirmation: confirm
+the message on your phone before considering future live warning activation.
+
 The workflow hard-codes `ENABLE_REAL_SMS: 'false'` and `--dry-run`; an existing
 repository variable cannot silently activate it. Local execution defaults to
  dry-run even if ENABLE_REAL_SMS is set. Live execution requires BOTH `--live`
