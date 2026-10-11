@@ -678,15 +678,15 @@ if page=='📱 Alerts & Notifications':
     panel_title('Warnings and notification delivery','warning')
     a,b,c=st.columns(3)
     with a:status_card('Dashboard warnings','OUTDATED' if stale else 'AVAILABLE','Saved forecast freshness' if stale else 'Genuine forecast risk classification','warning','amber' if stale else 'green',compact=True)
-    with b:status_card('Twilio SMS','CONFIGURED' if configured else 'NOT CONFIGURED','Credential presence, not delivery confirmation','wifi','blue' if configured else 'gray',compact=True)
-    with c:status_card('SMS trigger','ACTIONS ONLY','Storm warnings: scheduled worker; test SMS: administrator','model','blue',compact=True)
+    with b:status_card('Automatic SMS','MANAGED BY GITHUB ACTIONS','Independent worker. Check Actions logs for execution and Twilio/recipient for delivery; neither is verified here.','wifi','blue',compact=True)
+    with c:status_card('SMS trigger','ACTIONS ONLY','Administrator test SMS: dashboard-local Twilio '+('configured' if configured else 'not configured')+'. This does not indicate Actions configuration.','model','blue',compact=True)
     if is_admin and SMS_LOG.exists():
         try:
             log=pd.read_csv(SMS_LOG)
             cols=[c for c in ['logged_at_utc','storm_probability','status'] if c in log]
             if cols:st.dataframe(log[cols].tail(20),hide_index=True,width='stretch')
         except Exception:st.info('SMS log is currently unavailable.')
-    st.info('A separate scheduled worker is needed for unattended automatic warnings when the dashboard is not open.')
+    st.info('Automatic storm-warning checks are handled by an independent GitHub Actions scheduled worker. The dashboard does not need to remain open.')
 
 if page=='ℹ️ About':
     panel_title('About this research system','model')
