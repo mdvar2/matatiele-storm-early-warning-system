@@ -54,17 +54,17 @@ class WorkerTests(unittest.TestCase):
             with self.assertRaises(self.worker.WorkerError):self.worker.main(['--live'])
             run.assert_not_called()
 
-    def test_workflow_requires_explicit_dispatch_for_connectivity_and_keeps_schedule_dry(self):
+    def test_workflow_runs_approved_live_schedule_and_requires_explicit_connectivity_dispatch(self):
         workflow=(ROOT/'.github/workflows/scheduled-storm-sms.yml').read_text()
         self.assertIn('default: false',workflow)
-        self.assertIn("ENABLE_REAL_SMS: 'false'",workflow)
+        self.assertIn("ENABLE_REAL_SMS: 'true'",workflow)
         self.assertIn("if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}",workflow)
-        self.assertIn('run: python 18_scheduled_sms_worker.py --dry-run',workflow)
+        self.assertIn('run: python 18_scheduled_sms_worker.py --live',workflow)
         self.assertIn("if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}",workflow)
         self.assertIn('run: python 18_scheduled_sms_worker.py --test-sms',workflow)
         self.assertIn('group: matatiele-hourly-sms',workflow)
         self.assertIn('cancel-in-progress: false',workflow)
-        self.assertNotIn('run: python 18_scheduled_sms_worker.py --live',workflow)
+        self.assertIn("SMS_TEST_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}",workflow)
 
     def test_forecast_failure_never_uses_saved_csv(self):
         with patch.object(self.worker.subprocess,'run',side_effect=subprocess.CalledProcessError(1,['inference'])),patch.object(self.worker.pd,'read_csv') as read,patch('sms_alert.send_storm_sms') as send:

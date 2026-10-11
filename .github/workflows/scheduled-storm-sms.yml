@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      # Deliberately disabled until the project owner explicitly approves live SMS.
+      # LIVE automatic SMS explicitly approved by the project owner.
       ENABLE_REAL_SMS: 'true'
       GH_TOKEN: ${{ github.token }}
       TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
