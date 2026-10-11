@@ -1,129 +1,118 @@
-# Matatiele Beta scheduled SMS integration
+# Matatiele Beta SMS setup and safety
 
-## Added files
+## Approved LIVE configuration
 
-- `18_scheduled_sms_worker.py`: refreshes genuine ECMWF inputs through the existing
-  `12_live_forecast_and_predict.py`, then validates its actual Random Forest output.
-- `.github/workflows/scheduled-storm-sms.yml`: hourly check at minute 12 UTC
-  (minute 12 SAST), plus manual Run workflow. Uses Python 3.12 and existing requirements.
-- `tests/test_scheduled_sms_worker.py`: isolated safety and durable-ledger tests.
+The project owner has approved automatic SMS. The current workflow sets
+`ENABLE_REAL_SMS: 'true'` and runs `python 18_scheduled_sms_worker.py --live`.
+It runs hourly at minute 12 UTC (also minute 12 SAST) and supports manual dispatch.
+GitHub schedules can be delayed; they are not a guaranteed emergency service.
 
-The dashboard, trained model, 29 features, 35% threshold, forecast pipeline and
-SMS message wording are preserved. Generated CSV files remain ignored by Git.
-The ZIP's compiled bytecode is deliberately excluded.
+The independent worker invokes `12_live_forecast_and_predict.py` to retrieve
+actual ECMWF inputs through Open-Meteo and run the saved 29-feature Random Forest.
+Only a fresh, valid Matatiele prediction at or above the existing **35% threshold**
+is eligible for warning submission. Below threshold, no warning is sent.
+It needs the tracked model, feature list and threshold artifacts; it does not need
+an open Streamlit dashboard or append dashboard prediction history.
 
-## First dry-run test
+## Execution modes
 
-From the project directory, with existing requirements installed:
+| Mode | Current behaviour |
+| --- | --- |
+| Scheduled LIVE | Cron runs genuine inference and submits an eligible warning only after safeguards pass. |
+| Manual LIVE | **Run workflow** with `send_test_sms` unselected follows the same LIVE pathway; it is not a dry-run. |
+| Manual connectivity test | Explicitly select `send_test_sms`; calls `send_test_sms()` without forecast inference or a weather warning. |
+| Local dry-run | `--dry-run` retrieves genuine forecasts and predicts, without SMS or GitHub ledger writes. |
+
+Local execution defaults to dry-run even if `ENABLE_REAL_SMS` is set. LIVE execution
+requires both `--live` and `ENABLE_REAL_SMS=true`, and is restricted to GitHub Actions.
+Do not invoke another LIVE worker outside the workflow's concurrency group.
+
+## Secure configuration
+
+GitHub Actions uses encrypted repository secrets:
+
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_FROM_NUMBER`
+- `ALERT_TO_NUMBERS`
+
+For the current trial setup, use exactly the single Twilio-verified recipient in
+E.164 format. The connectivity path checks configuration and recipient count;
+trial recipient verification must be checked in Twilio Console. Never put phone
+numbers or credentials into workflow inputs, issues, screenshots or committed files.
+
+The workflow supplies its GitHub token and requires Issues enabled, `contents: read`
+and `issues: write` permissions. Dashboard credentials are separate: local settings
+belong in Git-ignored `.streamlit/secrets.toml`, using the blank
+`.streamlit/secrets.toml.example` template. CLI/Actions workers use environment
+configuration, not that local file. Never commit the private settings file.
+
+## Manual connectivity test
+
+Use **Actions > Scheduled Matatiele Storm Check > Run workflow** and explicitly
+select `send_test_sms`. This submits only the existing message:
+
+> MATATIELE SMS TEST. Notification service check only. NO WEATHER WARNING.
+
+The worker requires manual dispatch and confirmation. It never sends a simulated
+storm warning. A separate `CONNECTIVITY-TEST-RUN-` issue reservation blocks reruns
+of the same Actions run, including uncertain submissions. A new manual dispatch
+has a new run ID and can send another test: review Twilio before repeating it.
+
+Successful Twilio API submission is **not confirmed recipient delivery**. Check
+Twilio Console and the recipient's phone; neither a successful run nor a reservation
+alone proves receipt. The dashboard retains administrator-controlled test SMS,
+with simulation preview off, but cannot independently send storm warnings.
+
+## Duplicate prevention and failure handling
+
+- The fixed `matatiele-hourly-sms` concurrency group serializes runs with
+  `cancel-in-progress: false`.
+- Before warning submission, the worker searches every page of GitHub issues,
+  including closed issues, for the canonical UTC forecast-hour reservation.
+- It creates the reservation **before** calling Twilio. An existing reservation
+  blocks repeat submission across separate runners, even with fresh local logs.
+- Never delete reservations or edit their titles. They are not delivery receipts.
+- Partial submissions return `partial`, with submitted and failed/uncertain counts;
+  the worker fails the run and keeps the reservation for manual review.
+- Timeouts, missing provider IDs and uncertain responses receive no automatic retry.
+  Review each recipient in Twilio Console before recovery; forcing a retry can
+  duplicate an accepted message.
+- API/model failures, missing configuration, invalid/nonfinite data, stale or expired
+  targets, unexpected source/location/threshold and ledger failures stop sending.
+  Old saved predictions are not substituted after a failed inference run.
+- Only safe status information is posted publicly; credentials and recipients are
+  excluded. The issue list/create operation relies on workflow serialization and
+  is not atomic for independent concurrent senders.
+
+GitHub Actions is the sole storm-warning sender. Dashboard refreshes never send
+weather warnings. Local CSV logs and GitHub reservations remain separate stores;
+do not add another independent weather-warning sender.
+
+## Safe local checks
 
 ```powershell
 python 18_scheduled_sms_worker.py --dry-run
+python -m pytest tests/ -q
 ```
 
-This makes a real forecast request and runs the existing model. It updates the
-existing latest-prediction CSV only after successful inference. It does not send
-SMS, create GitHub issues, or require Twilio/GitHub credentials. It does not append
-prediction history; the existing dashboard retains its history handling.
-There are no simulated forecasts or substituted probabilities.
+Dry-run updates the latest prediction CSV only after successful genuine inference;
+it sends no SMS, requires no Twilio/GitHub credentials and creates no reservations.
+Tests mock provider and GitHub operations. Historical replay tests use genuine saved
+evaluation outputs, not current forecasts, and skip when that local file is absent.
+`17_validate_warning_pipeline.py` runs mocked safety tests only; it cannot send SMS.
 
-A fresh, valid prediction prints the probability, 35% threshold and next-hour
-SAST target. A threshold crossing in dry-run prints what would happen, without
-submitting anything. API/model failure rejects the saved CSV for SMS purposes.
+## Verified Beta evidence and remaining limits
 
-After you choose to make these local files available on your repository's default
-branch, GitHub Actions > Scheduled Matatiele Storm Check > Run workflow executes
-this same dry-run. Nothing has been pushed or activated by this integration.
-Scheduled runs need the model and feature/threshold files already tracked in Git.
+- Scheduled LIVE run **#6** succeeded with a genuine **0.00%** prediction, below
+  35%; no storm-warning SMS was sent.
+- Manual connectivity-test run **#4** resulted in confirmed phone receipt of the
+  explicitly labelled **NO WEATHER WARNING** message.
+- **77 tests and 28 subtests** passed, covering thresholds, configuration,
+  duplicate protection, partial submissions and uncertain outcomes.
 
-## SMS remains disabled
-
-### Manually triggered Actions connectivity test
-
-After publishing the reviewed changes, use **Actions > Scheduled Matatiele Storm
-Check > Run workflow** and explicitly select `send_test_sms` to request one real
-connectivity SMS. Leave it unselected for a genuine forecast dry-run. Scheduled
-events always remain dry-run; this option does not enable automatic storm warnings.
-
-Configure the four encrypted repository Twilio secrets and set `ALERT_TO_NUMBERS`
-to exactly your single Twilio-verified trial recipient, in E.164 format. Never put
-the number or credentials into workflow inputs or committed files. The worker
-checks configuration and recipient count; trial verification must be checked in
-Twilio Console. It calls the existing `send_test_sms()` with the unchanged message:
-`MATATIELE SMS TEST. Notification service check only. NO WEATHER WARNING.`
-
-A separate `CONNECTIVITY-TEST-RUN-` issue reservation blocks reruns of the same
-Actions run, including uncertain submissions. A new manual dispatch has a new run
-ID and can send another test, so review Twilio first after any uncertain outcome.
-Do not delete reservations. API acceptance is not delivery confirmation: confirm
-the message on your phone before considering future live warning activation.
-
-The workflow hard-codes `ENABLE_REAL_SMS: 'false'` and `--dry-run`; an existing
-repository variable cannot silently activate it. Local execution defaults to
- dry-run even if ENABLE_REAL_SMS is set. Live execution requires BOTH `--live`
-and `ENABLE_REAL_SMS=true`, and is restricted to GitHub Actions.
-Do not activate live mode until the project owner explicitly approves it.
-
-Only after approval would the workflow activation settings be changed. Live mode
-needs Issues enabled, a token with issues-write permission, and repository secrets
-TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, ALERT_TO_NUMBERS. Never
-commit these values or put them in issues, screenshots, or shared logs.
-
-## Cross-run duplicate protection and failure behavior
-
-The workflow uses one fixed `matatiele-hourly-sms` concurrency group with
-cancel-in-progress false. In live mode, the worker checks every page of repository
-issues, including closed issues, for a canonical UTC prediction-hour title. It
-creates the issue reservation BEFORE invoking the existing Twilio function.
-The same persisted issue blocks a subsequent runner even if its filesystem and
-local SMS CSV are fresh. No issue is created in dry-run.
-
-Do not delete reservations or edit their titles. A reservation is not delivery
-confirmation. Once reserved, a failed, timed-out or interrupted submission is
-blocked from automatic retry and needs manual review. If GitHub confirmation is
-lost after issue creation, no SMS is sent and a subsequent run finds the issue.
-Missing credentials, invalid/nonfinite values, stale timestamps, a wrong source,
-an expired target, a wrong threshold or API failure stop sending.
-Only safe status strings are posted; credentials and recipients are excluded.
-
-The list/create operation relies on this serialized workflow and is not an atomic
-transaction for independent concurrent callers. Do not launch another live worker
-outside this concurrency group. GitHub Actions is the sole real storm-warning sender. The dashboard has no storm-warning send button or function call; administrators retain the explicit Send Test SMS connectivity check, labelled NO WEATHER WARNING. Dashboard forecast refreshes never send weather warnings. Its local CSV records test submissions; it is not a shared Actions reservation store.
-GitHub schedules can be delayed and are not a guaranteed emergency delivery service.
-Submitted SMS is not confirmed delivery; check Twilio Console separately.
-
-## Checks
-
-```powershell
-python -m py_compile 18_scheduled_sms_worker.py
-python -m unittest discover -s tests -p test_scheduled_sms_worker.py -v
-```
-
-Tests mock all forecast, GitHub and SMS side effects. Test fixtures are only test
-inputs; they never replace genuine production forecasts or enter the dashboard.
-
-## Final Beta sender policy and configuration
-
-Real storm warnings are reserved for `18_scheduled_sms_worker.py` inside the single
-`matatiele-hourly-sms` Actions concurrency group. Do not add another warning sender
-or invoke the low-level SMS warning helper independently. The worker refreshes
-ECMWF, requires a fresh valid Matatiele Random Forest output, and uses the existing
-35% threshold. Both live activation gates remain disabled in the workflow.
-
-A partial submission returns `partial`, with submitted and failed/uncertain counts;
-it never reports complete success. The worker marks the run unsuccessful and
-retains its issue reservation for manual review. Timeout, unknown acceptance or
-missing provider ID must never cause an automatic retry. Review each recipient
-in Twilio Console before any recovery; issue reservations are not delivery receipts.
-Do not delete reservations to force retries, which can duplicate accepted messages.
-
-Local administrator/Twilio settings belong in ignored `.streamlit/secrets.toml`.
-The committed `.streamlit/secrets.toml.example` contains empty placeholders only.
-Actions uses encrypted repository secrets `TWILIO_ACCOUNT_SID`,
-`TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, and `ALERT_TO_NUMBERS`; CLI workers do
-not load the local Streamlit file. Never commit the private file or secret values.
-
-`17_validate_warning_pipeline.py` now runs only mocked worker safety tests; its
-former simulated 60% warning submission is removed. It cannot submit SMS.
-Successful API submission remains distinct from confirmed recipient delivery.
-Live automatic SMS still requires explicit owner approval and deployment of the
-reviewed local files together, including `app_config.py`.
+A genuine high-risk automatic warning submission/delivery has not yet been observed;
+that pathway is covered by controlled mocked tests. These results do not establish
+forecast accuracy or guaranteed emergency delivery. The academic Beta remains
+Internet-dependent. Sensors, edge processing, offline resilience, LoRa and Matatiele
+field validation remain future work. This is not an official SAWS warning service.

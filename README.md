@@ -14,31 +14,38 @@
 
 ## Overview
 
-A machine-learning research prototype designed to support earlier awareness of potential storms in Matatiele. It combines historical weather data, genuine forecasts, a Random Forest classifier, interactive weather visualisations and SMS integration. The current Beta is Internet-dependent; resilient offline deployment is a future research goal.
+A machine-learning research prototype designed to support earlier awareness of potential storms in Matatiele. It combines historical weather data, genuine forecasts, a Random Forest classifier trained on historical ERA5 data, interactive weather visualisations and SMS integration. The current Beta is Internet-dependent; resilient offline deployment is a future research goal.
 
 ## Key Features
 
 - **Next-hour storm prediction:** Random Forest model using 29 live-compatible features and a **35% warning threshold**.
 - **Live weather inputs:** ECMWF forecasts retrieved through Open-Meteo.
 - **Interactive dashboard:** Seven Streamlit pages covering forecasts, risk, maps, history and alerts.
-- **Rainfall visualisation:** Satellite-based map with interpolated regional forecast rainfall; **not live radar**.
-- **SMS integration:** Administrator-controlled Twilio test messages; real automatic storm-warning SMS remains disabled.
-- **Scheduled checks:** Independent GitHub Actions worker runs genuine predictions in safe dry-run mode.
+- **Rainfall visualisation:** Genuine ECMWF forecast-grid samples interpolated over a satellite basemap; **not live radar**.
+- **SMS integration:** Twilio connectivity tests and LIVE-enabled worker warnings when fresh predictions meet the 35% threshold.
+- **Scheduled checks:** Independent GitHub Actions worker runs genuine predictions in approved LIVE mode, without requiring an open dashboard.
 
 ## System Architecture
 
-A simplified overview of the current Beta. Historical ERA5 data was used to train the model; live predictions use ECMWF forecasts. SMS warning delivery remains disabled.
+Historical ERA5 training is separate from genuine ECMWF inference. The LIVE-enabled worker applies freshness, threshold and duplicate-submission safeguards before warning submission.
 
 ```mermaid
 %%{init: {"themeVariables": {"fontSize": "11px"}, "flowchart": {"nodeSpacing": 12, "rankSpacing": 16, "padding": 4, "diagramPadding": 4, "useMaxWidth": true}}}%%
 flowchart LR
-    A["ERA5 training data"] --> B["Saved Random Forest"]
-    C["ECMWF / Open-Meteo"] --> D["Live prediction"]
-    B --> D
-    D --> E["Streamlit dashboard"]
-    C --> F["Rainfall map"]
-    D --> G["GitHub Actions check"]
-    G --> H["SMS disabled / dry-run"]
+    A["Historical ERA5 data"] --> B["Trained Random Forest: 29 features"]
+    C["ECMWF / Open-Meteo"] --> D["Live preprocessing"]
+    B --> E["Random Forest inference"]
+    D --> E
+    E --> P["Next-hour probability"]
+    P --> F["Streamlit dashboard"]
+    C --> M["Forecast rainfall map; not radar"]
+    P --> G["Independent GitHub Actions worker"]
+    G --> H{"Fresh valid prediction >=35%?"}
+    H -->|No| N["No warning SMS"]
+    H -->|Yes| I["Concurrency + GitHub Issues reservation"]
+    I --> J{"New reservation?"}
+    J -->|No| N
+    J -->|Yes| K["Twilio warning submission; delivery unconfirmed"]
 ```
 
 ## Getting Started
@@ -76,10 +83,12 @@ Administrator SMS features require private settings in `.streamlit/secrets.toml`
 
 ## Beta Status and Limitations
 
-**Verified:** Genuine forecast/model inference, a manually received Twilio test SMS, 73 automated safety tests and successful GitHub Actions dry-runs.
+**Verified:** Genuine ECMWF retrieval and Random Forest inference; unattended scheduled LIVE execution (run #6, **0.00%**, below 35%, so no warning SMS); real phone receipt of the explicitly labelled **NO WEATHER WARNING** connectivity test (run #4); **77 automated tests and 28 subtests** passed.
 
-**Not yet verified:** Real unattended storm-warning delivery. Automatic SMS remains **disabled**; the dashboard cannot send storm warnings, and the independent worker is the designated future automatic sender.
+**Not yet observed:** Automatic storm-warning submission and delivery during a genuine high-risk event. High-risk decisions, duplicate prevention, configuration validation and uncertain outcomes have been tested with mocks. A successful LIVE run below threshold does not demonstrate warning delivery, and API acceptance is not confirmed recipient delivery.
 
-**Future work:** Local sensors, Raspberry Pi/edge deployment, offline resilience, field validation and further assessment of forecast accuracy.
+The dashboard does not independently send automatic storm warnings. Its private settings are separate from GitHub Actions secrets. See [SMS configuration and safety](README_SMS_SETUP.md) for the approved LIVE setup and safeguards.
+
+**Future work:** Local sensors, Raspberry Pi/edge processing, offline resilience, LoRa, field validation and further assessment of forecast accuracy.
 
 > **Research disclaimer:** This is an academic Beta prototype, not an official South African Weather Service (SAWS) warning service. Follow official weather alerts and local disaster-management guidance.
