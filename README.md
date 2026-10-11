@@ -46,7 +46,8 @@ flowchart TB
     MODEL --> RF
 
     subgraph SMS["Automatic SMS Warning"]
-        WORKER["Independent GitHub Actions LIVE worker"] --> VALID{"Fresh, valid prediction?"}
+        WORKER["Independent GitHub Actions LIVE worker"]
+        VALID{"Fresh, valid prediction?"}
         VALID -->|Yes| THRESHOLD{"Storm probability >=35%?"}
         VALID -->|No| NONE["No SMS"]
         THRESHOLD -->|No| NONE
@@ -54,7 +55,8 @@ flowchart TB
         RESERVE -->|No or error| NONE
         RESERVE -->|Yes| TWILIO["Twilio SMS submission: delivery unconfirmed"]
     end
-    PROB --> WORKER
+    WORKER -->|Invokes pipeline independently| PREP
+    PROB -->|Worker-run result| VALID
 ```
 
 ## Getting Started
