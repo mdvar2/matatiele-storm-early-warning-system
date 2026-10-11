@@ -30,22 +30,31 @@ A machine-learning research prototype designed to support earlier awareness of p
 Historical ERA5 training is separate from genuine ECMWF inference. The LIVE-enabled worker applies freshness, threshold and duplicate-submission safeguards before warning submission.
 
 ```mermaid
-%%{init: {"themeVariables": {"fontSize": "11px"}, "flowchart": {"nodeSpacing": 12, "rankSpacing": 16, "padding": 4, "diagramPadding": 4, "useMaxWidth": true}}}%%
-flowchart LR
-    A["Historical ERA5 data"] --> B["Trained Random Forest: 29 features"]
-    C["ECMWF / Open-Meteo"] --> D["Live preprocessing"]
-    B --> E["Random Forest inference"]
-    D --> E
-    E --> P["Next-hour probability"]
-    P --> F["Streamlit dashboard"]
-    C --> M["Forecast rainfall map; not radar"]
-    P --> G["Independent GitHub Actions worker"]
-    G --> H{"Fresh valid prediction >=35%?"}
-    H -->|No| N["No warning SMS"]
-    H -->|Yes| I["Concurrency + GitHub Issues reservation"]
-    I --> J{"New reservation?"}
-    J -->|No| N
-    J -->|Yes| K["Twilio warning submission; delivery unconfirmed"]
+flowchart TB
+    subgraph Development["Model Development"]
+        ERA5["Historical ERA5 data"] --> TRAIN["Random Forest training"]
+        TRAIN --> MODEL["Saved model: 29 live-compatible features"]
+    end
+
+    subgraph Forecasting["Live Forecasting and Prediction"]
+        ECMWF["ECMWF via Open-Meteo"] --> PREP["Live preprocessing"]
+        PREP --> RF["Random Forest inference"]
+        RF --> PROB["Next-hour storm probability"]
+        PROB --> DASH["Streamlit dashboard"]
+        ECMWF --> MAP["Regional forecast rainfall map: not radar"]
+    end
+    MODEL --> RF
+
+    subgraph SMS["Automatic SMS Warning"]
+        WORKER["Independent GitHub Actions LIVE worker"] --> VALID{"Fresh, valid prediction?"}
+        VALID -->|Yes| THRESHOLD{"Storm probability >=35%?"}
+        VALID -->|No| NONE["No SMS"]
+        THRESHOLD -->|No| NONE
+        THRESHOLD -->|Yes| RESERVE{"GitHub Issues reservation: new?"}
+        RESERVE -->|No or error| NONE
+        RESERVE -->|Yes| TWILIO["Twilio SMS submission: delivery unconfirmed"]
+    end
+    PROB --> WORKER
 ```
 
 ## Getting Started
