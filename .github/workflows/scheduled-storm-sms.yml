@@ -25,6 +25,8 @@ name: Scheduled Matatiele Storm Check
 permissions:
   contents: read
   issues: write
+  # Read-only: lets a later run confirm that the holder of an abandoned SMS lock has ended.
+  actions: read
 concurrency:
   group: matatiele-hourly-sms
   cancel-in-progress: false
@@ -71,6 +73,15 @@ jobs:
           RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
           RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
         run: python 18_scheduled_sms_worker.py --test-sms
+      # Monitoring only: confirms the token can create/delete lock labels and read run status.
+      # Uses a throwaway "sms-probe:" label, never an SMS lock or ledger issue; cannot fail the job.
+      - name: Probe duplicate-lock permissions (monitoring only)
+        if: ${{ always() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+        run: python3 22_probe_lock_permissions.py
       # Monitoring only: runs after every outcome, cannot fail the job and never sends SMS.
       - name: Publish sanitised run record (monitoring only)
         if: ${{ always() }}

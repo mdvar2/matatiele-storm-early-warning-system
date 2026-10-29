@@ -27,7 +27,8 @@ except Exception:  # pragma: no cover - publisher must still report something
 API = 'https://api.github.com'
 TITLE_PREFIX = '[RUN-LOG]'
 SUMMARY_FIELDS = ('outcome', 'worker_exit_code', 'mode', 'trigger', 'trigger_source', 'scheduled_slot_utc',
-                  'dispatch_delay_seconds', 'reservation_lock', 'workflow_run_number', 'started_utc',
+                  'dispatch_delay_seconds', 'reservation_lock', 'lock_label_permission', 'run_status_permission',
+                  'workflow_run_number', 'started_utc',
                   'duration_seconds', 'model_loading', 'forecast_retrieval', 'forecast_http_status',
                   'forecast_response_validation', 'model_inference', 'prediction_output', 'prediction_validation',
                   'freshness_status', 'forecast_input_utc', 'prediction_target_utc', 'storm_probability',

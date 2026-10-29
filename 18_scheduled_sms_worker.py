@@ -92,6 +92,41 @@ def lock_label_name(key):
     return name if len(name) <= 50 else 'sms-lock:' + hashlib.sha256(key.encode('utf-8')).hexdigest()[:40]
 
 
+LOCK_GENERATIONS = 3  # bounded takeovers of abandoned locks per forecast hour
+_HOLDER = re.compile(r'\brun=(\d{1,20}) attempt=(\d{1,6})\b')
+
+
+def lock_description():
+    """Label description (GitHub max 100 characters) naming the run that holds the lock."""
+    run_id, attempt = os.getenv('GITHUB_RUN_ID', ''), os.getenv('GITHUB_RUN_ATTEMPT', '')
+    holder = f' run={run_id} attempt={attempt}' if run_id.isdigit() and attempt.isdigit() else ''
+    return f'Duplicate-SMS lock for one forecast hour. Do not delete.{holder}'
+
+
+def lock_holder_state(key):
+    """'finished' only when the run named in the lock has provably ended; else 'active' or 'unknown'.
+
+    A finished holder can no longer create a ledger issue or send an SMS. Any doubt
+    (old-format lock, API or permission failure) returns 'unknown', which keeps suppression.
+    """
+    try:
+        label = github('GET', 'labels/' + quote(lock_label_name(key), safe=''))
+        match = _HOLDER.search(str(label.get('description') or '')) if isinstance(label, dict) else None
+        if not match:
+            return 'unknown'
+        holder_run, holder_attempt = match.group(1), int(match.group(2))
+        if holder_run == os.getenv('GITHUB_RUN_ID', ''):
+            # Attempts of one run execute one after another; only an earlier attempt can have ended.
+            current = os.getenv('GITHUB_RUN_ATTEMPT', '')
+            return 'finished' if current.isdigit() and holder_attempt < int(current) else 'active'
+        run = github('GET', f'actions/runs/{holder_run}')
+        if not isinstance(run, dict) or not run.get('status'):
+            return 'unknown'
+        return 'finished' if run['status'] == 'completed' else 'active'
+    except Exception:
+        return 'unknown'
+
+
 def acquire_reservation_lock(key):
     """Atomic reservation: GitHub label names are unique per repository.
 
@@ -102,8 +137,7 @@ def acquire_reservation_lock(key):
     name = lock_label_name(key)
     try:
         result = github('POST', 'labels', conflict_ok=True, json={
-            'name': name, 'color': 'ededed',
-            'description': 'Duplicate-SMS lock for one forecast hour. Do not delete.'})
+            'name': name, 'color': 'ededed', 'description': lock_description()})
     except Exception:
         return 'unavailable'
     if isinstance(result, dict) and result.get('_conflict'):
@@ -117,7 +151,8 @@ def release_reservation_lock(key):
     """Best effort, only after issue creation failed and before any SMS: lets a later run retry.
 
     Safe if the failed POST did create the issue, because later runs find it by title.
-    Returns 'released' or 'release_failed' (later runs in this hour stay suppressed).
+    Returns 'released' or 'release_failed' (a later run may then recover the lock once
+    this run has ended; see lock_holder_state).
     """
     try:
         github('DELETE', 'labels/' + quote(lock_label_name(key), safe=''))
@@ -126,26 +161,47 @@ def release_reservation_lock(key):
         return 'release_failed'
 
 
-def reserve_hour(key):
-    # Live runs must use the same Actions concurrency group. Issue creation is
-    # not atomic outside that serialized workflow. Never retry an uncertain POST.
+def ledger_has(title):
     # List all issues, including closed; a closed reservation must not trigger resends.
     page = 1
-    title = f'[SMS-LEDGER] {key}'
     while True:
         rows = github('GET', f'issues?state=all&sort=created&direction=asc&per_page=100&page={page}')
         if not isinstance(rows,list) or any(not isinstance(row,dict) for row in rows):
             fail('Invalid ledger response; no warning submitted.', 'duplicate_prevention_failure', 'ledger_response_invalid')
         if any(row.get('title') == title and 'pull_request' not in row for row in rows):
-            _note(reservation_lock='not_attempted')
-            return None
+            return True
         if len(rows) < 100:
-            break
+            return False
         page += 1
-    lock = acquire_reservation_lock(key)
-    _note(reservation_lock=lock)
-    if lock == 'already_exists':
-        return None  # a concurrent or earlier run holds this key; never send twice
+
+
+def reserve_hour(key):
+    # Live runs must use the same Actions concurrency group. Issue creation is
+    # not atomic outside that serialized workflow; the label lock adds atomicity.
+    # Never retry an uncertain POST.
+    title = f'[SMS-LEDGER] {key}'
+    if ledger_has(title):
+        _note(reservation_lock='not_attempted')
+        return None
+    for generation in range(1, LOCK_GENERATIONS + 1):
+        lock_key = key if generation == 1 else f'{key}#gen{generation}'
+        lock = acquire_reservation_lock(lock_key)
+        if lock != 'already_exists':
+            break
+        # An SMS is only ever sent after the ledger issue exists. So a lock whose holder
+        # run has ended, with still no issue, was abandoned before any SMS: the next
+        # generation's label (again atomic) lets exactly one later run take over.
+        holder = lock_holder_state(lock_key)
+        if holder != 'finished':
+            _note(reservation_lock='already_exists' if holder == 'active' else 'held_holder_unknown')
+            return None  # a concurrent run may hold this key, or we cannot prove otherwise
+        if ledger_has(title):  # re-check after the holder ended: it may have reserved first
+            _note(reservation_lock='already_exists')
+            return None
+    else:
+        _note(reservation_lock='generations_exhausted')
+        return None
+    _note(reservation_lock='recovered' if generation > 1 and lock == 'created' else lock)
     try:
         issue = github('POST', 'issues', json={
             'title': title,
@@ -155,7 +211,7 @@ def reserve_hour(key):
         })
     except WorkerError:
         if lock == 'created':
-            _note(reservation_lock=release_reservation_lock(key))
+            _note(reservation_lock=release_reservation_lock(lock_key))
         raise
     if not isinstance(issue,dict) or not isinstance(issue.get('number'),int):
         fail('Reservation confirmation invalid; no SMS submitted. Review ledger manually.',

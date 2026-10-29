@@ -90,9 +90,18 @@ with simulation preview off, but cannot independently send storm warnings.
   sends nothing. If the label API is unavailable the worker falls back to the issue
   ledger alone (`reservation_lock: unavailable` in the run record). If issue creation
   fails after the lock, the worker deletes the label before any SMS so a later run can
-  retry (`released`); if that deletion fails (`release_failed`), later runs for that
-  hour stay suppressed. Never delete `sms-lock:` labels by hand: like reservations,
-  they block repeat sends.
+  retry (`released`).
+- **Abandoned-lock recovery:** each lock's description names its holder run. A lock with
+  no ledger issue whose holder run has **completed** (or is an earlier attempt of the same
+  run) was abandoned before any SMS, because SMS is only sent after the issue exists. A
+  later run then re-checks the ledger and takes over through a next-generation label
+  (`#gen2`, `#gen3`, also atomic): `reservation_lock: recovered`. If the holder may still
+  be running, or this cannot be proven, the run stays suppressed (`already_exists`,
+  `held_holder_unknown`). This needs the read-only `actions: read` permission.
+- **Permission probe:** every run creates and deletes a throwaway `sms-probe:<run>` label
+  and reads its own run status; the job summary and heartbeats show
+  `lock_label_permission` and `run_status_permission` (`ok` expected). It never touches
+  `sms-lock:` labels or ledger issues. Never delete `sms-lock:` labels by hand.
 
 GitHub Actions is the sole storm-warning sender. Dashboard refreshes never send
 weather warnings. Local CSV logs and GitHub reservations remain separate stores;

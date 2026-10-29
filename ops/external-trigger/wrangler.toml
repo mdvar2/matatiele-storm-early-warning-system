@@ -5,6 +5,7 @@ main = "worker.js"
 compatibility_date = "2025-01-01"
 # No public URL: the Worker only runs on its cron schedule.
 workers_dev = false
+preview_urls = false
 
 [triggers]
 # Minute 5 of every hour, UTC. GitHub's own cron (minute 12) stays enabled as a backup.

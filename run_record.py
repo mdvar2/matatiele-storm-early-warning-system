@@ -40,6 +40,7 @@ SCHEMA = {
     'mode': str, 'trigger': str, 'workflow_run_id': str, 'workflow_run_number': str,
     'workflow_run_attempt': str, 'commit': str, 'scheduled_slot_utc': str,
     'trigger_source': str, 'dispatch_delay_seconds': float, 'reservation_lock': str,
+    'lock_label_permission': str, 'run_status_permission': str,
     'model_loading': str, 'forecast_retrieval': str, 'forecast_http_status': int,
     'forecast_response_validation': str, 'model_inference': str, 'prediction_output': str,
     'forecast_retrieved_utc': str, 'forecast_input_utc': str, 'prediction_target_utc': str,

@@ -4,7 +4,7 @@ GitHub's `schedule` event is best effort. Between 10 and 29 October 2026 the
 `'12 * * * *'` cron ran in 95 of 443 hourly slots (21.4%), with a median gap of
 4.8 h. This folder contains an external trigger that asks GitHub to run the
 existing workflow every hour. **Nothing here is deployed.** Activation needs the
-project owner's approval, a new token and a third-party account.
+project owner's approval, a new token and a Cloudflare account.
 
 ## How it works
 
@@ -21,62 +21,77 @@ GitHub cron (minute 12)          --schedule event-------->  same workflow (backu
 * Two runs per hour (external at :05, GitHub backup at :12) cannot send two warnings
   for the same forecast hour: runs are serialised by the `matatiele-hourly-sms`
   concurrency group, and each forecast hour is reserved by an issue plus an atomic
-  `sms-lock:<key>` label. See the test evidence in `tests/test_r3_trigger.py`.
+  `sms-lock:<key>` label. See `tests/test_r3_trigger.py` and `tests/test_lock_recovery.py`.
 * A failed dispatch is retried once (5xx or network error only). A duplicated
   dispatch is harmless for the same reason.
 
-## Option comparison
+## Recommendation: Cloudflare Workers Cron
 
-| | Cloudflare Workers Cron (recommended) | cron-job.org (simpler alternative) |
+cron-job.org is simpler to set up (a web form), but Cloudflare is the better fit here,
+because of what the token can do. A fine-grained token with **Actions: write**
+can start workflows, and it can also **disable workflows, cancel runs and delete run logs**.
+A leaked token could therefore silently stop the warning system. (Healthchecks HB-1
+would alert after about 10 hours without a run.)
+
+| | Cloudflare Workers Cron (recommended) | cron-job.org |
 |---|---|---|
-| Cost | Free plan includes Cron Triggers (check current limits) | Free, donation-funded |
-| Where the token lives | Encrypted Worker secret; not visible after saving | Stored in the cron-job.org job's request header |
-| Logic | Code in this folder: fixed inputs, input validation, one retry, no token logging; unit-tested | A plain HTTP request configured in a web form |
-| Failure visibility | Failed invocations listed in Cron Events; worker throws on failure | Execution history and optional failure e-mails |
-| Setup effort | Node.js + `wrangler` CLI, Cloudflare account | Web form only |
-| Public endpoint | None (`workers_dev = false`, no fetch handler) | None on our side |
+| Cost | Free plan: 5 Cron Triggers per account, 100,000 requests/day, 10 ms CPU per cron run (this Worker waits on one HTTP call; waiting is not CPU time) | Free |
+| Token custody | Encrypted Worker secret, cannot be read back after saving | Typed into the job's header settings; storage of headers not documented in its FAQ |
+| Behaviour | Tested code in this folder: fixed inputs, slot timestamp (`scheduled_for`, needed for `dispatch_delay_seconds`), one bounded retry, token never logged | Plain request; no slot timestamp; 30 s timeout; job auto-deactivates after 25 consecutive failures |
+| Failure visibility | Cron Events list failed invocations (the Worker throws on any failed dispatch) | Execution history; optional failure e-mails |
+| Setup | Cloudflare account; `npx wrangler` (Node.js is installed) | Web form |
+| Public endpoint | None (`workers_dev = false`, `preview_urls = false`, no fetch handler) | None on our side |
 
-Either way, GitHub Actions remains the only SMS sender, and the GitHub cron stays as a
-backup. Healthchecks.io HB-1 (R2) alerts if runs stop, whichever scheduler fails.
+In both cases GitHub Actions remains the only SMS sender, and the GitHub cron stays as backup.
 
-## Token (both options)
+## Activation: exact minimum steps (Cloudflare)
 
-Create a **fine-grained personal access token** (GitHub → Settings → Developer settings):
+**0. Check the lock permissions first.** Open the job summary of the first run on the
+current commit. It must show `lock_label_permission = ok` and
+`run_status_permission = ok`. If either one isn't `ok`, stop and report it. Warnings remain
+safe (the issue ledger still applies), but the lock is not active.
 
-* Resource owner: the repository owner; **Only select repositories:** this repository only.
-* Repository permissions: **Actions: Read and write** (Metadata: read is added
-  automatically). Nothing else.
-* Expiry: set one (for example 90 days) and record the renewal date. An expired token
-  causes `rejected_http_401`; the GitHub cron backup keeps running.
-* Never commit the token, paste it into issues or put it in `wrangler.toml`.
+**1. Create the token** at <https://github.com/settings/personal-access-tokens/new>:
+* Token name: `matatiele-external-trigger`. Expiration: 90 days (note the date).
+* Resource owner: `mdvar2`. Repository access: **Only select repositories** →
+  `matatiele-storm-early-warning-system`.
+* Repository permissions: **Actions → Read and write**. Leave everything else as
+  *No access* (Metadata: read is added automatically).
+* Generate it and keep the page open. Don't paste the token anywhere else.
 
-## Option A: Cloudflare Worker (after approval)
-
+**2. Deploy the Worker** (in this folder):
 ```bash
 cd ops/external-trigger
-node --test                                   # offline tests, fetch mocked
-npx wrangler login
-npx wrangler secret put GITHUB_DISPATCH_TOKEN # paste the token when prompted
-npx wrangler deploy
+node --test                     # 9 offline tests, all must pass
+npx wrangler login              # opens the browser; free Cloudflare account
+npx wrangler deploy             # creates the Worker and its ":05" cron trigger
+npx wrangler secret put GITHUB_DISPATCH_TOKEN   # paste the token at the prompt
 ```
+If a :05 run happens between `deploy` and `secret put`, it reports `not_configured`
+and does nothing.
 
-Check: Cloudflare dashboard → Workers → `matatiele-storm-trigger` → Cron Events show
-`outcome=dispatched`; GitHub Actions shows `workflow_dispatch` runs at about :05, and
-their run records show `trigger_source: external_scheduler`.
+**3. Verify** after the next :05 UTC:
+* GitHub → Actions: a new `workflow_dispatch` run of *Scheduled Matatiele Storm Check*.
+* That run's summary shows `trigger_source = external_scheduler` and a `scheduled_slot_utc`.
+* Cloudflare → Workers → `matatiele-storm-trigger` → Cron Events: `outcome=dispatched`.
 
-**Disable:** delete the cron trigger (or the Worker) in Cloudflare, then revoke the token.
+**Disable at any time:** set `crons = []` in `wrangler.toml` and run `npx wrangler deploy`
+(or delete the Worker in the dashboard), then revoke the token on GitHub. The GitHub
+cron keeps running.
 
-## Option B: cron-job.org (after approval)
+**Renew before expiry:** create a new token as in step 1, then run `npx wrangler secret put GITHUB_DISPATCH_TOKEN`.
+An expired token shows `rejected_http_401` in Cron Events, and the GitHub cron backup continues.
+
+## Alternative: cron-job.org
 
 Create one job:
 
 * URL: `https://api.github.com/repos/mdvar2/matatiele-storm-early-warning-system/actions/workflows/scheduled-storm-sms.yml/dispatches`
-* Schedule: every hour at minute 5; time zone UTC.
-* Method `POST`. Headers: `Authorization: Bearer <token>`,
-  `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`,
-  `Content-Type: application/json`.
+* Schedule: every hour at minute 5; time zone UTC. Method `POST`.
+* Headers: `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`,
+  `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`.
 * Body: `{"ref":"main","inputs":{"send_test_sms":"false","trigger_source":"external_scheduler"}}`
-  (cron-job.org cannot insert the slot time, so `scheduled_slot_utc` shows `not_available`).
+  (`scheduled_slot_utc` will show `not_available`).
 * Success = HTTP 204. Enable failure notifications.
 
 ## Measuring the effect
@@ -87,6 +102,6 @@ Coverage is not claimed as improved until it is measured:
 python 21_measure_execution_coverage.py --fetch --since <activation time>
 ```
 
-Compare `slot_coverage` and `freshness_75min` for all events with the 21.4% and 25.6%
-baseline over at least 14 days. The runs API does not show dispatch inputs, so external
-and manual dispatches are separated with `trigger_source` in run records or HB-1 payloads.
+Compare `slot_coverage` and `freshness_75min` across all events with the 21.4% and
+25.6% baseline over at least 14 days. The runs API does not show dispatch inputs, so
+use `trigger_source` from run records or HB-1 payloads to separate external from manual runs.

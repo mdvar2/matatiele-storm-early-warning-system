@@ -30,8 +30,12 @@ class FakeGitHub:
 
     def __init__(self):
         self.issues, self.labels, self.comments, self.calls = [], set(), [], []
-        self.fail = set()                 # {'list', 'label', 'issue', 'comment'}
+        self.descriptions = {}            # label name -> description (holds the lock owner)
+        self.run_status = {}              # workflow run id -> status; unknown ids are 'completed'
+        self.unexpected = []              # calls the fake does not model (asserted empty)
+        self.fail = set()                 # {'list', 'label', 'issue', 'comment', 'delete', 'label_get', 'runs', ...}
         self.before_issue_create = None   # hook to interleave another run
+        self.before_label_get = None      # hook run when a lock holder is looked up
         self.worker = None
 
     def bind(self, worker):
@@ -58,7 +62,22 @@ class FakeGitHub:
                     return {'_conflict': True}
                 self._error()
             self.labels.add(name)
+            self.descriptions[name] = kwargs['json'].get('description')
+            if 'label_uncertain' in self.fail:  # created server-side, but the response was lost
+                self._error()
             return {'name': name, 'color': kwargs['json']['color']}
+        if method == 'GET' and endpoint.startswith('labels/'):
+            if self.before_label_get:
+                hook, self.before_label_get = self.before_label_get, None
+                hook()
+            name = unquote(endpoint[len('labels/'):])
+            if 'label_get' in self.fail or name not in self.labels:
+                self._error()
+            return {'name': name, 'description': self.descriptions.get(name)}
+        if method == 'GET' and endpoint.startswith('actions/runs/'):
+            if 'runs' in self.fail:
+                self._error()
+            return {'id': int(endpoint.rsplit('/', 1)[1]), 'status': self.run_status.get(endpoint.rsplit('/', 1)[1], 'completed')}
         if method == 'DELETE' and endpoint.startswith('labels/'):
             if 'delete' in self.fail:
                 self._error()
@@ -80,13 +99,17 @@ class FakeGitHub:
                 self._error()
             self.comments.append(kwargs['json']['body'])
             return {}
+        self.unexpected.append((method, endpoint))
         raise AssertionError(f'unexpected GitHub call {method} {endpoint}')
 
 
-class DuplicatePrevention(RecordHarness):
+class LedgerHarness(RecordHarness):
+    """Live worker runs against FakeGitHub with mocked SMS; defines no tests."""
+
     def setUp(self):
         super().setUp()
         self.ledger = FakeGitHub()
+        self.addCleanup(lambda: self.assertEqual(self.ledger.unexpected, []))
         self.send = Mock(return_value={'status': 'sent', 'sent': True})
         self.patches = [patch('sms_alert.sms_is_configured', return_value=True), patch('sms_alert.send_storm_sms', self.send)]
         for p in self.patches:
@@ -102,6 +125,8 @@ class DuplicatePrevention(RecordHarness):
             r['record'] = json.loads(Path(record_path).read_text(encoding='utf-8'))
         return r
 
+
+class DuplicatePrevention(LedgerHarness):
     def test_two_runs_same_forecast_hour_send_once(self):
         first, second = self.live(), self.live(RUN_TRIGGER_SOURCE='external_scheduler')
         self.assertEqual(self.send.call_count, 1)
@@ -184,14 +209,15 @@ class DuplicatePrevention(RecordHarness):
         retry = self.live(GITHUB_RUN_ATTEMPT='2')
         self.assertEqual((retry['code'], self.send.call_count, retry['record']['duplicate_prevention']), (0, 0, 'already_reserved'))
 
-    def test_lock_release_failure_suppresses_later_runs_documented_limit(self):
-        # Fails safe against duplicates, at the cost of this forecast hour's warning.
+    def test_lock_release_failure_is_recovered_by_a_later_attempt(self):
+        # The stuck lock names attempt 1 of this run; attempt 2 can only start after it ended.
         self.ledger.fail.update({'issue', 'delete'})
         r = self.live()
         self.assertEqual((r['code'], self.send.call_count, r['record']['reservation_lock']), (1, 0, 'release_failed'))
         self.ledger.fail.clear()
         retry = self.live(GITHUB_RUN_ATTEMPT='2')
-        self.assertEqual((retry['code'], self.send.call_count, retry['record']['reservation_lock']), (0, 0, 'already_exists'))
+        self.assertEqual((retry['code'], self.send.call_count, retry['record']['reservation_lock']), (0, 1, 'recovered'))
+        self.assertEqual(self.live(GITHUB_RUN_ATTEMPT='3')['code'], 0); self.assertEqual(self.send.call_count, 1)
 
     def test_issue_failure_without_lock_does_not_delete_anything(self):
         self.ledger.fail.update({'label', 'issue'})
@@ -358,7 +384,8 @@ class WorkflowInputs(unittest.TestCase):
 
     def test_production_invariants_unchanged(self):
         self.assertIn("- cron: '12 * * * *'", self.text)
-        self.assertIn('permissions:\n  contents: read\n  issues: write\nconcurrency:\n  group: matatiele-hourly-sms\n  cancel-in-progress: false', self.text)
+        self.assertIn('permissions:\n  contents: read\n  issues: write\n', self.text)
+        self.assertIn('concurrency:\n  group: matatiele-hourly-sms\n  cancel-in-progress: false', self.text)
         self.assertIn("if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}", self.text)
         self.assertIn("if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}", self.text)
         self.assertEqual(self.text.count('run: python 18_scheduled_sms_worker.py --live'), 1)
