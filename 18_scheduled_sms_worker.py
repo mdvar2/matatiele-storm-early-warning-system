@@ -23,6 +23,8 @@ from urllib.parse import quote
 import pandas as pd
 import requests
 
+import cape_normalisation as cape_rule
+
 try:  # Monitoring must never stop the worker from running.
     import run_record as _run_record
 except Exception:  # pragma: no cover - exercised by test_missing_monitoring_module
@@ -223,6 +225,36 @@ def report(issue_number, message):
     github('POST', f'issues/{issue_number}/comments', json={'body': message})
 
 
+def _number(value):
+    try:
+        return None if isinstance(value, bool) else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_cape(row):
+    """Check the inference script's CAPE normalisation report against the shared rule.
+
+    Older prediction files carry no report; for them only the unchanged physical
+    checks apply. Any inconsistency, or an invalid current or previous-hour CAPE,
+    stops the run before a warning decision.
+    """
+    if 'cape_normalisation' not in row.index:
+        _note(cape_normalisation='not_reported', previous_cape_normalisation='not_reported')
+        return
+    statuses = {}
+    for field in ('cape', 'previous_cape'):
+        raw, status = _number(row.get(f'{field}_raw')), str(row.get(f'{field}_normalisation'))
+        _note(**{f'{field}_normalisation': status if status in cape_rule.STATUSES else 'unrecognised',
+                 f'{field}_original_j_kg': raw})
+        if not cape_rule.consistent(_number(row.get(field)), raw, status):
+            fail('Inconsistent CAPE normalisation report; no SMS sent.', 'invalid_forecast_data',
+                 'cape_normalisation_inconsistent')
+        statuses[field] = status
+    if cape_rule.INVALID in statuses.values():
+        fail('Invalid physical forecast values; no SMS sent.', 'invalid_forecast_data', 'physical_values_invalid')
+
+
 def validate_prediction(data, started, now):
     """Only fresh, genuine, finite next-hour outputs are eligible for warnings."""
     required={'forecast_source','forecast_retrieved_at','forecast_input_time','prediction_for',
@@ -255,6 +287,7 @@ def validate_prediction(data, started, now):
         fail('Invalid probability or unexpected threshold; expected 35%.', 'invalid_model_output', 'probability_or_threshold_invalid')
     if str(row['forecast_source'])!='Open-Meteo ECMWF':
         fail('Unexpected forecast source; only genuine ECMWF output accepted.', 'invalid_forecast_data', 'unexpected_source')
+    validate_cape(row)
     if values['precipitation_mm']<0 or values['cape']<0 or values['wind_gust_ms']<0 or values['pressure_msl_hpa']<=0:
         fail('Invalid physical forecast values; no SMS sent.', 'invalid_forecast_data', 'physical_values_invalid')
     if not (math.isclose(values['latitude'],-30.30,abs_tol=1e-6) and math.isclose(values['longitude'],28.80,abs_tol=1e-6)):

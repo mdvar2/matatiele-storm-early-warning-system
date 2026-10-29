@@ -80,6 +80,13 @@ with simulation preview off, but cannot independently send storm warnings.
   duplicate an accepted message.
 - API/model failures, missing configuration, invalid/nonfinite data, stale or expired
   targets, unexpected source/location/threshold and ledger failures stop sending.
+- **CAPE normalisation:** Open-Meteo interpolates ECMWF's 3-hourly CAPE to hourly values,
+  which can overshoot slightly below zero. `cape_normalisation.py` sets finite CAPE in
+  [-50, 0) J/kg to 0 for the current- and previous-hour model inputs; anything below
+  -50, missing or non-finite stays invalid and stops the run. The prediction file and
+  run record keep the original value (`cape_raw`, `cape_original_j_kg`) and the status
+  (`unchanged`, `normalised`, `invalid`). The worker rejects any inconsistent report.
+  The -50 J/kg cutoff is provisional and under evaluation.
   Old saved predictions are not substituted after a failed inference run.
 - Only safe status information is posted publicly; credentials and recipients are
   excluded. The issue list/create operation relies on workflow serialization and

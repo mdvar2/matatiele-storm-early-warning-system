@@ -28,6 +28,7 @@ API = 'https://api.github.com'
 TITLE_PREFIX = '[RUN-LOG]'
 SUMMARY_FIELDS = ('outcome', 'worker_exit_code', 'mode', 'trigger', 'trigger_source', 'scheduled_slot_utc',
                   'dispatch_delay_seconds', 'reservation_lock', 'lock_label_permission', 'run_status_permission',
+                  'cape_normalisation', 'cape_original_j_kg', 'previous_cape_normalisation', 'previous_cape_original_j_kg',
                   'workflow_run_number', 'started_utc',
                   'duration_seconds', 'model_loading', 'forecast_retrieval', 'forecast_http_status',
                   'forecast_response_validation', 'model_inference', 'prediction_output', 'prediction_validation',

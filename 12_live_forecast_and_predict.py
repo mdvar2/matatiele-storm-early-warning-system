@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import requests
 from forecast_timing import model_input_hour
+from cape_normalisation import normalise_cape
 
 parser = argparse.ArgumentParser(description='Genuine ECMWF / Random Forest inference; no SMS.')
 parser.add_argument('--dashboard-next-hour', action='store_true',
@@ -554,6 +555,25 @@ previous = (
 
 
 # ============================================================
+# 14b. NORMALISE SMALL NEGATIVE CAPE (interpolation artefact)
+# ============================================================
+# Finite CAPE in [-50, 0) J/kg becomes 0 for both model inputs; anything else
+# invalid is passed through unchanged and rejected by the SMS worker.
+latest = latest.copy()
+previous = previous.copy()
+cape_raw, cape_status = latest["cape"], None
+previous_cape_raw, previous_cape_status = previous["cape"], None
+value, cape_status = normalise_cape(cape_raw)
+if value is not None:
+    latest["cape"] = value
+value, previous_cape_status = normalise_cape(previous_cape_raw)
+if value is not None:
+    previous["cape"] = value
+print(f"\nCAPE normalisation: current={cape_status} (raw {cape_raw}), "
+      f"previous={previous_cape_status} (raw {previous_cape_raw})")
+
+
+# ============================================================
 # 15. TIME FEATURES
 # ============================================================
 
@@ -960,6 +980,21 @@ result = {
 
     "cape":
         latest["cape"],
+
+    "cape_raw":
+        cape_raw,
+
+    "cape_normalisation":
+        cape_status,
+
+    "previous_cape":
+        previous["cape"],
+
+    "previous_cape_raw":
+        previous_cape_raw,
+
+    "previous_cape_normalisation":
+        previous_cape_status,
 
     "cloud_cover_percent":
         latest["tcc"]
