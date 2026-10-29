@@ -1,10 +1,16 @@
-# External hourly trigger (R3): prepared, NOT active
+# External hourly trigger (R3): ACTIVE since 29 October 2026
 
 GitHub's `schedule` event is best effort. Between 10 and 29 October 2026 the
 `'12 * * * *'` cron ran in 95 of 443 hourly slots (21.4%), with a median gap of
-4.8 h. This folder contains an external trigger that asks GitHub to run the
-existing workflow every hour. **Nothing here is deployed.** Activation needs the
-project owner's approval, a new token and a Cloudflare account.
+4.8 h. This folder contains the external trigger that asks GitHub to run the
+existing workflow every hour.
+
+**Status:** deployed with the owner's approval on 29 October 2026 as the Cloudflare
+Worker `matatiele-storm-trigger`, cron `5 * * * *`, with the `GITHUB_DISPATCH_TOKEN`
+secret set. The first invocation (21:05 UTC) dispatched production run #103, which
+completed successfully. One successful run does not establish sustained reliability.
+Coverage is measured separately (see *Measuring the effect*). The steps below record
+how it was activated, and how to renew, redeploy or disable it.
 
 ## How it works
 
@@ -69,6 +75,11 @@ npx wrangler secret put GITHUB_DISPATCH_TOKEN   # paste the token at the prompt
 ```
 If a :05 run happens between `deploy` and `secret put`, it reports `not_configured`
 and does nothing.
+
+On a new Cloudflare account, the first `deploy` uploads the script but cannot attach the
+cron (`error 10063: You need a workers.dev subdomain`). Open **Workers & Pages** in the
+dashboard once to create the account subdomain, then run `npx wrangler deploy` again.
+This doesn't make the Worker public: `workers_dev` and `preview_urls` stay `false`.
 
 **3. Verify** after the next :05 UTC:
 * GitHub → Actions: a new `workflow_dispatch` run of *Scheduled Matatiele Storm Check*.

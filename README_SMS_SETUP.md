@@ -147,9 +147,9 @@ Secrets hold full ping URLs (`https://hc-ping.com/<uuid>`); never commit them. A
 secret skips that check. To switch heartbeats off, delete the secrets. Heartbeat bodies
 contain enumerated statuses only: no probability, message text, numbers or identifiers.
 
-- **External hourly trigger (R3, prepared, not active):** GitHub's cron runs only about
-  21% of hours. `ops/external-trigger/` contains a Cloudflare Worker that can start this
-  workflow every hour through `workflow_dispatch` with `trigger_source=external_scheduler`;
+- **External hourly trigger (R3, active since 29 October 2026):** GitHub's cron ran only
+  about 21% of hours. The Cloudflare Worker in `ops/external-trigger/` starts this
+  workflow at minute 5 of every hour through `workflow_dispatch` with `trigger_source=external_scheduler`;
   the GitHub cron stays as a backup. The worker refuses `--test-sms` from that source.
   Each run record and heartbeat records `trigger_source` (`github_schedule`,
   `external_scheduler`, `manual`). Measure coverage with

@@ -431,8 +431,8 @@ class WorkflowAndCode(unittest.TestCase):
         end_step, e = self.step('Heartbeat - report outcome (monitoring only)')
         _, publish = self.step('Publish sanitised run record (monitoring only)')
         _, worker = self.step('Genuine forecast and automatic SMS check')
-        checkout = next(i for i, l in enumerate(self.lines) if 'actions/checkout@v4' in l)
-        setup = next(i for i, l in enumerate(self.lines) if 'actions/setup-python@v5' in l)
+        checkout = next(i for i, l in enumerate(self.lines) if 'actions/checkout@' in l)
+        setup = next(i for i, l in enumerate(self.lines) if 'actions/setup-python@' in l)
         self.assertTrue(checkout < s < setup < worker < publish < e)
         for text in (start_step, end_step):
             self.assertIn('continue-on-error: true', text); self.assertIn('timeout-minutes: 2', text)

@@ -44,7 +44,7 @@ jobs:
       ALERT_TO_NUMBERS: ${{ secrets.ALERT_TO_NUMBERS }}
       SMS_TEST_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Monitoring only (R2): HB-1 start ping. Skipped if the secret is unset; cannot fail the job.
       - name: Heartbeat - run started (monitoring only)
         continue-on-error: true
@@ -52,7 +52,7 @@ jobs:
         env:
           HC_EXECUTION_URL: ${{ secrets.HC_EXECUTION_URL }}
         run: python3 20_send_heartbeat.py --start
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip

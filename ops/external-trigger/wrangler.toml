@@ -1,5 +1,6 @@
-# Cloudflare Worker for the external hourly trigger (R3). Prepared, NOT deployed.
-# Deploy only after approval:  npx wrangler secret put GITHUB_DISPATCH_TOKEN  &&  npx wrangler deploy
+# Cloudflare Worker for the external hourly trigger (R3). ACTIVE: deployed 29 Oct 2026 with owner approval.
+# Every hourly invocation starts a genuine production warning check. Redeploy: npx wrangler deploy
+# Disable: set crons = [] and redeploy (or delete the Worker), then revoke GITHUB_DISPATCH_TOKEN.
 name = "matatiele-storm-trigger"
 main = "worker.js"
 compatibility_date = "2025-01-01"

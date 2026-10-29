@@ -236,6 +236,16 @@ class HeartbeatPayloadHeadroom(unittest.TestCase):
         self.assertEqual(set(json.loads(body)), set(hb.PAYLOAD_FIELDS))
 
 
+class ActionVersions(unittest.TestCase):
+    def test_both_workflows_use_node24_action_majors(self):
+        # v4 / v5 run on the deprecated Node.js 20; v7 of both run on Node.js 24 with the same inputs used here.
+        for name in ('scheduled-storm-sms.yml', 'verify-monitoring.yml'):
+            text = (ROOT / '.github' / 'workflows' / name).read_text(encoding='utf-8')
+            uses = re.findall(r'uses: (actions/[a-z-]+@\S+)', text)
+            self.assertEqual(sorted(uses), ['actions/checkout@v7', 'actions/setup-python@v7'], name)
+            self.assertIn("python-version: '3.12'", text); self.assertIn('cache: pip', text)
+
+
 class WorkflowPermissions(unittest.TestCase):
     def setUp(self):
         self.text = PRODUCTION.read_text(encoding='utf-8').replace('\r', '')
