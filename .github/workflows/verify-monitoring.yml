@@ -1,0 +1,45 @@
+name: DRY-RUN VERIFICATION — NOT A REAL WARNING
+# Manual-only verification of the R1 run record on GitHub Actions.
+# Genuine forecast retrieval and model inference, but the worker runs with
+# --dry-run: no SMS, no duplicate-prevention ledger, no GitHub issues.
+# No Twilio, Healthchecks.io or GitHub-token secrets are passed to any step.
+'on':
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: matatiele-dry-run-verification
+  cancel-in-progress: false
+jobs:
+  dry-run-verification:
+    name: DRY-RUN VERIFICATION — NOT A REAL WARNING
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ENABLE_REAL_SMS: 'false'
+      RUN_RECORD_PUBLISH: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Label run (DRY-RUN VERIFICATION — NOT A REAL WARNING)
+        run: |
+          echo "DRY-RUN VERIFICATION — NOT A REAL WARNING. No SMS, no ledger, no issues."
+          echo "## DRY-RUN VERIFICATION — NOT A REAL WARNING" >> "$GITHUB_STEP_SUMMARY"
+          echo "Genuine forecast and model inference only. No SMS was or could be sent; no ledger or issue was written." >> "$GITHUB_STEP_SUMMARY"
+      - name: Forecast and model (DRY-RUN VERIFICATION — NOT A REAL WARNING)
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+        run: python 18_scheduled_sms_worker.py --dry-run
+      - name: Run record summary (DRY-RUN VERIFICATION — NOT A REAL WARNING)
+        if: ${{ always() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+        run: python 19_publish_run_record.py
