@@ -39,7 +39,21 @@ jobs:
         run: python -m py_compile 18_scheduled_sms_worker.py 12_live_forecast_and_predict.py sms_alert.py
       - name: Genuine forecast and automatic SMS check
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
         run: python 18_scheduled_sms_worker.py --live
       - name: Manual connectivity test (NO WEATHER WARNING)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
         run: python 18_scheduled_sms_worker.py --test-sms
+      # Monitoring only: runs after every outcome, cannot fail the job and never sends SMS.
+      - name: Publish sanitised run record (monitoring only)
+        if: ${{ always() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+          # Job summary only. Set to 'true' to also post to the public [RUN-LOG] issue.
+          RUN_RECORD_PUBLISH: 'false'
+        run: python 19_publish_run_record.py
