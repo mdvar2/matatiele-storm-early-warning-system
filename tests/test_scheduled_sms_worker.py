@@ -28,6 +28,9 @@ class WorkerTests(unittest.TestCase):
         self.env.start();self.addCleanup(self.env.stop)
         self.worker=load_worker()
         self.now=pd.Timestamp.now(tz='UTC')
+        # One clock per test (see test_run_record.RecordHarness): no hour-boundary sensitivity.
+        clock=patch.object(pd.Timestamp,'now',return_value=self.now)
+        clock.start();self.addCleanup(clock.stop)
         self.row={'forecast_source':'Open-Meteo ECMWF','forecast_retrieved_at':self.now.isoformat(),
             'forecast_input_time':self.now.floor('h').isoformat(),
             'prediction_for':(self.now.floor('h')+pd.Timedelta(hours=1)).isoformat(),

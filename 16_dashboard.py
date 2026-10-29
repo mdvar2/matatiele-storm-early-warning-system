@@ -69,6 +69,8 @@ SATELLITE_STYLE={
     'layers':[{'id':'satellite','type':'raster','source':'imagery'},
               {'id':'geographic-reference','type':'raster','source':'place_reference'}]}
 SATELLITE_STYLE_URL='data:application/json;base64,'+base64.b64encode(json.dumps(SATELLITE_STYLE).encode()).decode()
+# Inline so it is identical in both themes and in the text view (which loads no stylesheet).
+SIM_BANNER_STYLE='background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;border-radius:10px;padding:12px 16px;font-weight:700;font-size:14px;line-height:1.5'
 # ?view=text: minimal low-data page. ?admin=1: show the administrator login (password still required).
 text_view=st.query_params.get('view','')=='text'
 show_admin_login=st.query_params.get('admin','')=='1'
@@ -99,6 +101,10 @@ if not text_view:st.html("""<style>
 [data-testid="stSidebar"] [data-testid="stButton"] button:hover {background:#29435f}
 [data-testid="stSidebar"] [data-testid="stExpander"] {background:#ffffff0b;border:1px solid #ffffff20;border-radius:10px;margin-top:18px}
 [data-testid="stSidebar"] [data-testid="stAlert"] p {color:#173452!important}
+/* Light alert backgrounds in the sidebar and light expander headers in both themes, so
+   the dark text set above always has contrast (dark theme otherwise darkens them). */
+[data-testid="stSidebar"] [data-testid="stAlert"] {background:#eef6ff!important;border-radius:8px}
+[data-testid="stMain"] [data-testid="stExpander"] details,[data-testid="stMain"] [data-testid="stExpander"] summary {background:#ffffff!important;color:#203d60!important}
 .brand {display:flex;gap:10px;align-items:center;margin:4px 0 20px}.brand img{width:48px;height:48px;color:#1694ee}.brand strong {display:block;font-size:27px;color:white;letter-spacing:-1px}.brand span {display:block;color:#e0eaf8;font-size:14px;margin-top:4px}.brand small {color:#7cc0f0;font-size:11px}
 .sidebar-note {color:#a9bfd7;font-size:13px;line-height:1.8;border-top:1px solid #29445e;padding:20px 4px;margin-top:48px}
 .hero {display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 18px}.hero-main {display:flex;gap:12px;align-items:center;min-width:0}.hero-main>div{min-width:0}.hero h1{overflow-wrap:break-word}.hero-main>img{width:46px;height:46px;flex-shrink:0;color:#0877da}.hero h1 {font-size:clamp(21px,1.9vw,29px);font-weight:800;letter-spacing:-.85px;color:#071b37;line-height:1.2;margin:0}.hero p {font-size:14px;color:#34557d;margin:6px 0 0}.clock-card {flex-shrink:0;background:linear-gradient(115deg,#0456b9,#086bd0);color:white;border-radius:11px;padding:12px 17px;text-align:center;font-size:12px;box-shadow:0 4px 10px #0967cd16}.clock-card small{display:block;color:#c1dbf7;margin-top:6px}
@@ -479,8 +485,9 @@ with sidebar:
             st.rerun()
     page=st.session_state.dashboard_page
     st.divider()
-    # The login is shown only via ?admin=1 (or while signed in); the password check is unchanged.
-    if show_admin_login or st.session_state.admin_authenticated:
+    # The login is shown only via ?admin=1 (or while signed in), never in the text view;
+    # the password check is unchanged.
+    if not text_view and (show_admin_login or st.session_state.admin_authenticated):
         with st.expander('🔐 Administrator Access'):
             if st.session_state.admin_authenticated:
                 st.success('Administrator access enabled')
@@ -494,13 +501,13 @@ with sidebar:
                     elif hmac.compare_digest(entered.encode('utf-8'),password.encode('utf-8')):
                         st.session_state.admin_authenticated=True;st.rerun()
                     else:st.error('Incorrect password.')
-    is_admin=bool(st.session_state.admin_authenticated)
+    is_admin=bool(st.session_state.admin_authenticated) and not text_view  # text view is public-only
     st.html('<div class="sidebar-note">Next-hour storm risk for Matatiele,<br>with safety advice for residents.<br><br>Research prototype: not an official<br>SAWS warning service.<br><br><a href="?view=text" style="color:#7cc0f0">Low-data text version</a></div>')
     if is_admin:
         st.divider()
         st.markdown('**Administrator controls**')
         test_mode=st.toggle('🧪 Warning simulation (on screen only)',key='presentation_test_mode',value=False,help='Shows a clearly labelled 60% simulated model output, the warning advice and an SMS preview. Nothing is sent, saved or recorded; genuine data return when switched off.')
-        if test_mode:st.warning('Simulation on: on-screen only. No SMS can be sent and no records change.')
+        if test_mode:st.html('<div style="background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;border-radius:10px;padding:10px 12px;font-weight:700;font-size:13px;line-height:1.5">Simulation on: on screen only. No SMS can be sent and no records change.</div>')
         if not test_mode and sms_is_configured() and st.button('📲 Send Test SMS',width='stretch'):
             outcome=send_test_sms()
             (st.success if outcome.get('sent') else st.error)('SMS accepted by provider.' if outcome.get('sent') else 'SMS request failed. Review private server logs.')
@@ -526,8 +533,8 @@ if state.prediction_error:st.warning(state.prediction_error+' OUTDATED DATA: the
 if state.regional_error:st.warning(state.regional_error)
 if state.history_error:st.warning(state.history_error)
 if test_mode:
-    with st.expander('Administrator simulation preview — separate from real forecasts',expanded=True):
-        st.warning('SIMULATION ONLY: the resident card shows a fixed 60% simulated model output, not a forecast. Genuine predictions and records are unchanged, and SMS sending is disabled.')
+    # Fixed colours (not theme colours) keep the notice readable in light and dark themes.
+    st.html(f'<div style="{SIM_BANNER_STYLE}">🧪 SIMULATION ONLY: the resident card shows a fixed 60% simulated model output, not a forecast. Genuine predictions and records are unchanged, and SMS sending is disabled.</div>')
 
 df=pd.DataFrame()
 try:

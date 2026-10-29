@@ -61,6 +61,10 @@ class RecordHarness(unittest.TestCase):
             'SMS_TEST_CONFIRMED': 'false', 'RUN_RECORD_PUBLISH': ''})
         self.env.start(); self.addCleanup(self.env.stop)
         self.now = pd.Timestamp.now(tz='UTC')
+        # One clock per test: the worker sees the same instant the fixture was built from,
+        # so a run that straddles an hour boundary cannot make the target look expired.
+        clock = patch.object(pd.Timestamp, 'now', return_value=self.now)
+        clock.start(); self.addCleanup(clock.stop)
         self.row = {'forecast_source': 'Open-Meteo ECMWF', 'forecast_retrieved_at': self.now.isoformat(),
                     'forecast_input_time': self.now.floor('h').isoformat(),
                     'prediction_for': (self.now.floor('h') + pd.Timedelta(hours=1)).isoformat(),

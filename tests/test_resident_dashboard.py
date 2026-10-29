@@ -5,6 +5,7 @@ Streamlit's AppTest in a temporary copy: inference is replaced by a synthetic pr
 file, the network is refused, Twilio is unconfigured and every send path is guarded.
 """
 import ast
+import datetime as dt
 import hashlib
 import math
 import os
@@ -25,6 +26,16 @@ from forecast_timing import model_input_hour
 ROOT = Path(__file__).resolve().parents[1]
 SAST = 'Africa/Johannesburg'
 ADMIN_TEST_PASSWORD = 'test-only-password'
+# Deterministic dashboard clock: mid-hour, away from any hour or day boundary.
+FIXED_NOW = dt.datetime(2026, 10, 30, 10, 20, tzinfo=dt.timezone(dt.timedelta(hours=2)))
+
+
+class FrozenDateTime(dt.datetime):
+    """datetime whose now() is FIXED_NOW; the dashboard imports it as `datetime` while patched."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return FIXED_NOW.replace(tzinfo=None) if tz is None else FIXED_NOW.astimezone(tz)
 
 
 def dashboard_risk():
@@ -224,7 +235,7 @@ class DashboardApp(unittest.TestCase):
         for g in guards: self.addCleanup(g.stop)
 
     def write_prediction(self, probability=.05, fresh=True):
-        now = pd.Timestamp.now(tz=SAST)
+        now = pd.Timestamp(FIXED_NOW).tz_convert(SAST)
         start = model_input_hour(now, next_complete=True)
         when = now if fresh else now - pd.Timedelta(hours=3)
         row = {'forecast_source': 'Open-Meteo ECMWF', 'forecast_retrieved_at': when.isoformat(),
@@ -241,6 +252,8 @@ class DashboardApp(unittest.TestCase):
             at.query_params[key] = value
         self.inference = patch('subprocess.run', return_value=Mock(returncode=0 if inference_ok else 1))
         self.inference.start(); self.addCleanup(self.inference.stop)
+        clock = patch('datetime.datetime', FrozenDateTime)
+        clock.start(); self.addCleanup(clock.stop)
         return at
 
     @staticmethod
@@ -320,11 +333,86 @@ class DashboardApp(unittest.TestCase):
         self.assertEqual(len(at.code), 0)
         self.assertEqual(self.digest(), before)
 
+    def test_dashboard_clock_is_frozen(self):
+        self.write_prediction(.05)
+        at = self.app().run()
+        self.assertIn('30 October 2026 &nbsp; 10:20 SAST', self.html(at))
+        self.assertIn('30 Oct 11:00 - 12:00 (SAST)', self.html(at))
+
     def test_settings_are_test_only(self):
         import app_config
         self.assertEqual(app_config.get_setting('ADMIN_PASSWORD'), ADMIN_TEST_PASSWORD)
         self.assertEqual(sms_alert.get_setting('TWILIO_AUTH_TOKEN'), '')
         self.assertFalse(sms_alert.sms_is_configured())
+
+    def navigate(self, at, label):
+        self.button(at, label).click().run()
+
+    def test_url_parameters_alone_never_grant_admin_or_simulation(self):
+        self.write_prediction(.05)
+        for query in ({'admin': '1'}, {'admin': '1', 'admin_authenticated': 'true', 'presentation_test_mode': 'true'},
+                      {'view': 'text', 'admin': '1'}, {'admin': 'true'}):
+            with self.subTest(query=query):
+                at = self.app(**query).run()
+                self.assertFalse(at.session_state['admin_authenticated'])
+                self.assertEqual(len(at.toggle), 0)
+                page = self.html(at) + '\n'.join(m.value for m in at.markdown)
+                self.assertNotIn(rv.SIMULATION_LABEL, page)
+                self.assertFalse([b for b in at.button if 'Test SMS' in b.label])
+
+    def test_text_view_never_shows_admin_controls_or_operations(self):
+        self.write_prediction(.05)
+        at = self.app(view='text', admin='1').run()
+        self.assertFalse([e for e in at.expander if 'Administrator Access' in e.label])
+        self.assertFalse([b for b in at.button if 'Unlock' in b.label or 'Test SMS' in b.label])
+        text = '\n'.join(m.value for m in at.markdown)
+        for operational in ('GitHub', 'Twilio', 'Operational status', 'ACTIONS ONLY'):
+            self.assertNotIn(operational, text)
+        # A signed-in administrator who opens the text view also gets the public page only.
+        signed_in = self.app(admin='1').run()
+        self.login(signed_in)
+        signed_in.toggle(key='presentation_test_mode').set_value(True).run()
+        signed_in.query_params['view'] = 'text'
+        signed_in.run()
+        self.assertEqual(len(signed_in.toggle), 0)
+        self.assertFalse([e for e in signed_in.expander if 'Administrator Access' in e.label])
+        self.assertNotIn(rv.SIMULATION_LABEL, '\n'.join(m.value for m in signed_in.markdown))
+
+    def test_wrong_password_cannot_enable_simulation(self):
+        self.write_prediction(.05)
+        at = self.app(admin='1').run()
+        for attempt in ('', 'Test-only-password', ADMIN_TEST_PASSWORD + ' ', 'x' * 64):
+            with self.subTest(attempt=attempt):
+                at.text_input[0].input(attempt)
+                self.button(at, 'Unlock Admin Controls').click().run()
+                self.assertFalse(at.session_state['admin_authenticated'])
+                self.assertEqual(len(at.toggle), 0)
+        at.session_state['presentation_test_mode'] = True
+        at.run()
+        self.assertNotIn(rv.SIMULATION_LABEL, self.html(at))
+
+    def test_operational_information_is_admin_only(self):
+        self.write_prediction(.05)
+        at = self.app(admin='1').run()
+        self.navigate(at, 'Alerts & Notifications')
+        public = self.html(at)
+        self.assertIn('How storm warnings reach you', '\n'.join(m.value for m in at.markdown) + public)
+        for operational in ('MANAGED BY GITHUB ACTIONS', 'ACTIONS ONLY'):
+            self.assertNotIn(operational, public)
+        self.assertNotIn('Operational status (administrators)', '\n'.join(m.value for m in at.markdown))
+        self.login(at)
+        admin = self.html(at)
+        self.assertIn('MANAGED BY GITHUB ACTIONS', admin)
+        self.assertIn('Operational status (administrators)', '\n'.join(m.value for m in at.markdown))
+
+    def test_safety_advice_page_is_public(self):
+        self.write_prediction(.05)
+        at = self.app().run()
+        self.navigate(at, 'Safety Advice')
+        page = self.html(at)
+        self.assertIn('Be prepared', page)  # advice for the current status
+        self.assertIn('Act now', page)       # full advice for when a storm is close
+        self.assertNotIn('class="kpi', page)
 
     def test_simulation_cannot_be_enabled_without_admin(self):
         self.write_prediction(.05)
