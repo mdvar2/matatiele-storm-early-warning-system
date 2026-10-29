@@ -32,6 +32,7 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
                              is_next_complete_prediction,
                              TARGET_LABEL, GENERATED_LABEL)
 from sms_alert import sms_is_configured, send_test_sms
+import resident_view
 
 BASE = Path(__file__).resolve().parent
 MODEL = BASE / 'outputs' / 'model_live'
@@ -68,9 +69,13 @@ SATELLITE_STYLE={
     'layers':[{'id':'satellite','type':'raster','source':'imagery'},
               {'id':'geographic-reference','type':'raster','source':'place_reference'}]}
 SATELLITE_STYLE_URL='data:application/json;base64,'+base64.b64encode(json.dumps(SATELLITE_STYLE).encode()).decode()
-st.set_page_config(page_title='Matatiele | Storm Early Warning Research', page_icon='⛈️', layout='wide', initial_sidebar_state='expanded')
+# ?view=text: minimal low-data page. ?admin=1: show the administrator login (password still required).
+text_view=st.query_params.get('view','')=='text'
+show_admin_login=st.query_params.get('admin','')=='1'
+st.set_page_config(page_title='Matatiele | Storm Early Warning Research', page_icon='⛈️', layout='centered' if text_view else 'wide',
+                   initial_sidebar_state='collapsed' if text_view else 'expanded')
 
-st.html("""<style>
+if not text_view:st.html("""<style>
 :root {color-scheme:light}
 .stApp {background:linear-gradient(135deg,#f7fbfe,#edf8fe);color:#102544;font-family:Arial,sans-serif}
 /* Keep Streamlit's native header/toolbar and sidebar header at their natural
@@ -133,6 +138,18 @@ st.html("""<style>
 .research-card .detail {color:#46617e;font-size:12px;margin-top:8px}
 .research-notice {background:#fff5dc;border:1px solid #e5ca83;border-left:5px solid #a46605;border-radius:10px;padding:18px;color:#65430c;line-height:1.6}
 .rain-legend {background:linear-gradient(90deg,#e5edf5 0%,#378cee 14.286%,#1978ea 28.571%,#1eb4b6 42.857%,#32be5a 57.143%,#f9d732 71.429%,#fa7320 85.714%,#cd2a3e 100%)}
+.resident-card {border-radius:14px;padding:20px 22px;border:2px solid var(--r-border);background:var(--r-bg);color:#102544;line-height:1.55}
+.resident-card.tone-green {--r-border:#36a46b;--r-bg:#eefaf3}.resident-card.tone-amber {--r-border:#d98b16;--r-bg:#fff7e8}
+.resident-card.tone-red {--r-border:#d93449;--r-bg:#fff0f1}.resident-card.tone-gray {--r-border:#8a9bb0;--r-bg:#f3f6f9}
+.resident-head {font-size:clamp(20px,2.2vw,28px);font-weight:800;letter-spacing:-.5px;color:#0b2747}
+.resident-text {font-size:16px;margin:8px 0 14px;color:#1d3a5c}
+.resident-facts {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.resident-facts span {background:#ffffffb0;border-radius:9px;padding:9px 11px;font-size:13px;color:#1d3a5c}.resident-facts b {display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#4b6584}
+.resident-note {font-size:12px;color:#4b6584;margin-top:12px}
+.resident-sim {background:#7a1fa2;color:white;font-weight:800;letter-spacing:.6px;border-radius:7px;padding:7px 11px;margin-bottom:12px;display:inline-block}
+.resident-guidance {background:#fff;border:1px solid #d8e9fa;border-radius:12px;padding:16px 20px;color:#173452;line-height:1.55}
+.resident-guidance ul {margin:8px 0 0 18px;padding:0}.resident-guidance li {margin:6px 0;font-size:14px}
+.resident-action {font-size:18px;font-weight:800;color:#063a78}
 </style>""")
 
 def secret(name):
@@ -452,9 +469,9 @@ sidebar = cast(Any, st.sidebar)
 if 'admin_authenticated' not in st.session_state:st.session_state.admin_authenticated=False
 with sidebar:
     st.html(f'<div class="brand">{ui_icon("cloud")}<div><strong>Matatiele</strong><span>Storm Early Warning</span><small>Eastern Cape · Research Beta</small></div></div>')
-    navigation = ['🏠 Dashboard','🌦️ Live Forecast','🗺️ Weather Map','📈 Risk Analysis','🕒 Historical Data','📱 Alerts & Notifications','ℹ️ About']
+    navigation = ['🏠 Dashboard','🛟 Safety Advice','🌦️ Live Forecast','🗺️ Weather Map','📈 Risk Analysis','🕒 Historical Data','📱 Alerts & Notifications','ℹ️ About']
     if 'dashboard_page' not in st.session_state:st.session_state.dashboard_page=navigation[0]
-    nav_icons=['home','partly_cloudy_day','public','monitoring','insert_chart','notifications','info']
+    nav_icons=['home','health_and_safety','partly_cloudy_day','public','monitoring','insert_chart','notifications','info']
     for item,nav_icon in zip(navigation,nav_icons):
         if st.button(item.split(' ',1)[1],icon=f':material/{nav_icon}:',key='nav_'+item,width='stretch',
                      type='primary' if st.session_state.dashboard_page==item else 'secondary'):
@@ -462,33 +479,35 @@ with sidebar:
             st.rerun()
     page=st.session_state.dashboard_page
     st.divider()
-    with st.expander('🔐 Administrator Access'):
-        if st.session_state.admin_authenticated:
-            st.success('Administrator access enabled')
-            if st.button('Log Out',width='stretch'):
-                st.session_state.admin_authenticated=False;st.rerun()
-        else:
-            entered=st.text_input('Administrator Password',type='password')
-            if st.button('Unlock Admin Controls',width='stretch'):
-                password=secret('ADMIN_PASSWORD')
-                if not password:st.error('Administrator password is not configured.')
-                elif hmac.compare_digest(entered.encode('utf-8'),password.encode('utf-8')):
-                    st.session_state.admin_authenticated=True;st.rerun()
-                else:st.error('Incorrect password.')
+    # The login is shown only via ?admin=1 (or while signed in); the password check is unchanged.
+    if show_admin_login or st.session_state.admin_authenticated:
+        with st.expander('🔐 Administrator Access'):
+            if st.session_state.admin_authenticated:
+                st.success('Administrator access enabled')
+                if st.button('Log Out',width='stretch'):
+                    st.session_state.admin_authenticated=False;st.rerun()
+            else:
+                entered=st.text_input('Administrator Password',type='password')
+                if st.button('Unlock Admin Controls',width='stretch'):
+                    password=secret('ADMIN_PASSWORD')
+                    if not password:st.error('Administrator password is not configured.')
+                    elif hmac.compare_digest(entered.encode('utf-8'),password.encode('utf-8')):
+                        st.session_state.admin_authenticated=True;st.rerun()
+                    else:st.error('Incorrect password.')
     is_admin=bool(st.session_state.admin_authenticated)
-    st.html('<div class="sidebar-note">Localized predictive intelligence<br>for safer, more resilient communities.<br><br>Matatiele, Eastern Cape, SA<br>Random Forest · 29 features · 35% threshold</div>')
+    st.html('<div class="sidebar-note">Next-hour storm risk for Matatiele,<br>with safety advice for residents.<br><br>Research prototype: not an official<br>SAWS warning service.<br><br><a href="?view=text" style="color:#7cc0f0">Low-data text version</a></div>')
     if is_admin:
         st.divider()
         st.markdown('**Administrator controls**')
-        test_mode=st.toggle('🧪 Administrator test preview',key='presentation_test_mode',value=False,help='Isolated demonstration only. The weather map, conditions and model result always remain genuine; SMS is disabled in this mode.')
-        if test_mode:st.warning('Test preview enabled. Real forecasts remain genuine; SMS is disabled.')
+        test_mode=st.toggle('🧪 Warning simulation (on screen only)',key='presentation_test_mode',value=False,help='Shows a clearly labelled 60% simulated model output, the warning advice and an SMS preview. Nothing is sent, saved or recorded; genuine data return when switched off.')
+        if test_mode:st.warning('Simulation on: on-screen only. No SMS can be sent and no records change.')
         if not test_mode and sms_is_configured() and st.button('📲 Send Test SMS',width='stretch'):
             outcome=send_test_sms()
             (st.success if outcome.get('sent') else st.error)('SMS accepted by provider.' if outcome.get('sent') else 'SMS request failed. Review private server logs.')
     else:test_mode=False
     if not is_admin:st.session_state.presentation_test_mode=False
 
-st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Machine-learning based next-hour storm monitoring and early warning.</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
+if not text_view:st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Is a storm likely in Matatiele in the next hour, and what should you do?</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
 
 st.session_state.refresh_clock_count=0
 refresh_clock()
@@ -508,7 +527,7 @@ if state.regional_error:st.warning(state.regional_error)
 if state.history_error:st.warning(state.history_error)
 if test_mode:
     with st.expander('Administrator simulation preview — separate from real forecasts',expanded=True):
-        st.warning('SIMULATION ONLY: fixed 60% test probability, not a forecast. SMS disabled while this mode is enabled.')
+        st.warning('SIMULATION ONLY: the resident card shows a fixed 60% simulated model output, not a forecast. Genuine predictions and records are unchanged, and SMS sending is disabled.')
 
 df=pd.DataFrame()
 try:
@@ -534,19 +553,37 @@ configured=sms_is_configured()
 
 hist=load_history()
 
+# Resident view. The simulation replaces only what this card shows; `prob`, saved files and
+# every other output stay genuine, and nothing here can send an SMS.
+simulated=bool(is_admin and test_mode)
+resident=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,stale,simulated)
+advice=resident_view.guidance(resident['guidance_level'])
+if text_view:
+    st.markdown(resident_view.text_only_page(resident,advice))
+    st.caption('Low-data text version. [Open the full dashboard](?)')
+    st.stop()
+
 if stale:
     st.warning('⚠️ **Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or no longer matches the next complete hourly interval. This is NOT a current storm-risk assessment. Refresh is required.')
 
 # GitHub Actions is the sole storm-warning sender; dashboard tests remain manual.
-if is_admin and test_mode:
-    st.info('Simulation is a local preview. SMS sending is disabled in presentation test mode.')
 if is_admin and not test_mode and not stale and threshold<=real_prob<=1:
     st.error('The current prediction meets the warning threshold. Storm warning SMS is reserved for the scheduled GitHub Actions worker; this dashboard cannot send weather warnings.')
 
 # Show real data in every chart. Do not invent a spatial rainfall/radar field.
 forecast_status='OUTDATED' if stale else 'FIXED HOURLY TARGET'
 model_status='FILE AVAILABLE' if (MODEL/'random_forest_live_model.pkl').exists() else 'MODEL FILE MISSING'
+if page in ('🏠 Dashboard','🛟 Safety Advice'):
+    st.html(resident_view.card_html(resident))
+    st.html(resident_view.guidance_html(advice))
+    if simulated:
+        st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
+        st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
+if page=='🛟 Safety Advice':
+    st.caption('The advice above matches the current status. Full advice for when a storm is close:')
+    st.html(resident_view.guidance_html(resident_view.guidance('WARNING')))
 if page=='🏠 Dashboard':
+    st.markdown('#### Forecast details (technical)')
     cards=st.columns(5,gap='small')
     verified=not stale and not state.regional_error
     with cards[0]:status_card('System status','ONLINE' if verified else 'SAVED DATA','Latest retrieval verified' if verified else 'Outdated / unverified','wifi','green' if verified else 'amber')
@@ -675,18 +712,25 @@ if page in ('🌦️ Live Forecast','📈 Risk Analysis'):
 
 
 if page=='📱 Alerts & Notifications':
-    panel_title('Warnings and notification delivery','warning')
-    a,b,c=st.columns(3)
-    with a:status_card('Dashboard warnings','OUTDATED' if stale else 'AVAILABLE','Saved forecast freshness' if stale else 'Genuine forecast risk classification','warning','amber' if stale else 'green',compact=True)
-    with b:status_card('Automatic SMS','MANAGED BY GITHUB ACTIONS','Independent worker. Check Actions logs for execution and Twilio/recipient for delivery; neither is verified here.','wifi','blue',compact=True)
-    with c:status_card('SMS trigger','ACTIONS ONLY','Administrator test SMS: dashboard-local Twilio '+('configured' if configured else 'not configured')+'. This does not indicate Actions configuration.','model','blue',compact=True)
-    if is_admin and SMS_LOG.exists():
-        try:
-            log=pd.read_csv(SMS_LOG)
-            cols=[c for c in ['logged_at_utc','storm_probability','status'] if c in log]
-            if cols:st.dataframe(log[cols].tail(20),hide_index=True,width='stretch')
-        except Exception:st.info('SMS log is currently unavailable.')
-    st.info('Automatic storm-warning checks are handled by an independent GitHub Actions scheduled worker. The dashboard does not need to remain open.')
+    panel_title('How storm warnings reach you','warning')
+    st.html('<div class="resident-guidance"><ul>'
+            '<li><b>Every hour</b> the system checks the next-hour storm risk for Matatiele automatically, even when nobody has this page open.</li>'
+            '<li><b>If the model estimate reaches the warning level</b>, a short SMS warning is sent to the phone numbers registered for this research trial. An SMS needs only mobile signal: no data or smartphone.</li>'
+            '<li><b>During the research trial</b>, only registered numbers receive SMS. Use this page or the low-data text version to check the current status.</li>'
+            '<li><b>This is a research prototype.</b> Always follow official warnings from the South African Weather Service (SAWS).</li></ul></div>')
+    if is_admin:
+        st.markdown('**Operational status (administrators)**')
+        a,b,c=st.columns(3)
+        with a:status_card('Dashboard warnings','OUTDATED' if stale else 'AVAILABLE','Saved forecast freshness' if stale else 'Genuine forecast risk classification','warning','amber' if stale else 'green',compact=True)
+        with b:status_card('Automatic SMS','MANAGED BY GITHUB ACTIONS','Independent worker. Check Actions logs for execution and Twilio/recipient for delivery; neither is verified here.','wifi','blue',compact=True)
+        with c:status_card('SMS trigger','ACTIONS ONLY','Administrator test SMS: dashboard-local Twilio '+('configured' if configured else 'not configured')+'. This does not indicate Actions configuration.','model','blue',compact=True)
+        if SMS_LOG.exists():
+            try:
+                log=pd.read_csv(SMS_LOG)
+                cols=[c for c in ['logged_at_utc','storm_probability','status'] if c in log]
+                if cols:st.dataframe(log[cols].tail(20),hide_index=True,width='stretch')
+            except Exception:st.info('SMS log is currently unavailable.')
+        st.info('Automatic storm-warning checks are handled by an independent GitHub Actions scheduled worker. The dashboard does not need to remain open.')
 
 if page=='ℹ️ About':
     panel_title('About this research system','model')
