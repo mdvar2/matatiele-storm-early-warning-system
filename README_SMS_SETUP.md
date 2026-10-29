@@ -102,6 +102,26 @@ Tests mock provider and GitHub operations. Historical replay tests use genuine s
 evaluation outputs, not current forecasts, and skip when that local file is absent.
 `17_validate_warning_pipeline.py` runs mocked safety tests only; it cannot send SMS.
 
+## Operational monitoring (run records and heartbeats)
+
+Monitoring never sends SMS, never changes a warning decision and cannot fail the job.
+
+- **Run record (R1):** every worker run writes a sanitised record; the job summary shows
+  it. `RUN_RECORD_PUBLISH: 'false'` keeps it out of public issues.
+- **Heartbeats (R2):** `20_send_heartbeat.py` reports each run to Healthchecks.io,
+  which raises alerts on its own clock, independently of the GitHub schedule.
+
+| Repository secret | Check | Meaning of an alert |
+| --- | --- | --- |
+| `HC_EXECUTION_URL` | HB-1 | No run for 10 h, or a run started but never finished |
+| `HC_FORECAST_URL` | HB-2 | No validated forecast and prediction for 12 h |
+| `HC_FAILURE_URL` | HB-3 | A run failed (category in the ping body); clears on the next success |
+| `HC_WARNING_URL` | HB-4 | **An eligible genuine warning was not accepted by the provider.** Never cleared automatically: review, then acknowledge manually |
+
+Secrets hold full ping URLs (`https://hc-ping.com/<uuid>`); never commit them. A missing
+secret skips that check. To switch heartbeats off, delete the secrets. Heartbeat bodies
+contain enumerated statuses only: no probability, message text, numbers or identifiers.
+
 ## Verified Beta evidence and remaining limits
 
 - Scheduled LIVE run **#6** succeeded with a genuine **0.00%** prediction, below

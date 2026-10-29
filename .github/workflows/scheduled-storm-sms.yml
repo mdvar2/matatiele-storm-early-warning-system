@@ -30,6 +30,13 @@ jobs:
       SMS_TEST_CONFIRMED: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
     steps:
       - uses: actions/checkout@v4
+      # Monitoring only (R2): HB-1 start ping. Skipped if the secret is unset; cannot fail the job.
+      - name: Heartbeat - run started (monitoring only)
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          HC_EXECUTION_URL: ${{ secrets.HC_EXECUTION_URL }}
+        run: python3 20_send_heartbeat.py --start
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -57,3 +64,15 @@ jobs:
           # Job summary only. Set to 'true' to also post to the public [RUN-LOG] issue.
           RUN_RECORD_PUBLISH: 'false'
         run: python 19_publish_run_record.py
+      # Monitoring only (R2): heartbeats derived from the R1 run record. Never sends SMS; cannot fail the job.
+      - name: Heartbeat - report outcome (monitoring only)
+        if: ${{ always() }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+          HC_EXECUTION_URL: ${{ secrets.HC_EXECUTION_URL }}
+          HC_FORECAST_URL: ${{ secrets.HC_FORECAST_URL }}
+          HC_FAILURE_URL: ${{ secrets.HC_FAILURE_URL }}
+          HC_WARNING_URL: ${{ secrets.HC_WARNING_URL }}
+        run: python3 20_send_heartbeat.py
