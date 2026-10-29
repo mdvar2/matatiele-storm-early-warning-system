@@ -7,6 +7,19 @@ name: Scheduled Matatiele Storm Check
         type: boolean
         required: true
         default: false
+      trigger_source:
+        description: 'Who started this run: manual (people) or external_scheduler (hourly trigger)'
+        type: choice
+        required: false
+        default: manual
+        options:
+          - manual
+          - external_scheduler
+      scheduled_for:
+        description: 'Optional UTC slot from the external scheduler, e.g. 2026-10-30T07:05:00Z'
+        type: string
+        required: false
+        default: ''
   schedule:
     - cron: '12 * * * *'
 permissions:
@@ -48,11 +61,15 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}
         env:
           RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+          RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
+          RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
         run: python 18_scheduled_sms_worker.py --live
       - name: Manual connectivity test (NO WEATHER WARNING)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
         env:
           RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
+          RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
+          RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
         run: python 18_scheduled_sms_worker.py --test-sms
       # Monitoring only: runs after every outcome, cannot fail the job and never sends SMS.
       - name: Publish sanitised run record (monitoring only)

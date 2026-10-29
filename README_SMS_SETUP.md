@@ -84,6 +84,15 @@ with simulation preview off, but cannot independently send storm warnings.
 - Only safe status information is posted publicly; credentials and recipients are
   excluded. The issue list/create operation relies on workflow serialization and
   is not atomic for independent concurrent senders.
+- **Reservation lock (R3):** after the issue search and before creating the issue,
+  the worker creates a repository label `sms-lock:<forecast-hour key>`. Label names
+  are unique, so GitHub rejects a second creation (`already_exists`) and that run
+  sends nothing. If the label API is unavailable the worker falls back to the issue
+  ledger alone (`reservation_lock: unavailable` in the run record). If issue creation
+  fails after the lock, the worker deletes the label before any SMS so a later run can
+  retry (`released`); if that deletion fails (`release_failed`), later runs for that
+  hour stay suppressed. Never delete `sms-lock:` labels by hand: like reservations,
+  they block repeat sends.
 
 GitHub Actions is the sole storm-warning sender. Dashboard refreshes never send
 weather warnings. Local CSV logs and GitHub reservations remain separate stores;
@@ -121,6 +130,14 @@ Monitoring never sends SMS, never changes a warning decision and cannot fail the
 Secrets hold full ping URLs (`https://hc-ping.com/<uuid>`); never commit them. A missing
 secret skips that check. To switch heartbeats off, delete the secrets. Heartbeat bodies
 contain enumerated statuses only: no probability, message text, numbers or identifiers.
+
+- **External hourly trigger (R3, prepared, not active):** GitHub's cron runs only about
+  21% of hours. `ops/external-trigger/` contains a Cloudflare Worker that can start this
+  workflow every hour through `workflow_dispatch` with `trigger_source=external_scheduler`;
+  the GitHub cron stays as a backup. The worker refuses `--test-sms` from that source.
+  Each run record and heartbeat records `trigger_source` (`github_schedule`,
+  `external_scheduler`, `manual`). Measure coverage with
+  `python 21_measure_execution_coverage.py --fetch`.
 
 ## Verified Beta evidence and remaining limits
 

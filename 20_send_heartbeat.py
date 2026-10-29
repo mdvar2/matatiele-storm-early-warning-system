@@ -45,6 +45,7 @@ HTTP_ERROR_OUTCOMES = {400: 'invalid_url_format', 404: 'endpoint_not_found', 409
 
 # Enumerated fields only: no probability, no free-text messages, no identifiers of people or messages.
 PAYLOAD_FIELDS = ('schema_version', 'record_type', 'outcome', 'worker_exit_code', 'mode', 'trigger',
+                  'trigger_source', 'scheduled_slot_utc', 'dispatch_delay_seconds', 'reservation_lock',
                   'workflow_run_number', 'workflow_run_attempt', 'started_utc', 'duration_seconds',
                   'model_loading', 'forecast_retrieval', 'forecast_http_status', 'forecast_response_validation',
                   'model_inference', 'prediction_output', 'prediction_validation', 'freshness_status',

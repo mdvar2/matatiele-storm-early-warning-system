@@ -1,0 +1,16 @@
+# Cloudflare Worker for the external hourly trigger (R3). Prepared, NOT deployed.
+# Deploy only after approval:  npx wrangler secret put GITHUB_DISPATCH_TOKEN  &&  npx wrangler deploy
+name = "matatiele-storm-trigger"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+# No public URL: the Worker only runs on its cron schedule.
+workers_dev = false
+
+[triggers]
+# Minute 5 of every hour, UTC. GitHub's own cron (minute 12) stays enabled as a backup.
+crons = ["5 * * * *"]
+
+[vars]
+GITHUB_REPOSITORY = "mdvar2/matatiele-storm-early-warning-system"
+WORKFLOW_FILE = "scheduled-storm-sms.yml"
+GITHUB_REF = "main"

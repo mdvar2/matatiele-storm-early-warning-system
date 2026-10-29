@@ -8,6 +8,7 @@ Every execution also writes a sanitised run record (run_record.py). Recording is
 monitoring only: it never changes a decision, an exit code or an SMS outcome.
 """
 import argparse
+import hashlib
 import math
 import re
 import os
@@ -17,6 +18,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import NoReturn
+from urllib.parse import quote
 
 import pandas as pd
 import requests
@@ -57,7 +59,7 @@ def _note(**fields):
         pass
 
 
-def github(method, endpoint, **kwargs):
+def github(method, endpoint, conflict_ok=False, **kwargs):
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', REPO) or not TOKEN:
         fail('GITHUB_REPOSITORY and GH_TOKEN are required for live SMS.', 'configuration_failure', 'github_identity_missing')
     try:
@@ -66,11 +68,62 @@ def github(method, endpoint, **kwargs):
             headers={'Authorization': f'Bearer {TOKEN}',
                      'Accept': 'application/vnd.github+json',
                      'X-GitHub-Api-Version': '2022-11-28'}, **kwargs)
+        if conflict_ok and response.status_code == 422 and _already_exists(response):
+            return {'_conflict': True}
         response.raise_for_status()
+        if method == 'DELETE' and response.status_code == 204:
+            return {}
         return response.json()
     except (requests.RequestException, ValueError):
         fail('GitHub ledger unavailable; submission stopped. Check permissions and service availability.',
              'duplicate_prevention_failure', 'ledger_unavailable')
+
+
+def _already_exists(response):
+    try:
+        return any(isinstance(e, dict) and e.get('code') == 'already_exists' for e in response.json().get('errors', []))
+    except Exception:
+        return False
+
+
+def lock_label_name(key):
+    """Deterministic label name (GitHub limit: 50 characters) for one reservation key."""
+    name = f'sms-lock:{key}'
+    return name if len(name) <= 50 else 'sms-lock:' + hashlib.sha256(key.encode('utf-8')).hexdigest()[:40]
+
+
+def acquire_reservation_lock(key):
+    """Atomic reservation: GitHub label names are unique per repository.
+
+    'created' -> this run holds the lock; 'already_exists' -> another run reserved this key.
+    'unavailable'/'unverified' -> the lock could not be confirmed; the caller falls back to
+    the issue ledger (previous behaviour).
+    """
+    name = lock_label_name(key)
+    try:
+        result = github('POST', 'labels', conflict_ok=True, json={
+            'name': name, 'color': 'ededed',
+            'description': 'Duplicate-SMS lock for one forecast hour. Do not delete.'})
+    except Exception:
+        return 'unavailable'
+    if isinstance(result, dict) and result.get('_conflict'):
+        return 'already_exists'
+    if isinstance(result, dict) and result.get('name') == name:
+        return 'created'
+    return 'unverified'
+
+
+def release_reservation_lock(key):
+    """Best effort, only after issue creation failed and before any SMS: lets a later run retry.
+
+    Safe if the failed POST did create the issue, because later runs find it by title.
+    Returns 'released' or 'release_failed' (later runs in this hour stay suppressed).
+    """
+    try:
+        github('DELETE', 'labels/' + quote(lock_label_name(key), safe=''))
+        return 'released'
+    except Exception:
+        return 'release_failed'
 
 
 def reserve_hour(key):
@@ -84,16 +137,26 @@ def reserve_hour(key):
         if not isinstance(rows,list) or any(not isinstance(row,dict) for row in rows):
             fail('Invalid ledger response; no warning submitted.', 'duplicate_prevention_failure', 'ledger_response_invalid')
         if any(row.get('title') == title and 'pull_request' not in row for row in rows):
+            _note(reservation_lock='not_attempted')
             return None
         if len(rows) < 100:
             break
         page += 1
-    issue = github('POST', 'issues', json={
-        'title': title,
-        'body': ('Automated warning reservation for one forecast hour. '
-                 'Do not delete this issue: it prevents duplicate SMS sends. '
-                 'A reservation does not prove delivery.'),
-    })
+    lock = acquire_reservation_lock(key)
+    _note(reservation_lock=lock)
+    if lock == 'already_exists':
+        return None  # a concurrent or earlier run holds this key; never send twice
+    try:
+        issue = github('POST', 'issues', json={
+            'title': title,
+            'body': ('Automated warning reservation for one forecast hour. '
+                     'Do not delete this issue: it prevents duplicate SMS sends. '
+                     'A reservation does not prove delivery.'),
+        })
+    except WorkerError:
+        if lock == 'created':
+            _note(reservation_lock=release_reservation_lock(key))
+        raise
     if not isinstance(issue,dict) or not isinstance(issue.get('number'),int):
         fail('Reservation confirmation invalid; no SMS submitted. Review ledger manually.',
              'duplicate_prevention_failure', 'reservation_unconfirmed')
@@ -159,6 +222,8 @@ def manual_connectivity_test():
             or os.getenv('GITHUB_EVENT_NAME') != 'workflow_dispatch'
             or os.getenv('SMS_TEST_CONFIRMED', '').lower() != 'true'):
         fail('Connectivity SMS requires an explicitly confirmed manual Actions dispatch.', 'configuration_failure', 'dispatch_not_confirmed')
+    if os.getenv('RUN_TRIGGER_SOURCE', '').strip() == 'external_scheduler':
+        fail('Connectivity SMS cannot be started by the external scheduler.', 'configuration_failure', 'external_trigger_not_allowed')
     run_id = os.getenv('GITHUB_RUN_ID', '')
     if not run_id.isdigit() or not REPO or not TOKEN:
         fail('Connectivity SMS requires GitHub run identity and ledger access.', 'configuration_failure', 'github_identity_missing')

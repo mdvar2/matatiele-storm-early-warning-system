@@ -23,6 +23,8 @@ NOT_ATTEMPTED = 'not_attempted'
 NOT_APPLICABLE = 'not_applicable'
 UNKNOWN = 'unknown'
 
+TRIGGER_SOURCES = ('github_schedule', 'external_scheduler', 'manual', 'local', 'unknown')
+
 ERROR_CATEGORIES = (
     'none', 'configuration_failure', 'forecast_retrieval_failure', 'invalid_forecast_data',
     'stale_forecast', 'model_loading_failure', 'inference_failure', 'prediction_output_failure',
@@ -37,6 +39,7 @@ SCHEMA = {
     'worker_exit_code': int, 'outcome': str,
     'mode': str, 'trigger': str, 'workflow_run_id': str, 'workflow_run_number': str,
     'workflow_run_attempt': str, 'commit': str, 'scheduled_slot_utc': str,
+    'trigger_source': str, 'dispatch_delay_seconds': float, 'reservation_lock': str,
     'model_loading': str, 'forecast_retrieval': str, 'forecast_http_status': int,
     'forecast_response_validation': str, 'model_inference': str, 'prediction_output': str,
     'forecast_retrieved_utc': str, 'forecast_input_utc': str, 'prediction_target_utc': str,
@@ -81,12 +84,44 @@ def sanitise_text(value):
         return '[UNPRINTABLE]'
 
 
+def trigger_source(environ):
+    """Who started the run: explicit RUN_TRIGGER_SOURCE if valid, else derived from the event."""
+    explicit = (environ.get('RUN_TRIGGER_SOURCE') or '').strip()
+    if explicit in TRIGGER_SOURCES:
+        return explicit
+    event = (environ.get('GITHUB_EVENT_NAME') or '').strip()
+    if event == 'schedule':
+        return 'github_schedule'
+    if event == 'workflow_dispatch':
+        return 'manual'
+    return 'local' if not event else 'unknown'
+
+
+def scheduled_slot(environ):
+    """Intended UTC slot from the external scheduler, strictly validated; never guessed."""
+    raw = (environ.get('RUN_SCHEDULED_FOR') or '').strip()
+    if not raw:
+        return 'not_available', None
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?Z', raw):
+        return 'invalid', None
+    try:
+        slot = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+    except ValueError:
+        return 'invalid', None
+    return slot.isoformat(), slot
+
+
 def new_record(environ=None):
     """Initial record: every stage explicitly not attempted until it runs."""
     env = os.environ if environ is None else environ
+    started = datetime.now(timezone.utc)
+    slot_text, slot = scheduled_slot(env)
     return {
         'schema_version': SCHEMA_VERSION, 'record_type': 'worker_run',
-        'started_utc': utc_now_iso(), 'finished_utc': None, 'duration_seconds': None,
+        'started_utc': started.isoformat(), 'finished_utc': None, 'duration_seconds': None,
+        'trigger_source': trigger_source(env),
+        'dispatch_delay_seconds': round((started - slot).total_seconds(), 1) if slot else None,
+        'reservation_lock': NOT_ATTEMPTED,
         'worker_exit_code': None, 'outcome': UNKNOWN,
         'mode': UNKNOWN,
         'trigger': env.get('GITHUB_EVENT_NAME') or 'local',
@@ -94,8 +129,8 @@ def new_record(environ=None):
         'workflow_run_number': env.get('GITHUB_RUN_NUMBER') or NOT_APPLICABLE,
         'workflow_run_attempt': env.get('GITHUB_RUN_ATTEMPT') or NOT_APPLICABLE,
         'commit': (env.get('GITHUB_SHA') or '')[:7] or NOT_APPLICABLE,
-        # GitHub does not expose the intended cron slot to the job.
-        'scheduled_slot_utc': 'not_available',
+        # GitHub does not expose the cron slot; an external scheduler may supply RUN_SCHEDULED_FOR.
+        'scheduled_slot_utc': slot_text,
         'model_loading': NOT_ATTEMPTED, 'forecast_retrieval': NOT_ATTEMPTED,
         'forecast_http_status': None, 'forecast_response_validation': NOT_ATTEMPTED,
         'model_inference': NOT_ATTEMPTED, 'prediction_output': NOT_ATTEMPTED,
@@ -271,6 +306,8 @@ def sanitise_record(record):
                 clean[key] = _coerce(key, record[key])
         if clean.get('error_category') not in ERROR_CATEGORIES:
             clean['error_category'] = 'unexpected_internal_error'
+        if 'trigger_source' in clean and clean['trigger_source'] not in TRIGGER_SOURCES:
+            clean['trigger_source'] = 'unknown'
     except Exception:
         clean = {'schema_version': SCHEMA_VERSION, 'record_type': 'worker_run',
                  'error_category': 'unexpected_internal_error', 'error_detail': 'record_sanitisation_failed'}
