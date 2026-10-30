@@ -157,7 +157,7 @@ class RedesignedDashboard(rd.DashboardHarness):
     def test_each_component_appears_on_exactly_one_page(self):
         self.write_prediction(.05)
         at = self.app().run()
-        markers = {'class="summary-grid"': 'Dashboard', 'class="contacts-card"': 'Dashboard', 'class="threshold-info"': 'Dashboard',
+        markers = {'class="summary-grid"': 'Dashboard', 'class="contacts-card': 'Safety Advice', 'class="threshold-info"': 'Dashboard',
                    'class="risk-gauge"': 'Risk Analysis', 'class="risk-scale"': 'Risk Analysis',
                    'class="advice-grid"': 'Safety Advice', 'class="flow"': 'About', 'class="kpi': 'About'}
         found = {marker: [] for marker in markers}
@@ -178,11 +178,17 @@ class RedesignedDashboard(rd.DashboardHarness):
             self.assertIn(title, home)
         self.assertIn('Below the 35% warning threshold: no warning.', home)
         self.assertIn('Warning record could not be checked: the public record is unreachable.', home)  # the harness blocks the network
-        self.assertIn('research prototype, not active on this deployment', home)  # SMS_DELIVERY_MODE is unset in tests
-        self.assertIn('SMS records:</b> none: SMS is not active', home)
+        # Communication status is derived from configuration: SMS_DELIVERY_MODE is unset in tests and the harness blocks the
+        # network, so the warning record cannot be read.
+        for label, state in (('Dashboard alerts', 'Warning record unreachable'), ('SMS simulation', 'Available'),
+                             ('Public SMS delivery', 'Disabled')):
+            self.assertRegex(home, f'<span>{label}</span><span class="sc-state [a-z]+">{state}</span>')
+        self.assertNotIn('SMS records', home)  # the detail lives on the Alerts page
+        self.assertNotIn('href="tel:', home)  # emergency contacts are on the Safety page
         labels = [b.label for b in at.button]
         self.assertNotIn('Get free SMS storm warnings', labels)
         self.assertIn('SMS warning service (research prototype)', labels)
+        self.assertIn('Emergency contacts', labels)
         self.assertFalse([b for b in at.get('link_button') if 'SAWS' in b.proto.label])  # no prominent SAWS button
         self.assertIn('Warning threshold: 35%', self.html(at))
         self.assertEqual(maps, ['Weather Map'])

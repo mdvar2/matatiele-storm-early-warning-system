@@ -1,27 +1,34 @@
 """Build docs/model_evidence.json: the model-evaluation figures shown on the dashboard's Risk Analysis page.
 
 Everything is recomputed from saved artefacts; nothing is retrained and the model and the 35% threshold are
-only read. The deployed model and its held-out predictions are re-scored, so the figures cannot drift from the
-model file.
+only read. The deployed model re-scores the held-out rows, and the run stops if the result differs from the
+probabilities saved when the model was trained, so the figures cannot drift from the model file.
 
-Sources (local; the CSVs are git-ignored, so the dashboard reads the JSON written here):
+Inputs (all committed, so a clean checkout can reproduce the JSON):
 - outputs/model_live/random_forest_live_model.pkl, live_model_features.txt, live_selected_threshold.txt
-- outputs/model_live/live_model_test_predictions.csv  (the held-out 20% from script 14, ERA5 inputs and labels)
+- docs/evidence/held_out_test_set.csv.gz: the held-out 20% from script 14 (the 29 ERA5 inputs, labels and the
+  saved probabilities), copied value-for-value from the git-ignored outputs/model_live/live_model_test_predictions.csv
 - evaluation_reports/ml_evaluation_2026-10-29/test_metrics.csv (the chronological evaluation with a validation year)
 
-Run from the repository root:  python 25_build_model_evidence.py
+Run from the repository root:
+  python 25_build_model_evidence.py           # rewrite docs/model_evidence.json
+  python 25_build_model_evidence.py --check   # recompute and confirm the committed JSON is reproduced; writes nothing
 """
+import argparse
+import hashlib
 import json
-from datetime import datetime, timezone
+import sys
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
+import sklearn
 
 ROOT = Path(__file__).resolve().parent
 MODEL_DIR = ROOT / 'outputs' / 'model_live'
 ML_EVAL = ROOT / 'evaluation_reports' / 'ml_evaluation_2026-10-29'
+HELD_OUT = ROOT / 'docs' / 'evidence' / 'held_out_test_set.csv.gz'
 OUT = ROOT / 'docs' / 'model_evidence.json'
 THRESHOLDS = (0.30, 0.35, 0.40, 0.45, 0.50)
 
@@ -51,13 +58,18 @@ def scores(truth, decision):
     return {'precision': precision, 'recall': recall, 'f1': f1, 'TP': tp, 'FP': fp, 'FN': fn, 'TN': tn, 'warnings': tp + fp}
 
 
-def main():
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def build():
     model = joblib.load(MODEL_DIR / 'random_forest_live_model.pkl')
     features = (MODEL_DIR / 'live_model_features.txt').read_text(encoding='utf-8').split()
     threshold = float((MODEL_DIR / 'live_selected_threshold.txt').read_text().strip())
-    test = pd.read_csv(MODEL_DIR / 'live_model_test_predictions.csv', parse_dates=['valid_time'])
+    test = pd.read_csv(HELD_OUT, parse_dates=['valid_time'])
     probability = model.predict_proba(test[features])[:, 1]
-    assert np.max(np.abs(probability - test['live_model_probability'])) < 1e-9, 'saved probabilities do not match the model'
+    if np.max(np.abs(probability - test['live_model_probability'])) >= 1e-9:
+        raise SystemExit('Stopped: the model does not reproduce the saved held-out probabilities.')
     truth = test['target_storm'].astype(int).to_numpy()
 
     comparison = [{'threshold': t, **scores(truth, (probability >= t).astype(int))} for t in THRESHOLDS]
@@ -79,20 +91,22 @@ def main():
               for name, members in GROUPS.items()]
     top = sorted(importance.items(), key=lambda kv: kv[1], reverse=True)[:10]
 
-    chronological = None
-    if (ML_EVAL / 'test_metrics.csv').exists():
-        metrics = pd.read_csv(ML_EVAL / 'test_metrics.csv')
-        keep = {'M2 deployed RF @ validation-selected primary threshold': 'Deployed model at the threshold chosen on the validation year (0.46)',
-                'M1 @ validation-selected primary threshold': 'Same settings retrained on the training years only, threshold chosen on validation (0.46)',
-                'B2 persistence baseline': 'Persistence baseline'}
-        rows = metrics[(metrics['period'] == 'test') & metrics['classifier'].isin(keep)]
-        chronological = [{'model': keep[r.classifier], 'precision': r.precision, 'recall': r.recall, 'f1': r.f1,
-                          'FP': int(r.FP), 'FN': int(r.FN), 'warnings': int(r.warnings)} for r in rows.itertuples()]
+    metrics = pd.read_csv(ML_EVAL / 'test_metrics.csv')
+    keep = {'M2 deployed RF @ validation-selected primary threshold': 'Deployed model at the threshold chosen on the validation year (0.46)',
+            'M1 @ validation-selected primary threshold': 'Same settings retrained on the training years only, threshold chosen on validation (0.46)',
+            'B2 persistence baseline': 'Persistence baseline'}
+    rows = metrics[(metrics['period'] == 'test') & metrics['classifier'].isin(keep)]
+    chronological = [{'model': keep[r.classifier], 'precision': r.precision, 'recall': r.recall, 'f1': r.f1,
+                      'FP': int(r.FP), 'FN': int(r.FN), 'warnings': int(r.warnings)} for r in rows.itertuples()]
 
-    evidence = {
+    return {
         'generated_by': '25_build_model_evidence.py',
-        'generated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M'),
+        'inputs_sha256': {str(p.relative_to(ROOT)).replace('\\', '/'): sha256(p)
+                          for p in (MODEL_DIR / 'random_forest_live_model.pkl', HELD_OUT, ML_EVAL / 'test_metrics.csv')},
+        'software': {'scikit-learn': sklearn.__version__, 'numpy': np.__version__, 'pandas': pd.__version__},
+        'features': features,
         'threshold_in_use': threshold,
+        'threshold_rule': 'warning when the estimate is at or above the threshold (the comparison the hourly worker uses)',
         'labels': 'ERA5-derived proxy storm labels (03_create_labels.py), not observed storm reports',
         'held_out': {'rows': int(len(test)), 'storm_hours': int(truth.sum()),
                      'first_utc': f"{test['valid_time'].min():%Y-%m-%d %H:%M}", 'last_utc': f"{test['valid_time'].max():%Y-%m-%d %H:%M}",
@@ -109,9 +123,34 @@ def main():
                       'test Aug 2025-Aug 2026, 7-day gaps; threshold chosen on validation only)',
             'test_rows': 30428, 'rows': chronological},
     }
+
+
+def differences(committed, rebuilt, tolerance=1e-12):
+    """Keys whose values differ; numbers are compared to within floating-point rounding. Software versions are not compared."""
+    def same(a, b):
+        if isinstance(a, dict) and isinstance(b, dict):
+            return a.keys() == b.keys() and all(same(a[k], b[k]) for k in a)
+        if isinstance(a, list) and isinstance(b, list):
+            return len(a) == len(b) and all(same(x, y) for x, y in zip(a, b))
+        if isinstance(a, float) or isinstance(b, float):
+            return isinstance(a, (int, float)) and isinstance(b, (int, float)) and abs(a - b) <= tolerance
+        return a == b
+    return sorted(k for k in set(committed) | set(rebuilt) if k != 'software' and not same(committed.get(k), rebuilt.get(k)))
+
+
+def main(check=False):
+    evidence = build()
+    if check:
+        diff = differences(json.loads(OUT.read_text(encoding='utf-8')), json.loads(json.dumps(evidence)))
+        print('CHECK PASSED: docs/model_evidence.json is reproduced from the committed inputs' if not diff
+              else 'CHECK FAILED, these entries differ: ' + ', '.join(diff))
+        return 1 if diff else 0
     OUT.write_text(json.dumps(evidence, indent=1) + '\n', encoding='utf-8')
     print(json.dumps({k: evidence[k] for k in ('threshold_in_use', 'held_out', 'threshold_comparison', 'persistence_baseline', 'brier_score')}, indent=1))
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Build or check docs/model_evidence.json')
+    parser.add_argument('--check', action='store_true', help='recompute and compare with the committed JSON; write nothing')
+    sys.exit(main(parser.parse_args().check))

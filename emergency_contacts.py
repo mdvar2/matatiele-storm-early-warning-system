@@ -15,12 +15,18 @@ NOTE = 'Calls connect to emergency services, not to the Matatiele Storm Early Wa
 SOURCE = 'Numbers checked against SAPS and South African government sources (October 2026).'
 
 
-def contacts_html(title='Emergency contacts'):
+def contacts_html(title='Emergency contacts', wide=False):
+    """Tap-to-call cards. wide: the three numbers side by side (Safety page); they stack on narrow screens."""
     rows = ''.join(f'<a class="call-row" href="tel:{number}" aria-label="Call {html.escape(label)} on {number}">'
                    f'<span class="call-icon">{icons.icon("phone")}</span><span><b>{number}</b><small>{html.escape(label)} · {html.escape(detail)}</small></span></a>'
                    for number, label, detail in CONTACTS)
-    return (f'<div class="contacts-card"><div class="contacts-head">{html.escape(title)}<small>Tap to call</small></div>{rows}'
-            f'<div class="contacts-note">{html.escape(NOTE)}</div></div>')
+    return (f'<div class="contacts-card{" wide" if wide else ""}" id="emergency-contacts"><div class="contacts-head">{html.escape(title)}<small>Tap to call</small></div>'
+            f'<div class="call-list">{rows}</div><div class="contacts-note">{html.escape(NOTE)}</div></div>')
+
+
+def text_lines():
+    """Plain-text numbers for the low-data view (no images or links needed)."""
+    return [f'{number}: {label} ({detail.lower()})' for number, label, detail in CONTACTS]
 
 
 def call_row_html():

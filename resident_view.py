@@ -11,6 +11,7 @@ import base64
 import html
 import math
 
+import emergency_contacts
 import icons
 
 from sms_alert import _build_warning_message
@@ -166,7 +167,7 @@ def sms_preview(prediction_for, probability=SIMULATED_PROBABILITY):
 
 
 def text_only_page(status, advice):
-    """Minimal Markdown for low-data access: status, period, timestamp, guidance."""
+    """Minimal Markdown for low-data access: status, period, timestamp, guidance and emergency numbers."""
     lines = []
     if status['simulated']:
         lines += [f"**{status['label']}**", '']
@@ -180,7 +181,9 @@ def text_only_page(status, advice):
               f"_{status['model_note']}_", '',
               f"### Safety advice: {advice['action']}"]
     lines += [f"- **{topic}:** {text}" for topic, text in advice['items']]
-    lines += ['', f"_{advice['note']}_"]
+    lines += ['', '### Emergency numbers']
+    lines += [f'- {line}' for line in emergency_contacts.text_lines()]
+    lines += ['', f'_{emergency_contacts.NOTE} Calls need mobile network coverage._', '', f"_{advice['note']}_"]
     return '\n'.join(lines)
 
 
@@ -248,7 +251,7 @@ def summary_html(status, probability, weather, record, communication):
     """The four homepage summary cards: forecast weather, model estimate, warning decision, communication status.
 
     weather: dict of display strings (temperature, rain, wind, status); record: text on the genuine warning record;
-    communication: list of (label, value) strings. Nothing here is computed from anything but these inputs.
+    communication: (label, state, tone) rows, tone 'ok', 'warn' or 'off'. Nothing here is computed from anything but these inputs.
     """
     e = lambda value: html.escape(str(value))  # noqa: E731
     sim = f'<div class="resident-sim">{e(status["label"])}</div>' if status['simulated'] else ''
@@ -267,7 +270,8 @@ def summary_html(status, probability, weather, record, communication):
                      f'<div class="sc-line">{e(status["decision"])}</div><div class="sc-line">{e(record)}</div>'
                      f'<details class="threshold-info"><summary>{icons.icon("info")} Why 35%?</summary><p>{e(THRESHOLD_TEXT)}</p>'
                      '<p>More detail: menu, then Risk Analysis.</p></details></div>')
-    rows = ''.join(f'<div class="sc-line"><b>{e(label)}:</b> {e(value)}</div>' for label, value in communication)
+    rows = ''.join(f'<div class="sc-row"><span>{e(label)}</span><span class="sc-state {e(tone)}">{e(value)}</span></div>'
+                   for label, value, tone in communication)
     comms_card = f'<div class="summary-card comms-summary"><div class="sc-title">{icons.icon("message")} Warning communication</div>{rows}</div>'
     return f'<div class="summary-grid">{weather_card}{risk_card}{decision_card}{comms_card}</div>'
 

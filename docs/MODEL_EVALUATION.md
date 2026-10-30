@@ -8,7 +8,7 @@ The figures on the dashboard's **Risk Analysis** page come from [`model_evidence
 Nothing is retrained and the 35% threshold is not changed.
 
 ```
-python 25_build_model_evidence.py      # needs the local, git-ignored outputs/model_live/*.csv files
+python 25_build_model_evidence.py --check   # works from a clean checkout; see section 7
 ```
 
 ## 1. What is being measured
@@ -88,3 +88,30 @@ The Brier score is 0.0163. In every band the scores are higher than the labelled
 ## 6. Why a Random Forest
 
 The model suits tabular hourly weather data with non-linear interactions. It handles rare classes with balanced weights, gives a score that a threshold can be applied to, and reports importances. The project compared it with a persistence baseline, **not** with other machine-learning algorithms, so no claim is made that it is better than other methods.
+
+## 7. Reproducing the evidence
+
+Everything needed to regenerate `docs/model_evidence.json` is committed:
+
+| File | Role | Kind |
+|---|---|---|
+| `outputs/model_live/random_forest_live_model.pkl`, `live_model_features.txt`, `live_selected_threshold.txt` | Deployed model (unchanged), its 29 inputs, the 35% threshold | Source artefacts |
+| `docs/evidence/held_out_test_set.csv.gz` (1.9 MB) | The 30,455 held-out rows: time, the 29 ERA5 inputs, the current and next-hour storm labels, and the probabilities saved at training time. Values were copied as text from the git-ignored `outputs/model_live/live_model_test_predictions.csv`, without re-rounding. | Source artefact |
+| `evaluation_reports/ml_evaluation_2026-10-29/` | The validation-year evaluation: design-registered script, configuration, metrics, threshold table, confusion matrices, bootstrap intervals, sensitivity analyses and predictions | Results of a past run (kept as recorded) |
+| `docs/model_evidence.json` | Figures shown on the Risk Analysis page | Regenerated |
+
+```
+pip install -r requirements.txt               # scikit-learn 1.9.0 is pinned; the model was saved with it
+python 25_build_model_evidence.py --check     # recompute everything and confirm the committed JSON; writes nothing
+python 25_build_model_evidence.py             # rewrite the JSON
+```
+
+`--check` re-scores the held-out rows with the model and stops if the result differs from the saved probabilities. It then rebuilds the threshold comparison, persistence baseline, calibration bins and feature importances, and compares each value with the committed JSON. Software versions are recorded but not compared. The automated tests run `--check`, and it was confirmed from a clean clone of the branch.
+
+**What cannot be regenerated from the repository alone:**
+- **ERA5 data:** the model training (scripts 01–14) and the validation-year evaluation (`ro3_chronological_evaluation.py`, which reads `outputs/model_ready.csv`) need the hourly ERA5 single-level reanalysis.
+  - It comes from the Copernicus Climate Data Store and needs a free CDS account. The project uses 2018–2026 for the grid cells around Matatiele: 2 m temperature and dew point, sea-level and surface pressure, total and convective precipitation, CAPE, K-index, total cloud cover, 10 m wind components and gusts.
+  - It is saved as `data/era5/era5_<year>.nc`, about 96 MB, and is not committed.
+  - Running scripts 01–06 rebuilds `outputs/model_ready.csv`.
+- **Retraining:** retraining is not required to check the published figures, and retraining with a different library version would not necessarily reproduce the deployed model.
+- **The 29 October run:** that evaluation's outputs are committed as recorded and were not re-run or altered.

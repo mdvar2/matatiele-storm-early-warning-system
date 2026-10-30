@@ -83,6 +83,48 @@ def sms_counts_text(counts):
     return ', '.join(f'{n} {SMS_STATUS_LABELS.get(status, status)}' for status, n in sorted(counts.items()))
 
 
+SIMULATION_SCRIPT = Path(__file__).resolve().parent / '26_sms_simulation_demo.py'
+
+
+def communication_status(getter, events_error=None):
+    """Homepage status rows (label, state, tone), derived from configuration and the code present; nothing is assumed.
+
+    Dashboard alerts depend on the public warning record being readable. SMS simulation needs the outbox gateway and
+    the demonstration script. Public SMS delivery has no enabled mode in this system: the 'twilio' setting is the
+    controlled trial test, so it is reported as such, never as public delivery.
+    """
+    mode = subs.delivery_mode(getter)
+    dashboard = ('Available', 'ok') if not events_error else ('Warning record unreachable', 'warn')
+    if mode == 'outbox':
+        simulation = ('Active on this deployment', 'ok')
+    elif hasattr(subs, 'OutboxGateway') and SIMULATION_SCRIPT.exists():
+        simulation = ('Available', 'ok')
+    else:
+        simulation = ('Unavailable', 'off')
+    public = ('Controlled test only', 'warn') if mode == 'twilio' else ('Disabled', 'off')
+    return [('Dashboard alerts', *dashboard), ('SMS simulation', *simulation), ('Public SMS delivery', *public)]
+
+
+SMS_CONFIGURATION = {'disabled': 'SMS is not active on this deployment (research prototype).',
+                     'outbox': 'Simulation mode: messages are written to a local test outbox, labelled TEST ONLY, and never sent.',
+                     'twilio': 'Controlled test: a trial SMS account that can message only verified numbers.'}
+
+
+def sms_status_html(getter):
+    """Detailed SMS status for the Alerts page: configuration, simulation, registration, limitations and real record counts."""
+    mode = subs.delivery_mode(getter)
+    rows = [('Current configuration', SMS_CONFIGURATION[mode]),
+            ('Simulation', 'Available: python 26_sms_simulation_demo.py runs the whole warning-to-SMS chain with nothing sent.'),
+            ('Public registration', 'Not yet available.' if mode == 'disabled' else 'Development or controlled test only; not open to the public.'),
+            ('Delivery limitations', 'A message accepted by the SMS provider is not proof of delivery. Delivery is shown only when the '
+                                     'provider confirms it. SMS needs mobile network coverage.'),
+            ('Research-test restrictions', 'Public SMS needs an upgraded provider account, POPIA compliance, ethics clearance and the '
+                                           "project owner's approval."),
+            ('SMS records', sms_counts_text(sms_record_counts(getter)))]
+    items = ''.join(f'<li><b>{html.escape(label)}:</b> {html.escape(text)}</li>' for label, text in rows)
+    return f'<div class="resident-guidance sms-status"><div class="resident-action">SMS service status</div><ul>{items}</ul></div>'
+
+
 def operations_store(getter):
     try:
         return open_store(getter, kind='operations'), None
@@ -124,6 +166,7 @@ def render_alerts(getter, status):
     st.session_state.setdefault('alerts_view', VIEWS[0])
     view = st.segmented_control('Alerts section', VIEWS, key='alerts_view', format_func=VIEW_LABELS.get, label_visibility='collapsed')
     if view == VIEWS[1]:
+        st.html(sms_status_html(getter))
         resident_pages.render_sms_alerts(getter)
         return
     events, error = load_events(getter)

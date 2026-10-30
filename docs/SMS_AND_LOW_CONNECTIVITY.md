@@ -24,7 +24,15 @@ ECMWF forecast (Open-Meteo) → Random Forest estimate → 35% threshold → war
 | **B: Controlled test** | `twilio` (trial account) | Only numbers verified on the trial account. The `--test-sms` workflow sends a labelled "NO WEATHER WARNING" connectivity message. | One test SMS received (run #4) |
 | **C: Public** | — | Not enabled. It needs an upgraded provider account, POPIA compliance and ethics clearance, a private subscriber store, and the project owner's approval. | Disabled |
 
-With the mode unset (`disabled`), the dashboard shows "SMS warning service: research prototype, not active on this deployment" and "SMS registration: not yet available". The Home page lists SMS record counts only from real records, with no numbers shown.
+The Home page shows three indicators, each derived from configuration and the code present (`resident_alerts.communication_status`):
+
+| Indicator | States |
+|---|---|
+| Dashboard alerts | **Available**, or "Warning record unreachable" when the public warning record cannot be read |
+| SMS simulation | **Available** (the outbox gateway and `26_sms_simulation_demo.py` are present), "Active on this deployment" in outbox mode, or "Unavailable" |
+| Public SMS delivery | **Disabled**. With `twilio` it shows "Controlled test only"; no setting enables public delivery |
+
+The Alerts page (SMS alerts) gives the details: the current configuration, simulation, public registration ("Not yet available" when SMS is disabled), delivery limitations, research-test restrictions, and SMS record counts taken from real records only, with no phone numbers.
 
 ## 3. Reproducible SMS simulation
 
@@ -49,7 +57,7 @@ It never touches the model, the threshold, the public ledger or any real store. 
 
 | | What exists | Status |
 |---|---|---|
-| Low-data text view (`?view=text`) | Matatiele, prediction period, estimate, **warning decision**, last update, **information status (current / OUT OF DATE)** and safety advice, with no maps, charts or images | Implemented |
+| Low-data text view (`?view=text`) | Matatiele, prediction period, estimate, **warning decision**, last update, **information status (current / OUT OF DATE)**, safety advice and the **emergency numbers** as plain text (calls need mobile network coverage), with no maps, charts or images | Implemented |
 | Last known information | If a refresh fails, the last saved estimate is shown labelled "Outdated data" / "OUT OF DATE", and the warning decision reads "No warning decision: the information is out of date". | Implemented |
 | No warnings from stale data | Worker freshness checks (`stale_forecast`) | Implemented, tested |
 | Low-data map | Basemap without tiles | Implemented |

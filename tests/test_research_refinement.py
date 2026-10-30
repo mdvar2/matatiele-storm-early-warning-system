@@ -138,3 +138,110 @@ class DecisionWording(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def contrast(a, b):
+    def luminance(hex_colour):
+        rgb = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+    high, low = sorted((luminance(a), luminance(b)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+class FinalRefinements(DashboardHarness):
+    def test_emergency_contacts_are_on_the_safety_page_with_a_homepage_shortcut(self):
+        import emergency_contacts
+        self.write_prediction(.05)
+        at = self.app().run()
+        self.assertNotIn('class="contacts-card', self.html(at))
+        next(b for b in at.button if b.key == 'home_contacts').click().run()
+        self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
+        page = self.html(at)
+        self.assertLess(page.index('advice-grid'), page.index('id="emergency-contacts"'))  # after the safety guidance
+        for number in ('10111', '10177', '112'):
+            self.assertIn(f'href="tel:{number}"', page)
+        self.assertIn(emergency_contacts.NOTE, page)
+        self.assertEqual(len(at.get('iframe')), 1)  # the scroll-to-contacts helper ran once
+        self.assertNotIn('scroll_to_contacts', at.session_state)
+        self.go(at, 'Dashboard'); self.go(at, 'Safety Advice')
+        self.assertEqual(len(at.get('iframe')), 0)  # opening Safety normally does not jump down
+
+    def test_low_data_view_lists_emergency_numbers_as_plain_text(self):
+        self.write_prediction(.05)
+        text = ' '.join(m.value for m in self.app(view='text').run().markdown)
+        for line in ('10111: Police (SAPS)', '10177: Ambulance and fire', '112: Any emergency from a cellphone',
+                     'Calls need mobile network coverage'):
+            self.assertIn(line, text)
+
+    def test_sms_registration_stays_disabled_and_details_are_on_the_alerts_page(self):
+        self.write_prediction(.05)
+        at = self.go(self.app().run(), 'Alerts')
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value(rv_alerts().VIEWS[1]).run()
+        page = self.html(at)
+        for part in ('SMS service status', 'Public registration:</b> Not yet available.', 'SMS is not active on this deployment',
+                     'not proof of delivery', 'POPIA'):
+            self.assertIn(part, page)
+        self.assertIn('SMS registration is not open yet', ' '.join(i.value for i in at.info))
+        self.assertFalse([t for t in at.text_input if 'phone' in t.label.lower() or 'number' in t.label.lower()])
+
+    def test_about_card_names_the_threshold_not_a_warning_level(self):
+        self.write_prediction(.05)
+        page = self.html(self.go(self.app().run(), 'About'))
+        self.assertIn('Warning threshold', page)
+        self.assertIn('Model-risk score required to trigger a warning decision.', page)
+        self.assertNotIn('Warning level', page)
+        self.assertNotIn('Next-hour estimate', page)
+
+    def test_threshold_and_model_score_are_labelled_apart_on_home(self):
+        self.write_prediction(.27)
+        home = self.html(self.app().run())
+        self.assertIn('Model estimate: 27% chance of a storm', home)
+        self.assertIn('Warning threshold: 35%', home)
+        self.assertIn('Below the 35% warning threshold: no warning.', home)
+
+
+def rv_alerts():
+    import resident_alerts
+    return resident_alerts
+
+
+class CommunicationStatus(unittest.TestCase):
+    def status(self, settings, events_error=None):
+        import resident_alerts
+        script = getattr(self, 'script', ROOT / '26_sms_simulation_demo.py')  # the module may be cached from a harness copy
+        with patch.object(resident_alerts, 'SIMULATION_SCRIPT', script):
+            return {label: (state, tone) for label, state, tone in resident_alerts.communication_status(settings.get, events_error)}
+
+    def test_states_follow_configuration(self):
+        self.assertEqual(self.status({}), {'Dashboard alerts': ('Available', 'ok'), 'SMS simulation': ('Available', 'ok'),
+                                           'Public SMS delivery': ('Disabled', 'off')})
+        self.assertEqual(self.status({'SMS_DELIVERY_MODE': 'outbox'})['SMS simulation'], ('Active on this deployment', 'ok'))
+        self.assertEqual(self.status({'SMS_DELIVERY_MODE': 'twilio'})['Public SMS delivery'], ('Controlled test only', 'warn'))
+        # outbox is refused against the real store, so it falls back to disabled
+        self.assertEqual(self.status({'SMS_DELIVERY_MODE': 'outbox', 'SUBSCRIBER_STORE': 'github'})['SMS simulation'], ('Available', 'ok'))
+        self.assertEqual(self.status({}, 'unreachable')['Dashboard alerts'], ('Warning record unreachable', 'warn'))
+
+    def test_missing_simulation_is_reported(self):
+        self.script = Path('does-not-exist.py')
+        self.assertEqual(self.status({})['SMS simulation'], ('Unavailable', 'off'))
+
+
+class DisclaimerAndEvidence(unittest.TestCase):
+    def test_disclaimer_link_is_readable_in_both_themes(self):
+        import dashboard_theme
+        css = dashboard_theme.CSS
+        self.assertIn('.research-notice a {color:#6b2f00!important', css)
+        self.assertGreaterEqual(contrast('#6b2f00', '#fff5dc'), 7)
+        self.assertIn('.research-notice a {color:#ffe08a!important}', css)
+        self.assertGreaterEqual(contrast('#ffe08a', '#3d3216'), 7)
+        self.assertIn('.research-notice a:focus-visible', css)
+
+    def test_evidence_is_reproduced_from_committed_inputs(self):
+        for path in ('docs/evidence/held_out_test_set.csv.gz', 'evaluation_reports/ml_evaluation_2026-10-29/test_metrics.csv'):
+            ignored = subprocess.run(['git', 'check-ignore', '-q', path], cwd=ROOT).returncode == 0
+            self.assertFalse(ignored, f'{path} would not be committed')
+        run = subprocess.run([sys.executable, str(ROOT / '25_build_model_evidence.py'), '--check'], cwd=ROOT,
+                             capture_output=True, text=True, timeout=300)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn('CHECK PASSED', run.stdout)

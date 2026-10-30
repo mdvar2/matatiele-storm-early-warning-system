@@ -56,3 +56,6 @@ Thumbs.db
 
 # Local dashboard backup
 16_dashboard_backup.py
+
+# Small, non-sensitive outputs of the 29 October 2026 chronological evaluation (research evidence)
+!evaluation_reports/ml_evaluation_2026-10-29/*.csv

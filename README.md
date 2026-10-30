@@ -59,11 +59,11 @@ Detailed stakeholder, use case, architecture and activity diagrams are in [docs/
 
 | Section | Content |
 |---|---|
-| **Home** | Four summary cards: **weather forecast** (ECMWF), **model-estimated storm risk** (gauge, prediction period, update time), **warning decision** (35% threshold, whether the estimate reaches it, whether a genuine warning record exists, "Why 35%?") and **warning communication** (dashboard, real SMS mode, registration status, SMS record counts). Below them: the next hours, View warnings, Safety advice, the SMS service (research prototype), tap-to-call emergency numbers and the low-data view. |
+| **Home** | Four summary cards: **weather forecast** (ECMWF), **model-estimated storm risk** (gauge, prediction period, update time), **warning decision** (35% threshold, whether the estimate reaches it, whether a genuine warning record exists, "Why 35%?") and **warning communication**: dashboard alerts, SMS simulation and public SMS delivery, each derived from the configuration (currently available / available / disabled). Below them: the next hours, View warnings, Safety advice, Emergency contacts (a shortcut to the Safety page), the SMS service (research prototype) and the low-data view. |
 | **Forecast** | 36-hour ECMWF temperature and rainfall chart, the forecast variables the model uses (CAPE, dew point, showers), and which forecast hour the model uses. |
 | **Map** | ECMWF rainfall forecast at 25 real ECMWF 0.25° grid cells (0.25° to 0.5° apart, about 24–48 km), interpolated and smoothed between them. It is not radar. Opens centred on Matatiele and has a forecast-hour slider (next 35 hours), an overlay opacity control, a ring for the model-estimated storm risk at Matatiele (one location only), and Satellite, Streets and Low data basemaps. |
-| **Safety** | Advice for before a storm and when a storm is close. |
-| **☰ Alerts** | Current and past warnings, warning details, an anonymous "I have read this warning" acknowledgement, and SMS registration and management. |
+| **Safety** | Advice for before a storm and when a storm is close, then tap-to-call emergency numbers (10111, 10177, 112) to support residents' response. |
+| **☰ Alerts** | Current and past warnings, warning details, an anonymous "I have read this warning" acknowledgement, and the SMS section: configuration, simulation, registration status, delivery limitations, research-test restrictions and real record counts. |
 | **☰ Risk Analysis** | Gauge, risk scale, the threshold explanation, patterns learned (grouped feature importance), why a Random Forest, the threshold comparison (30–50%) with the persistence baseline, the stricter validation-year evaluation, the confusion matrix, and what the percentage means (score, performance, calibration, confidence). |
 | **☰ Historical Data** | Saved model predictions: chart (24 hours / 7 days / all, zoom, 35% line, gaps never filled in) and table. |
 | **☰ About** | The resident warning workflow, development and operation phases, RO3 status (implemented / simulated / future), how the model and system work, the low-connectivity design, and the disclaimer. |
@@ -74,7 +74,7 @@ The dashboard has light and dark themes (a header switch, kept across pages and 
 
 | Implemented | Purpose |
 |---|---|
-| **Low-data view** (`?view=text`) | Essential storm-risk information and safety advice as plain text, without maps, charts or images. |
+| **Low-data view** (`?view=text`) | Essential storm-risk information, the warning decision, information status, safety advice and the emergency numbers as plain text, without maps, charts or images. |
 | **SMS warnings** (optional) | Can reach a basic phone without the dashboard being opened; an SMS needs only mobile signal. |
 | **Low data basemap** | The map without downloaded tiles. |
 | **Scheduled worker** | Warnings are decided hourly on GitHub Actions; no one needs to keep the dashboard open. |
@@ -122,8 +122,9 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
 ## Testing evidence
 
-- **Automated tests:** `python -m pytest tests/`. All 353 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+- **Automated tests:** `python -m pytest tests/`. All 362 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
+- **Reproducible evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs. See [docs/MODEL_EVALUATION.md §7](docs/MODEL_EVALUATION.md#7-reproducing-the-evidence).
 - **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).
 - **RO3 evidence table:** [docs/RO3_EVIDENCE.md](docs/RO3_EVIDENCE.md).
 - **Earlier verified operation:** genuine ECMWF retrieval and inference; an unattended scheduled live run (run #6, 0.00%, below 35%, so no SMS); a labelled NO WEATHER WARNING connectivity SMS received on a phone (run #4).

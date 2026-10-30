@@ -189,7 +189,11 @@ class WarningJourneys(rd.DashboardHarness):
         at = self.app().run()
         page = self.html(at)
         self.assertIn('STORM WARNING IN EFFECT', page)
-        self.assertIn('href="tel:10177"', page)
+        self.assertNotIn('href="tel:10177"', page)  # contacts live on the Safety page, one tap away
+        next(b for b in at.button if b.key == 'home_warning_safety').click().run()
+        self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
+        self.assertIn('href="tel:10177"', self.html(at))
+        at = self.app().run()
         next(b for b in at.button if b.key == 'home_open_warning').click().run()
         self.assertEqual(at.session_state['dashboard_page'], '🚨 Alerts')
         self.assertIn('I have read this warning', [b.label for b in at.button])

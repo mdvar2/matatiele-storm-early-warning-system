@@ -144,3 +144,8 @@ flowchart LR
 - **Map:** the 25 requested points resolve to 25 ECMWF 0.25° grid cells, 0.25° to 0.5° apart. The model's own forecast is requested separately for Matatiele.
 - **SMS modes** (simulation, controlled test, public disabled), the reproducible simulation and the low-connectivity behaviour: [SMS_AND_LOW_CONNECTIVITY.md](SMS_AND_LOW_CONNECTIVITY.md).
 - **RO3 mapping:** [RO3_EVIDENCE.md](RO3_EVIDENCE.md).
+- **Final refinement (30 October 2026):**
+  - Emergency contacts moved from Home to the Safety page, after the safety advice. They are reachable through an "Emergency contacts" shortcut on Home, a shortcut shown beside an active warning, and as plain text in the low-data view.
+  - The Home communication card shows three derived indicators.
+  - The About card is relabelled **Warning threshold**: the model-risk score required to trigger a warning decision.
+  - The evidence inputs are committed, so `25_build_model_evidence.py --check` works from a clean checkout.

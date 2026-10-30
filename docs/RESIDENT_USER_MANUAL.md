@@ -22,19 +22,18 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 | Item | Meaning |
 |---|---|
 | **Status strip** (under the title) | Whether the forecast is live, when it was updated, and where the data comes from. |
-| **Risk card**, e.g. *Low storm risk (model estimate)* | The model's estimate for the next hour, the forecast period and the time of the last update. |
-| **Weather · next hour (forecast)** | Forecast temperature, conditions, rainfall and wind for Matatiele. This is a forecast, not an observation. |
+| **Weather forecast (ECMWF)** | Forecast temperature, rainfall, wind and gusts for Matatiele. This is a forecast, not an observation. |
+| **Model-estimated storm risk** | The model's estimate for the next hour (with a small gauge), the prediction period and the time of the last update. |
+| **Warning decision** | The 35% warning threshold, whether the estimate reaches it, and whether a warning record exists. **Why 35%?** explains the threshold. |
+| **Warning communication** | Whether dashboard alerts and the SMS simulation are available, and that public SMS delivery is disabled. |
+| **Next hours** | The forecast for the coming hours. |
+| **View warnings · Safety advice · Emergency contacts** | Shortcuts to the Alerts page, the safety advice, and the emergency numbers on the Safety page. |
+| **SMS warning service (research prototype)** | The SMS section of the Alerts page. Registration is not yet available. |
 | **Be prepared / Act now** | A few short safety actions that match the current risk. |
-| **Get free SMS storm warnings** | Opens the SMS registration page. |
-| **About this estimate and full safety advice** | Tap to open the full explanation, the area covered, the model caveat and the complete safety advice. |
-| **Rainfall forecast map** | Forecast rain around Matatiele. **Map data and method** explains how it is made. It is not radar. |
 
 The bar under the title has **Home, Forecast, Map** and **Safety**. Tap the **☰** button (top left) for **Alerts, Risk Analysis, Historical Data** and **About**.
 
-The homepage also shows:
-- a **banner** at the top saying whether a storm warning is in effect;
-- **Official weather warnings (SAWS)**, a link to the South African Weather Service;
-- **Emergency contacts**: tap a number to call it from a phone.
+When a storm warning is in effect, a **banner** appears at the top of the homepage, with **Open the warning** and **Safety and emergency contacts** buttons.
 
 **Light or dark?** Use the **Dark theme** switch under the clock. Your choice stays when you change page or reload.
 
@@ -42,17 +41,17 @@ The homepage also shows:
 
 ### Other pages
 
-- **Safety:** what to do before a storm, and when a storm is close.
+- **Safety:** what to do before a storm, and when a storm is close, followed by the **emergency contacts** (tap a number to call; calls need mobile network coverage). The numbers are also in the low-data version.
 - **Alerts** (☰ menu): current and past storm warnings, warning details, and **SMS alerts** (register, check or cancel; see below). Who received an SMS is never shown.
 - **Forecast:** a 36-hour temperature and rain chart, and the storm ingredients the model uses.
 - **Map:** the storm map, with a slider through the coming forecast hours.
-- **Risk Analysis** (☰ menu): the model estimate against the warning level. **Historical Data** (☰ menu): past predictions. **About** (☰ menu): how warnings work, as one diagram.
+- **Risk Analysis** (☰ menu): the model estimate against the 35% warning threshold. **Historical Data** (☰ menu): past predictions. **About** (☰ menu): how warnings work, as one diagram.
 
 ## 3. Registering for SMS warnings
 
 You need a South African mobile number, for example `082 123 4567` or `+27 82 123 4567`. Landlines and toll-free numbers cannot receive warnings.
 
-1. Open **☰ → Alerts**, choose **SMS alerts**, and stay on the **Subscribe** tab. (The **Get free SMS storm warnings** button on the homepage goes straight there.)
+1. Open **☰ → Alerts**, choose **SMS alerts**, and stay on the **Subscribe** tab. (The **SMS warning service (research prototype)** button on the homepage goes straight there. Registration opens only when the project enables it.)
 2. Enter your mobile number.
 3. Check that the warning area is **Matatiele (town and immediate surroundings)**. This is currently the only area.
 4. Read the agreement and tick **I agree to receive SMS storm warnings…**.

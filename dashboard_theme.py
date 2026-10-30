@@ -179,6 +179,8 @@ CSS = r"""
 .research-card .value {color:var(--heading);font-size:23px;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
 .research-card .detail {color:var(--muted);font-size:12px;margin-top:8px}
 .research-notice {background:#fff5dc;border:1px solid #e5ca83;border-left:5px solid #a46605;border-radius:12px;padding:18px;color:#65430c;line-height:1.6}
+.research-notice a {color:#6b2f00!important;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.research-notice a:hover {color:#3d1a00!important;text-decoration-thickness:2px}.research-notice a:focus-visible {outline:3px solid #1d4ed8;outline-offset:2px;border-radius:3px}
 
 /* Resident status banner */
 .resident-card {position:relative;border-radius:22px;padding:22px 24px 20px 92px;border:1px solid var(--r-border);background:var(--r-bg);
@@ -225,6 +227,8 @@ CSS = r"""
 .warn-meta {display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin-top:5px}
 .warn-badge {font-size:11px;font-weight:800;letter-spacing:.6px;border-radius:999px;padding:3px 9px}
 .warn-badge.live {background:#e11d48;color:#fff}.warn-badge.past {background:#dfe6ee;color:#334155}.warn-badge.test {background:#7a4b00;color:#fff}
+.contacts-card.wide .call-list {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.contacts-card.wide .call-row {margin:0}
+@media(max-width:700px) {.contacts-card.wide .call-list {grid-template-columns:1fr}}
 .contacts-card {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:14px;box-shadow:var(--card-shadow)}
 .contacts-head {display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
 .contacts-head small {text-transform:none;letter-spacing:0;font-weight:500}
@@ -274,6 +278,8 @@ CSS = r"""
 .wx-summary {background:linear-gradient(135deg,#1e40af,#2563eb 60%,#3b82f6);color:#fff;border:0}.wx-summary .sc-title,.wx-summary .sc-foot {color:#dbe8ff}.wx-summary .sc-value {color:#fff}
 .sc-gauge {display:flex;align-items:flex-end;gap:10px}.sc-gauge b {font-size:26px;color:var(--heading);line-height:1}
 .mini-gauge {width:108px;height:62px}
+.sc-row {display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:5px 0;line-height:1.4}.sc-state {display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--heading)}
+.sc-state::before {content:"";width:9px;height:9px;border-radius:50%;background:#8a9bb0;flex-shrink:0}.sc-state.ok::before {background:#16a34a}.sc-state.warn::before {background:#d97706}
 .risk-summary {border-left:5px solid #36a46b}.risk-summary.tone-amber {border-left-color:#d98b16}.risk-summary.tone-red {border-left-color:#d93449}.risk-summary.tone-gray {border-left-color:#8a9bb0}
 @media(max-width:1100px) {.summary-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px) {.summary-grid {grid-template-columns:1fr}}
@@ -372,6 +378,7 @@ CSS = r"""
   .resident-head {color:#f4f8fd}.resident-text {color:#dbe7f5}
   .resident-facts span {background:#ffffff12;border-color:#ffffff1f;color:#e3edf9}.resident-facts b,.resident-note {color:#b5c8de}
   .research-notice {background:#3d3216;color:#fff1c8;border-color:#b78e34}
+  .research-notice a {color:#ffe08a!important}.research-notice a:hover {color:#ffffff!important}.research-notice a:focus-visible {outline-color:#93c5fd}
   .clock-card {background:linear-gradient(120deg,#0b3f80,#0d5bb0)}
 }
 @media (prefers-reduced-motion: reduce) {

@@ -560,11 +560,6 @@ def warning_record_text(events: list, error: str | None) -> str:
     if error:return 'Warning record could not be checked: the public record is unreachable.'
     return 'Genuine warning record: none for this period.'
 
-SMS_MODE_TEXT={'disabled':'SMS warning service: research prototype, not active on this deployment',
-               'outbox':'Simulation mode: messages go to a local test outbox and are never sent',
-               'twilio':'Controlled test only (trial account: verified numbers)'}
-SMS_REGISTRATION_TEXT={'disabled':'not yet available','outbox':'development test only','twilio':'controlled test only'}
-
 def hourly_forecast() -> None:
     """Genuine ECMWF hourly values at the Matatiele grid point (no imputation; missing hours are omitted)."""
     hours=six_hour_forecast(state.regional,datetime.now(SAST),complete_intervals=True)
@@ -656,6 +651,9 @@ HISTORY_RANGES=('Last 24 hours','Last 7 days','All saved')
 def more_safety_advice() -> None:
     st.session_state.dashboard_page='🛟 Safety Advice'
 
+def open_contacts() -> None:
+    st.session_state.dashboard_page='🛟 Safety Advice';st.session_state.scroll_to_contacts=True
+
 def go_to(section: str) -> None:
     st.session_state.dashboard_page=section
 
@@ -666,10 +664,10 @@ if page=='🏠 Dashboard':
     banner=resident_alerts.status_banner_html(active_events,genuine_status)  # only when a warning is in effect
     if banner:st.html(banner)
     if active_events:
-        st.button('Open the warning',key='home_open_warning',on_click=open_warning,args=(active_events[0]['key'],),type='primary',icon=':material/warning:')
-    sms_mode=delivery_mode(secret)
-    communication=[('Dashboard','warnings appear on the Alerts page'),('SMS',SMS_MODE_TEXT[sms_mode]),
-                   ('SMS registration',SMS_REGISTRATION_TEXT[sms_mode]),('SMS records',resident_alerts.sms_counts_text(resident_alerts.sms_record_counts(secret)))]
+        warning_actions=st.columns([1,1,2])
+        warning_actions[0].button('Open the warning',key='home_open_warning',on_click=open_warning,args=(active_events[0]['key'],),type='primary',icon=':material/warning:',width='stretch')
+        warning_actions[1].button('Safety and emergency contacts',key='home_warning_safety',on_click=open_contacts,icon=':material/health_and_safety:',width='stretch')
+    communication=resident_alerts.communication_status(secret,events_error)
     st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record_text(events,events_error),communication))
     left,right=st.columns([2,1],gap='medium')
     with left:
@@ -678,8 +676,8 @@ if page=='🏠 Dashboard':
     with right:
         st.button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
         st.button('Safety advice',key='home_safety',on_click=more_safety_advice,icon=':material/health_and_safety:',width='stretch')
+        st.button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
         st.button('SMS warning service (research prototype)',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch')
-        st.html(emergency_contacts.contacts_html())
         st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: essential storm-risk information in a simpler format.</div>')
     st.html(resident_view.quick_actions_html(advice))
     if simulated:
@@ -692,6 +690,12 @@ if page=='🛟 Safety Advice':
     st.caption('Full advice for when a storm is close:')
     st.html(resident_view.advice_cards_html(resident_view.guidance('WARNING'),'Act now'))
     st.caption(resident_view.OFFICIAL_NOTE)
+    st.html('<div class="section-title">Emergency contacts <small>National emergency numbers for South Africa</small></div>')
+    st.html(emergency_contacts.contacts_html('Call for help',wide=True))
+    if st.session_state.pop('scroll_to_contacts',False):
+        # Opened from an "Emergency contacts" shortcut: bring the contacts into view (they sit below the safety advice).
+        components.html('<script>let n=0;const go=()=>{const d=window.parent.document,el=d.getElementById("emergency-contacts")||d.querySelector(".contacts-card");'
+                        'if(el){el.scrollIntoView({block:"start"});}else if(n++<25){setTimeout(go,200);}};setTimeout(go,300);</script>',height=0)
 
 layers: list[Any]=[]
 TOOLTIP_STYLE={'backgroundColor':'#0f2440','color':'white','fontFamily':'Segoe UI, Arial, sans-serif','fontSize':'12px','borderRadius':'8px','padding':'8px 10px'}
@@ -781,7 +785,7 @@ if page=='🌦️ Live Forecast':
                    'The other hours in the chart are shown for information only: the model makes one estimate, for the next hour.')
 
 if page=='📈 Risk Analysis':
-    st.html('<div class="section-title">Risk analysis <small>How the next-hour model estimate compares with the warning level</small></div>')
+    st.html('<div class="section-title">Risk analysis <small>How the next-hour model estimate compares with the 35% warning threshold</small></div>')
     left,right=st.columns([1,1.3],gap='medium')
     with left,st.container(border=True,key='risk_card'):
         panel_title('Model-estimated storm risk','risk')
@@ -894,7 +898,7 @@ if page=='ℹ️ About':
     verified=not stale and not state.regional_error
     with a:status_card('System status','ONLINE' if verified else 'SAVED DATA','Latest retrieval verified' if verified else 'Outdated / unverified','wifi','green' if verified else 'amber')
     with b:status_card('Model','Random Forest','29 forecast input variables · ERA5-trained','model','blue')
-    with c:status_card('Warning level',f'{threshold:.0%}','Next-hour estimate','warning','red')
+    with c:status_card('Warning threshold',f'{threshold:.0%}','Model-risk score required to trigger a warning decision.','warning','red')
     st.html(f'<div class="research-notice"><strong>Academic research prototype</strong> — not an official weather warning service. Follow official warnings and local emergency guidance. '
             f'Official South African warnings: <a href="{resident_alerts.SAWS_URL}" target="_blank" rel="noopener">South African Weather Service</a>.</div>')
     with st.expander('Forecast source and timestamps'):
