@@ -105,7 +105,7 @@ CSS = r"""
 .hero-main {display:flex;gap:14px;align-items:center;min-width:0}.hero-main>div {min-width:0}
 .hero-main>img {width:54px;height:54px;flex-shrink:0;filter:drop-shadow(0 4px 10px #0a3d7a33)}
 .hero h1 {font-size:clamp(21px,2vw,31px);font-weight:800;letter-spacing:-.8px;color:var(--heading);line-height:1.18;margin:0;overflow-wrap:break-word}
-.hero p {font-size:14.5px;color:var(--muted);margin:6px 0 0}
+.hero p {font-size:14.5px;font-weight:500;color:var(--heading);margin:6px 0 0}
 .clock-card {flex-shrink:0;background:linear-gradient(120deg,#0756b8,#0a78de);color:#fff;border-radius:16px;padding:12px 18px;text-align:center;
   font-size:12.5px;box-shadow:0 8px 20px #06386e33}
 .clock-card small {display:block;color:#cfe4fb;margin-top:6px}
