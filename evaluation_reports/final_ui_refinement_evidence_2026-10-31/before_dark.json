@@ -1,0 +1,50 @@
+{
+ "1440_home": {
+  "no_overflow": true,
+  "green_no_warning_card": true
+ },
+ "1440_forecast_no_overflow": true,
+ "1440_map": {
+  "map_top": 459,
+  "map_height": 560,
+  "map_visible_without_scrolling": 441,
+  "no_overflow": true
+ },
+ "1440_risk_no_overflow": true,
+ "1440_about": {
+  "no_overflow": true,
+  "officials_in_diagram": true
+ },
+ "820_home": {
+  "no_overflow": true,
+  "green_no_warning_card": true
+ },
+ "820_forecast_no_overflow": true,
+ "820_map": {
+  "map_top": 504,
+  "map_height": 560,
+  "map_visible_without_scrolling": 396,
+  "no_overflow": true
+ },
+ "820_risk_no_overflow": true,
+ "820_about": {
+  "no_overflow": true,
+  "officials_in_diagram": true
+ },
+ "390_home": {
+  "no_overflow": true,
+  "green_no_warning_card": true
+ },
+ "390_forecast_no_overflow": true,
+ "390_map": {
+  "map_top": 687,
+  "map_height": 560,
+  "map_visible_without_scrolling": 113,
+  "no_overflow": true
+ },
+ "390_risk_no_overflow": true,
+ "390_about": {
+  "no_overflow": true,
+  "officials_in_diagram": true
+ }
+}

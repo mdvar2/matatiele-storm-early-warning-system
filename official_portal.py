@@ -138,7 +138,7 @@ def _details(official, events, doc, ops_store):
     a.metric('Model estimate', we.probability_text(event).split(' (')[0])
     b.metric('Acknowledgements', we.acknowledgement_count(doc, key), help='Devices that opened the warning and pressed "I have read this warning". Anonymous; not a count of people safe or affected.')
     c.metric('Review status', review['status'])
-    st.html(f'<div class="resident-guidance"><ul><li><b>Forecast period:</b> {html.escape(we.period_text(event))}</li>'
+    st.html(f'<div class="resident-guidance"><ul><li><b>Prediction period:</b> {html.escape(we.period_text(event))}</li>'
             f'<li><b>Issued:</b> {event["issued_at"]:%d %b %Y %H:%M:%S} SAST</li><li><b>Location:</b> {html.escape(event["location"])}</li>'
             f'<li><b>Severity:</b> {html.escape(event["severity"])}</li><li><b>Source:</b> {html.escape(event["source"])}'
             + (f' · <a href="{html.escape(event["record"])}" target="_blank">public ledger record</a>' if event.get('record') else '') + '</li>'
@@ -177,7 +177,7 @@ def _actions_table(rows, events):
 
 
 def _geography(regional, regional_valid, current):
-    st.caption(f'Current next-hour model estimate for Matatiele: {current["estimate"]}. The storm model covers one forecast point '
+    st.caption(f'Current next-hour model estimate for Matatiele: {current["estimate"]}. The storm model covers one location '
                '(Matatiele); the map shows the ECMWF rainfall forecast at the surrounding grid points, not radar or observations.')
     if regional is None or regional.empty:
         st.info('The regional forecast is not available right now.')

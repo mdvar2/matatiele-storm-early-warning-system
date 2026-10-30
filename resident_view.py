@@ -16,8 +16,8 @@ from sms_alert import _build_warning_message
 
 THRESHOLD = 0.35
 SIMULATED_PROBABILITY = 0.60
-COVERAGE = ('Matatiele town and its immediate surroundings (one forecast point). '
-            'Nearby towns and villages are not forecast separately.')
+COVERAGE = ('Matatiele town and its immediate surroundings (one model location). '
+            'Nearby towns and villages do not receive separate storm-risk estimates.')
 MODEL_NOTE = ('This is an estimate from a research computer model (machine learning) that uses '
               'weather forecasts. It has not been independently validated as a storm probability '
               'and it is not an official weather warning.')
@@ -126,7 +126,7 @@ def resident_status(probability, period_start, period_end, updated, stale, simul
     if period_start is not None and period_end is not None:
         period = f'{period_start:%d %b} {_clock(period_start)} - {_clock(period_end)} (SAST)'
     else:
-        period = 'Forecast period unavailable'
+        period = 'Prediction period unavailable'
     usable = level != 'UNAVAILABLE'
     if simulated:
         estimate = f'Simulated model output: {SIMULATED_PROBABILITY:.0%}'
@@ -156,8 +156,8 @@ def text_only_page(status, advice):
     if status['simulated']:
         lines += [f"**{status['label']}**", '']
     lines += [f"## {status['headline']}", '', status['explanation'], '',
-              f"- **Forecast period:** {status['period']}",
-              f"- **{status['estimate']}**",
+              f"- **Prediction period:** {status['period']}",
+              f"- **{status['estimate']}** (warning threshold: {THRESHOLD:.0%})",
               f"- **Last update:** {status['updated']}",
               f"- **Area:** {status['coverage']}", '',
               f"_{status['model_note']}_", '',
@@ -174,7 +174,7 @@ def card_html(status):
     return (f'<div class="resident-card tone-{e(status["tone"])}">{banner}'
             f'<div class="resident-head">{e(status["headline"])}</div>'
             f'<div class="resident-text">{e(status["explanation"])}</div>'
-            f'<div class="resident-facts"><span><b>Forecast period</b>{e(status["period"])}</span>'
+            f'<div class="resident-facts"><span><b>Prediction period</b>{e(status["period"])}</span>'
             f'<span><b>Estimate</b>{e(status["estimate"])}</span>'
             f'<span><b>Last update</b>{e(status["updated"])}</span>'
             f'<span><b>Area</b>{e(status["coverage"])}</span></div>'
@@ -194,7 +194,14 @@ SHORT_ACT_NOW = {'Lightning': 'Go indoors', 'Flooding': 'Keep out of flood water
                  'Rivers': 'Stay away from rivers', 'Livestock': 'Do not go out for animals'}
 SHORT_PREPARE = {'Lightning': 'Know your shelter', 'Flooding': 'Know your high ground', 'Roads': 'Plan travel early',
                  'Rivers': 'Cross rivers early', 'Livestock': 'Plan animal shelter'}
-HERO_NOTE = 'Research model estimate · not a guarantee · not an official SAWS warning'
+HERO_NOTE = 'Model-estimated storm risk from a research prototype · not a guarantee · not an official SAWS warning'
+THRESHOLD_TEXT = ("Warnings are triggered when the model's storm-risk estimate reaches or exceeds 35%. This threshold is intended to "
+                  'support early identification of potentially hazardous conditions. Lower thresholds may detect more events but can '
+                  'also increase false alarms.')
+THRESHOLD_METHOD = ("How it was set: the project's threshold-evaluation step compared thresholds from 10% to 60% on the most recent part "
+                    'of the historical ERA5 data, using the F1-score (a balance between missed storms and false alarms). Thresholds from '
+                    '30% to 40% scored almost the same. 35% is the setting in use; because the comparison used that same period, it is a '
+                    'practical working setting, not an independently validated optimum.')
 
 
 def hero_html(status):
@@ -204,7 +211,11 @@ def hero_html(status):
     return (f'<div class="resident-card tone-{e(status["tone"])} hero-risk">{banner}'
             f'<div class="resident-head">{e(status["headline"])}</div>'
             f'<div class="hero-estimate">{e(status["estimate"])}</div>'
-            f'<div class="hero-facts"><span>{icons.icon("clock")} {e(status["period"])}</span><span>{icons.icon("refresh")} Updated {e(status["updated"])}</span></div>'
+            f'<div class="hero-facts"><span>{icons.icon("clock")} Prediction period {e(status["period"])}</span>'
+            f'<span>{icons.icon("refresh")} Model updated {e(status["updated"])}</span>'
+            f'<span>{icons.icon("scale")} Warning threshold: {THRESHOLD:.0%}</span></div>'
+            f'<details class="threshold-info"><summary>{icons.icon("info")} Why 35%?</summary><p>{e(THRESHOLD_TEXT)}</p>'
+            '<p>More detail: menu, then Risk Analysis.</p></details>'
             f'<div class="hero-note">{e(HERO_NOTE)}</div></div>')
 
 

@@ -11,7 +11,7 @@ import icons
 CONTACTS = (('10111', 'Police (SAPS)', 'Crime and police emergencies'),
             ('10177', 'Ambulance and fire', 'Medical emergencies and fires'),
             ('112', 'Any emergency from a cellphone', 'Free from any mobile network'))
-NOTE = 'Calls go to national emergency services, not to this research system.'
+NOTE = 'Calls connect to emergency services, not to the Matatiele Storm Early Warning System.'
 SOURCE = 'Numbers checked against SAPS and South African government sources (October 2026).'
 
 
@@ -20,7 +20,7 @@ def contacts_html(title='Emergency contacts'):
                    f'<span class="call-icon">{icons.icon("phone")}</span><span><b>{number}</b><small>{html.escape(label)} · {html.escape(detail)}</small></span></a>'
                    for number, label, detail in CONTACTS)
     return (f'<div class="contacts-card"><div class="contacts-head">{html.escape(title)}<small>Tap to call</small></div>{rows}'
-            f'<div class="contacts-note">{html.escape(NOTE)} {html.escape(SOURCE)}</div></div>')
+            f'<div class="contacts-note">{html.escape(NOTE)}</div></div>')
 
 
 def call_row_html():

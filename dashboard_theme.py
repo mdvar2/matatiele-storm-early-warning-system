@@ -62,6 +62,7 @@ CSS = r"""
   radial-gradient(1px 1px at 22% 33%,#fff 50%,transparent 51%),radial-gradient(1.3px 1.3px at 68% 31%,#fff 50%,transparent 51%)}
 @keyframes drift {from{transform:translateX(0)}to{transform:translateX(-1200px)}}
 [data-testid="stAppViewContainer"],[data-testid="stMain"],[data-testid="stHeader"] {background:transparent!important}
+[data-testid="stMain"] [data-testid="stMainBlockContainer"] > div > [data-testid="stVerticalBlock"] {gap:.7rem}
 [data-testid="stHeader"] {backdrop-filter:blur(6px)}
 [data-testid="stMainBlockContainer"] {max-width:1720px;padding:3.1rem 1.25rem 1.25rem}
 [data-testid="stVerticalBlock"] {gap:.85rem}
@@ -113,7 +114,7 @@ CSS = r"""
 .clock-card {flex-shrink:0;background:linear-gradient(120deg,#0756b8,#0a78de);color:#fff;border-radius:16px;padding:12px 18px;text-align:center;
   font-size:12.5px;box-shadow:0 8px 20px #06386e33}
 .clock-card small {display:block;color:#cfe4fb;margin-top:6px}
-.status-strip {display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px}
+.status-strip {display:flex;flex-wrap:wrap;gap:6px;margin:0}
 .chip {display:inline-flex;align-items:center;gap:7px;background:var(--chip);color:var(--chip-text);border:1px solid var(--card-border);
   border-radius:999px;padding:6px 12px;font-size:12.5px;backdrop-filter:blur(6px)}
 .chip b {font-weight:700}
@@ -268,22 +269,31 @@ CSS = r"""
 .risk-scale .band:first-child {border-radius:11px 0 0 11px}.risk-scale .band:last-child {border-radius:0 11px 11px 0}
 .risk-scale .marker {position:absolute;top:-8px;width:4px;height:38px;background:var(--heading);border-radius:2px;transform:translateX(-2px)}
 .risk-scale .marker b {position:absolute;top:40px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;color:var(--heading)}
-.flow {display:grid;gap:10px;margin:6px 0 12px}
-.flow .lane {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:10px 12px;box-shadow:var(--card-shadow)}
-.flow .lane.opt {border-style:dashed}
-.flow .lane-head {display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:8px}
-.flow .lane-title {font-weight:800;color:var(--heading);font-size:14px}.flow .from {font-size:11.5px;color:var(--muted);width:100%}
-.flow .lane-steps {display:flex;align-items:stretch;gap:6px}
-.flow .step {flex:1 1 0;display:flex;align-items:center;gap:10px;min-width:0;background:var(--accent-soft);border-radius:12px;padding:9px 11px}
-.flow .step .ico {color:var(--accent)}
-.st-key-map_card [data-testid="stCheckbox"] {margin-top:2px}.flow .step b {display:block;color:var(--heading);font-size:13.5px;line-height:1.25}
+.flow {margin:4px 0 8px}
+.flow .lane-steps {display:flex;align-items:stretch;gap:4px}
+.flow .step {flex:1 1 0;display:flex;align-items:center;gap:9px;min-width:0;background:var(--card);border:1px solid var(--card-border);
+  border-radius:12px;padding:8px 10px;box-shadow:var(--card-shadow)}
+.flow .step.optional {border-style:dashed}
+.flow .step .ico {color:var(--accent)}.flow .step b {display:block;color:var(--heading);font-size:13.5px;line-height:1.25}
 .flow .step small {display:block;color:var(--muted);font-size:12px;line-height:1.3}
 .flow .arrow {display:flex;align-items:center;color:var(--muted)}
-.flow .branches {display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
-.flow .badge {font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;letter-spacing:.3px}
-.flow .badge.on {background:#dcfce7;color:#14532d}.flow .badge.opt {background:#fef3c7;color:#713f12}.flow .badge.future {background:var(--divider);color:var(--text)}
-.flow .future {display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
-@media (max-width:700px) {.flow .lane-steps {display:grid;grid-template-columns:1fr 1fr}.flow .arrow {display:none}
+.flow .badge {display:inline-block;margin-top:3px;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
+.flow .badge.on {background:#dcfce7;color:#14532d}.flow .badge.opt {background:#fef3c7;color:#713f12}
+.explainer {margin:4px 0 0 18px;padding:0;color:var(--text);font-size:14px;line-height:1.5}.explainer li {margin:4px 0}
+.explainer b {color:var(--heading)}
+.lowdata-link {font-size:13px;color:var(--muted);margin-top:2px}.lowdata-link a {color:var(--accent);font-weight:700}
+.threshold-info {margin-top:8px;font-size:13px;color:var(--text)}
+.threshold-info summary {cursor:pointer;font-weight:700;color:var(--heading);display:inline-flex;align-items:center;gap:6px}
+.threshold-info p {margin:6px 0 0;max-width:72ch}
+.map-band {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0}
+.map-band b {font-size:17px;color:var(--heading)}.map-band small {font-size:12px;color:var(--muted)}
+.st-key-map_card [data-testid="stVerticalBlock"] {gap:.45rem}
+.map-legend .ring {display:inline-block;width:12px;height:12px;border-radius:50%;border:3px solid var(--ring);vertical-align:-2px;margin-right:4px}
+@media (min-width:641px) and (max-width:1100px) {
+  .st-key-map_controls [data-testid="stHorizontalBlock"] {flex-wrap:wrap!important;row-gap:2px!important}
+  .st-key-map_controls [data-testid="stColumn"]:first-child {flex:1 1 100%!important;width:100%!important}
+  .st-key-map_controls [data-testid="stColumn"]:not(:first-child) {flex:1 1 0!important;min-width:0!important}}
+@media (max-width:700px) {.flow .lane-steps {flex-direction:column}.flow .arrow {justify-content:center;transform:rotate(90deg)}
   .status-strip {flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.status-strip .chip {white-space:nowrap}
   .st-key-map_controls [data-testid="stHorizontalBlock"] {gap:4px!important}}
 .risk-body.single {grid-template-columns:1fr;justify-items:center}
@@ -298,6 +308,7 @@ CSS = r"""
 .sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* Streamlit widgets: one token set for both themes (base theme is pinned to light in config). */
 [data-testid="stHeader"] {background:transparent!important}
+[data-testid="stMain"] [data-testid="stMainBlockContainer"] > div > [data-testid="stVerticalBlock"] {gap:.7rem}
 .stApp [data-testid="stMain"] [data-testid="stMarkdownContainer"],[data-testid="stMain"] [data-testid="stMarkdownContainer"] p,
 [data-testid="stMain"] [data-testid="stWidgetLabel"] p,[data-testid="stMain"] label {color:var(--text)}
 [data-testid="stMain"] [data-testid="stCaptionContainer"],[data-testid="stMain"] [data-testid="stCaptionContainer"] p {color:var(--muted)!important}
@@ -455,9 +466,9 @@ def status_strip(stale, updated, simulated, refresh_minutes=15):
     if stale:
         fresh = f'<span class="chip stale"><span class="dot"></span><b>Outdated data</b> &middot; last update {e(updated or "unknown")}</span>'
     else:
-        fresh = f'<span class="chip"><span class="dot"></span><b>Live forecast</b> &middot; updated {e(updated or "unknown")}</span>'
+        fresh = f'<span class="chip"><span class="dot"></span><b>Live forecast data</b> &middot; model updated {e(updated or "unknown")}</span>'
     chips = [fresh, f'<span class="chip">Auto-refresh every {int(refresh_minutes)} min while open</span>',
-             '<span class="chip">Source: ECMWF via Open-Meteo &middot; model: Random Forest</span>']
+             '<span class="chip">Weather forecast: ECMWF via Open-Meteo &middot; storm risk: Random Forest model</span>']
     if simulated:
         chips.insert(0, '<span class="chip sim"><b>SIMULATION ON</b> &middot; on screen only</span>')
     return '<div class="status-strip">' + ''.join(chips) + '</div>'
@@ -497,33 +508,30 @@ def risk_scale_html(probability, threshold=0.35):
 
 
 def flow_html(sms_mode='disabled'):
-    """How the system works: the main pipeline, then three separate branches from the warning record.
-    SMS is optional and labelled with its real state; future research is labelled as not implemented."""
+    """The resident-facing warning workflow in one line: external forecast -> Random Forest -> 35% decision ->
+    warning information -> SMS. SMS is optional and labelled with its real state. (The officials' portal is a
+    separate interface and is not part of this explanation.)"""
     e = html.escape
     arrow = f'<span class="arrow" aria-hidden="true">{icons.icon("arrow-right")}</span>'
-
-    def step(name, title, detail):
-        return f'<div class="step">{icons.icon(name, size="22px")}<div><b>{e(title)}</b><small>{e(detail)}</small></div></div>'
-
-    def lane(title, badge, kind, steps, branch=False):
-        head = (f'<div class="lane-head">{"<span class=from>From the warning record</span>" if branch else ""}'
-                f'<span class="lane-title">{e(title)}</span><span class="badge {kind}">{e(badge)}</span></div>')
-        return f'<div class="lane{" branch" if branch else ""} {kind}">{head}<div class="lane-steps">{arrow.join(steps)}</div></div>'
-
     sms_badge = {'twilio': 'Optional · configured', 'outbox': 'Optional · development outbox, nothing sent'}.get(sms_mode, 'Optional · not enabled')
-    main = lane('Main pipeline', 'Active', 'on', [step('radar', 'Forecast', 'ECMWF, every hour'),
-                                                  step('cpu', 'Random Forest', 'Next-hour estimate'),
-                                                  step('scale', 'Warning decision', '35% or more: warning'),
-                                                  step('clipboard', 'Warning record', 'Public ledger')])
-    branches = (lane('Residents', 'Active', 'on', [step('siren', 'Warning view', 'Alerts page'),
-                                                   step('check-circle', 'Acknowledgement', 'Once per device')], True)
-                + lane('Officials', 'Active', 'on', [step('shield', "Officials' portal", 'Individual sign-in'),
-                                                     step('history', 'Review and audit history', 'Status, notes, CSV')], True)
-                + lane('SMS delivery', sms_badge, 'opt' if sms_mode != 'twilio' else 'on',
-                       [step('message', 'SMS to subscribers', 'Only when enabled and configured')], True))
-    future = ('<div class="future"><span class="badge future">Future research · not implemented</span>'
-              '<span>Local sensors, edge processing and LoRa links for areas without mobile data.</span></div>')
-    return f'<div class="flow">{main}<div class="branches">{branches}</div>{future}</div>'
+
+    def step(name, title, detail, badge='', optional=False):
+        tag = f'<span class="badge {"opt" if optional else "on"}">{e(badge)}</span>' if badge else ''
+        return (f'<div class="step{" optional" if optional else ""}">{icons.icon(name, size="22px")}'
+                f'<div><b>{e(title)}</b><small>{e(detail)}</small>{tag}</div></div>')
+    steps = [step('radar', 'External forecast', 'ECMWF via Open-Meteo, hourly'),
+             step('cpu', 'Random Forest', 'Model-estimated storm risk'),
+             step('scale', '35% warning decision', 'Estimate at or above 35%'),
+             step('siren', 'Warning information', 'Alerts page and public record'),
+             step('message', 'SMS communication', 'Only when enabled and configured', sms_badge, sms_mode != 'twilio')]
+    return f'<div class="flow"><div class="lane-steps">{arrow.join(steps)}</div></div>'
+
+
+def explainer_html(steps):
+    """Numbered steps: (title, text)."""
+    e = html.escape
+    items = ''.join(f'<li><b>{e(title)}</b> {e(text)}</li>' for title, text in steps)
+    return f'<ol class="explainer">{items}</ol>'
 
 
 def ingredient_tiles_html(tiles):

@@ -549,7 +549,7 @@ def weather_card() -> None:
            ('wind','Wind',weather_value(number(latest,'wind_speed_ms'),'m/s'),'Gusts '+weather_value(number(latest,'wind_gust_ms'),'m/s')),
            ('cloud','Cloud',weather_value(number(latest,'cloud_cover_percent'),'%',0),'Pressure '+weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
     st.html(dashboard_theme.weather_card_html(svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label),
-        weather_value(number(latest,'temperature_c'),chr(176)+'C'),condition_label,'Weather · next hour (forecast)',tiles,
+        weather_value(number(latest,'temperature_c'),chr(176)+'C'),condition_label,'Weather forecast for the next hour (ECMWF)',tiles,
         'OUTDATED SAVED CONDITIONS' if stale else f'ECMWF forecast for {forecast_hour} - not an observation',
         f'Updated {updated_label}' if updated_label else ''))
 
@@ -607,17 +607,41 @@ if portal_mode:
         official_portal.render(official,events,operations,operations_error,regional_now,regional_hour,genuine_status)
     st.stop()
 
+# Verified against the project's scripts (01-15) and evaluation reports; no performance figures are claimed here.
+MODEL_STEPS=[
+    ('Historical weather data.','Hourly ERA5 reanalysis for grid cells covering Matatiele, January 2018 onwards, supports model development only.'),
+    ('Preprocessing.','The ERA5 files are cleaned and merged into one hourly record (scripts 01-04 and 06).'),
+    ('Storm labels and features.','An hour is labelled a storm when ERA5 shows at least 1 mm of rain and at least one supporting sign (CAPE of 200 J/kg or more, convective rain of 0.5 mm or more, K-index of 26 or more, or cloud cover of 90% or more). The model learns to estimate the next hour\'s label from 29 inputs: the current and previous hour of temperature, dew point, pressure, rainfall, CAPE, convective rain, cloud, wind and gusts, plus location and time of year.'),
+    ('Random Forest training.','300 decision trees with balanced class weights, trained on the earliest 80% of the hourly record (to 25 August 2025).'),
+    ('Evaluation.','The most recent 20% of the record was held out to test the model and to compare warning thresholds; the evaluation reports document this and its limitations.'),
+    ('External weather forecasts.','During operation, the system retrieves ECMWF forecasts through Open-Meteo every hour. It does not produce weather forecasts itself.'),
+    ('Storm-risk estimate.','The Random Forest turns those forecast values into a next-hour storm-risk estimate for Matatiele (one location).'),
+    ('Warning decision.','An estimate at or above the 35% warning threshold creates a warning record.'),
+    ('Warning communication.','Warnings are shown on the Alerts page; SMS can deliver them to registered phones when it is enabled and configured.'),
+]
+LOW_CONNECTIVITY=[
+    ('Low-data view.','Essential storm-risk information as plain text, without maps, charts or images.'),
+    ('SMS warnings.','When enabled, a warning can reach a basic phone without opening the dashboard; an SMS needs only mobile signal.'),
+    ('Low-data map.','The map can be shown without downloading map tiles.'),
+    ('Not claimed.','The system needs a connection to update; it does not run offline, and sensors or LoRa links are future research, not implemented.'),
+]
+
 def more_safety_advice() -> None:
     st.session_state.dashboard_page='🛟 Safety Advice'
+
+def go_to(section: str) -> None:
+    st.session_state.dashboard_page=section
 
 # Each piece of information has one place: Home summarises; every other section adds detail not shown on Home.
 if page=='🏠 Dashboard':
     events,_=resident_alerts.load_events(secret)
     active_events=[e for e in events if warning_events.is_active(e)]
-    st.html(resident_alerts.status_banner_html(active_events,genuine_status))
+    banner=resident_alerts.status_banner_html(active_events,genuine_status)  # only when a warning is in effect
+    if banner:st.html(banner)
     if active_events:
         st.button('Open the warning',key='home_open_warning',on_click=open_warning,args=(active_events[0]['key'],),type='primary',icon=':material/warning:')
     st.html(resident_view.hero_html(resident))
+    st.button('Threshold details',key='home_threshold',on_click=go_to,args=('📈 Risk Analysis',),icon=':material/info:')
     left,right=st.columns([2,1],gap='medium')
     with left:
         weather_card()
@@ -625,7 +649,9 @@ if page=='🏠 Dashboard':
     with right:
         st.link_button('Official weather warnings (SAWS)',resident_alerts.SAWS_URL,icon=':material/campaign:',type='primary',width='stretch')
         st.button('Get free SMS storm warnings',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch')
+        st.button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',width='stretch')
         st.html(emergency_contacts.contacts_html())
+        st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: essential storm-risk information in a simpler format.</div>')
     st.html(resident_view.quick_actions_html(advice))
     st.button('More safety advice',key='home_more_safety',on_click=more_safety_advice,icon=':material/health_and_safety:')
     if simulated:
@@ -644,12 +670,12 @@ TOOLTIP_STYLE={'backgroundColor':'#0f2440','color':'white','fontFamily':'Segoe U
 map_tooltip=cast(Any, {'html':'<b>{name}</b><br/>{detail}', 'style':TOOLTIP_STYLE})
 basemap_url=SATELLITE_STYLE_URL
 if page=='🗺️ Weather Map':
-    st.html('<div class="section-title">Storm map <small>Forecast rain around Matatiele and the storm-model level</small></div>')
     with st.container(key='map_card'):
-        # One compact row of controls (stacks on phones); the map takes the remaining space.
+        # Title and controls in one compact band (stacks on phones); the map takes the remaining space.
         hours=regional_hours(state.regional)
         with st.container(key='map_controls'):
-            control_basemap,control_hour=st.columns([1.2,3],gap='medium',vertical_alignment='bottom')
+            control_title,control_basemap,control_hour=st.columns([1.1,1.1,2.6],gap='medium',vertical_alignment='bottom')
+        control_title.html('<div class="map-band"><b>Storm map</b><small>ECMWF rainfall forecast · model storm risk</small></div>')
         with control_basemap:
             basemap=st.segmented_control('Basemap',list(BASEMAPS),default='Satellite',key='map_basemap',
                                          help='Low data draws no map tiles: only the forecast overlay and labels.')
@@ -674,7 +700,7 @@ if page=='🗺️ Weather Map':
             except (ValueError,KeyError):st.warning('Incomplete rainfall grid: overlay unavailable. No artificial values substituted.')
         matatiele=pd.DataFrame([{'lat':MATATIELE_LAT,'lon':MATATIELE_LON,'name':'Matatiele','detail':'Location of the next-hour storm-risk model'}])
         ring=[int(level_color[i:i+2],16) for i in (1,3,5)]
-        model_area=matatiele.assign(name=f'Storm model: {level}',detail=f'Next-hour model estimate {prob:.0%} for Matatiele (one forecast point)' if math.isfinite(prob) else 'No current model estimate')
+        model_area=matatiele.assign(name=f'Storm model: {level}',detail=f'Next-hour model-estimated storm risk {prob:.0%} for Matatiele (one location)' if math.isfinite(prob) else 'No current model estimate')
         layers.append(pdk.Layer('ScatterplotLayer',model_area,get_position='[lon, lat]',get_radius=9000,get_fill_color=ring+[40],get_line_color=ring+[230],line_width_min_pixels=3,stroked=True,pickable=True))
         layers.append(pdk.Layer('ScatterplotLayer',matatiele,get_position='[lon, lat]',get_radius=3000,get_fill_color=[221,45,67,240],get_line_color=[255,255,255,255],line_width_min_pixels=3,stroked=True,pickable=True))
         nearby=pd.DataFrame(NEARBY_PLACES)
@@ -695,9 +721,10 @@ if page=='🗺️ Weather Map':
             get_background_color=[12,32,54,235],background_padding=[5,3],pickable=True))
         map_slot.pydeck_chart(pdk.Deck(map_style=basemap_url,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=560)
         if not regional.empty and not regional_stale:
-            st.html(f'<div class="map-legend"><div class="title">Risk of heavy rain · hour ending {regional_valid:%H:%M} SAST (forecast mm)</div><div class="rain-legend"></div>'
+            st.html(f'<div class="map-legend"><div class="title">Forecast rainfall, mm in the hour ending {regional_valid:%H:%M} SAST (ECMWF)</div><div class="rain-legend"></div>'
                     '<div class="legend-labels"><span>0</span><span>0.1</span><span>1</span><span>3</span><span>5</span><span>10</span><span>20</span><span>40+</span></div>'
-                    '<div class="note">Coloured areas: ECMWF rain forecast at 25 grid points, smoothed (not radar or observed rain). Ring: storm-model level for Matatiele. Drag, zoom, or tap a point for its value.'
+                    f'<div class="note">Colours: ECMWF IFS 0.25° rainfall forecast at 25 grid points about 30 km apart, interpolated and smoothed between points. It is not radar or observed rain. '
+                    f'<span class="ring" style="--ring:{level_color}"></span>Ring: model-estimated storm risk for Matatiele ({level.lower()}); the model covers that one point only. Drag, zoom or tap a point.'
                     +('' if show_overlay else ' Overlay hidden.')+'</div></div>')
         with st.expander('Map data and method'):
             if not regional.empty and not regional_stale:
@@ -707,7 +734,7 @@ if page=='🗺️ Weather Map':
         if regional.empty or regional_stale:st.info('Matatiele is shown in red. Refresh to retrieve genuine regional rainfall forecasts.')
 
 if page=='🌦️ Live Forecast':
-    st.html('<div class="section-title">Forecast <small>The next 36 hours and the storm ingredients the model uses</small></div>')
+    st.html('<div class="section-title">Weather forecast <small>Supplied by ECMWF via Open-Meteo for the next 36 hours, and the forecast variables the storm-risk model uses</small></div>')
     forecast_chart()
     cape,previous=number(latest,'cape'),number(latest,'previous_cape')
     change=f'{cape-previous:+.0f} J/kg vs previous hour' if math.isfinite(cape) and math.isfinite(previous) else 'Change unavailable'
@@ -716,13 +743,13 @@ if page=='🌦️ Live Forecast':
         ('droplets','Dew point',weather_value(number(latest,'dewpoint_c'),chr(176)+'C'),'Moisture in the air'),
         ('cloud-rain','Showers',weather_value(number(latest,'showers_mm'),'mm'),'Convective rain in the input hour'),
         ('clock','Model input hour',f'{input_time:%H:%M} SAST' if input_time is not None else 'Unknown','ECMWF forecast used by the model')]))
-    st.caption('Forecast values from ECMWF via Open-Meteo, not observations.')
+    st.caption('All values are external ECMWF forecasts via Open-Meteo, not observations. This system does not produce weather forecasts; it uses them to estimate storm risk.')
 
 if page=='📈 Risk Analysis':
     st.html('<div class="section-title">Risk analysis <small>How the next-hour model estimate compares with the warning level</small></div>')
     left,right=st.columns([1,1.3],gap='medium')
     with left,st.container(border=True,key='risk_card'):
-        panel_title('Next-hour prediction','risk')
+        panel_title('Model-estimated storm risk','risk')
         usable=math.isfinite(prob) and 0<=prob<=1
         gauge_value=prob if usable else 0.0
         value_text=f'{prob:.1%}' if usable else 'Unavailable'
@@ -732,6 +759,9 @@ if page=='📈 Risk Analysis':
         st.html(dashboard_theme.risk_scale_html(prob if math.isfinite(prob) else None,threshold))
         st.html(resident_view.details_html(genuine_status))
         st.caption(f'Target interval: {interval_label(valid)} · generated {generated_time.strftime("%d %b %H:%M SAST") if generated_time is not None else "unknown"} · fixed hourly target, not a rolling 60 minutes.')
+    with st.expander('About the 35% warning threshold',expanded=True):
+        st.markdown(resident_view.THRESHOLD_TEXT)
+        st.caption(resident_view.THRESHOLD_METHOD)
 
 if page=='🕒 Historical Data':
     st.html('<div class="section-title">Historical data <small>Saved model predictions (genuine records only)</small></div>')
@@ -757,7 +787,7 @@ if page=='🚨 Alerts':
     if is_admin:
         st.markdown('**Operational status (administrators)**')
         a,b,c=st.columns(3)
-        with a:status_card('Dashboard warnings','OUTDATED' if stale else 'AVAILABLE','Saved forecast freshness' if stale else 'Genuine forecast risk classification','warning','amber' if stale else 'green',compact=True)
+        with a:status_card('Dashboard warnings','OUTDATED' if stale else 'AVAILABLE','Saved forecast freshness' if stale else 'Model-estimated storm risk available','warning','amber' if stale else 'green',compact=True)
         with b:status_card('Automatic SMS','MANAGED BY GITHUB ACTIONS','Independent worker. Check Actions logs for execution and Twilio/recipient for delivery; neither is verified here.','wifi','blue',compact=True)
         with c:status_card('SMS trigger','ACTIONS ONLY','Administrator test SMS: dashboard-local Twilio '+('configured' if configured else 'not configured')+'. This does not indicate Actions configuration.','model','blue',compact=True)
         if SMS_LOG.exists():
@@ -776,16 +806,20 @@ if page=='🛠️ Administration' and is_admin:
             'Random Forest model file':model_status,'Warning threshold':f'{threshold:.0%}'}
     resident_pages.render_admin(secret,health)
 if page=='ℹ️ About':
-    st.html('<div class="section-title">About <small>How this research system works</small></div>')
+    st.html('<div class="section-title">About <small>How a storm warning reaches residents</small></div>')
     st.html(dashboard_theme.flow_html(delivery_mode(secret)))
+    with st.expander('How the model and system work'):
+        st.html(dashboard_theme.explainer_html(MODEL_STEPS))
+    with st.expander('Designed for low connectivity'):
+        st.html(dashboard_theme.explainer_html(LOW_CONNECTIVITY)+'<div class="lowdata-link"><a href="?view=text">Open the low-data view</a></div>')
     a,b,c=st.columns(3)
     verified=not stale and not state.regional_error
     with a:status_card('System status','ONLINE' if verified else 'SAVED DATA','Latest retrieval verified' if verified else 'Outdated / unverified','wifi','green' if verified else 'amber')
-    with b:status_card('Model','Random Forest','29 forecast features · ERA5-trained','model','blue')
+    with b:status_card('Model','Random Forest','29 forecast input variables · ERA5-trained','model','blue')
     with c:status_card('Warning level',f'{threshold:.0%}','Next-hour estimate','warning','red')
     st.html('<div class="research-notice"><strong>Academic research Beta</strong> · Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele. Not an official warning service: follow SAWS and local disaster management.</div>')
     with st.expander('Forecast source and timestamps'):
-        st.caption(f'Model forecast retrieved: {retrieved_time.strftime("%d %b %Y %H:%M:%S SAST") if retrieved_time is not None else "Unknown (legacy saved record)"} · Forecast input hour: {input_time.strftime("%d %b %Y %H:%M SAST") if input_time is not None else "Unknown"} · Forecast target (hour ending): {valid.strftime("%d %b %Y %H:%M SAST") if valid is not None else "Unknown"}')
+        st.caption(f'Weather forecast retrieved: {retrieved_time.strftime("%d %b %Y %H:%M:%S SAST") if retrieved_time is not None else "Unknown (legacy saved record)"} · Forecast input hour: {input_time.strftime("%d %b %Y %H:%M SAST") if input_time is not None else "Unknown"} · Forecast target (hour ending): {valid.strftime("%d %b %Y %H:%M SAST") if valid is not None else "Unknown"}')
         st.caption(f'Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}. Target interval: {interval_label(valid)}. Fixed hourly target, not a rolling 60-minute window. Instantaneous conditions are valid at their timestamp; rainfall covers the preceding hour.')
         st.caption('ECMWF run issue time is not supplied by this API response; retrieval time is recorded separately.')
 

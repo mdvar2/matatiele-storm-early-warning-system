@@ -89,8 +89,7 @@ def status_banner_html(active_events, status):
         return (f'<div class="alert-banner red"><div class="ab-kicker">STORM WARNING IN EFFECT</div>'
                 f'<div class="ab-title">Storm warning for Matatiele, {html.escape(we.period_text(latest))}</div>'
                 '<div class="ab-text">Take precautions now. Open the warning for what to do.</div></div>')
-    return ('<div class="alert-banner green"><div class="ab-kicker">NO WARNING IN EFFECT</div>'
-            '<div class="ab-title">No storm warning issued for Matatiele right now</div></div>')
+    return ''  # no warning in effect: the risk card already shows the current estimate
 
 
 def render_alerts(getter, status):
@@ -118,7 +117,7 @@ def render_alerts(getter, status):
         for event in active:
             _event_row(event, True)
     else:
-        st.html(f'<div class="warn-card"><div class="warn-top"><b>{icons.icon("check-circle")} No warning in effect</b></div></div>')
+        st.html(f'<div class="warn-card"><div class="warn-top"><b>{icons.icon("check-circle")} No severe weather warning issued by this research system</b></div></div>')
     past = [e for e in events if not we.is_active(e, now)]
     st.markdown('**Past warnings**')
     if past:

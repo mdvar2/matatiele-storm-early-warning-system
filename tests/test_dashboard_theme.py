@@ -87,23 +87,15 @@ class Assets(unittest.TestCase):
 
     def test_workflow_diagram_structure(self):
         page = theme.flow_html('disabled')
-        lanes = re.split(r'<div class="lane(?: branch)? (?:on|opt)">', page)[1:]  # one entry per lane
-        lane = lambda step: next(i for i, part in enumerate(lanes) if f'<b>{step}</b>' in part)  # noqa: E731
-        main = lanes[lane('Forecast')]
-        self.assertEqual([lane(s) for s in ('Forecast', 'Random Forest', 'Warning decision', 'Warning record')], [0] * 4)
-        for steps in (('Warning view', 'Acknowledgement'), ("Officials&#x27; portal", 'Review and audit history'), ('SMS to subscribers',)):
-            positions = {lane(step) for step in steps}
-            self.assertEqual(len(positions), 1, steps)       # each branch is one lane ...
-            branch = lanes[positions.pop()]
-            self.assertIn('From the warning record', branch)  # ... starting from the warning record
-            self.assertNotIn('<b>Warning record</b>', branch)
-        sms = lanes[lane('SMS to subscribers')]
-        self.assertNotIn('portal', sms)  # officials are never a stage after SMS
-        self.assertIn('Optional · not enabled', sms); self.assertIn('badge opt', sms)
+        steps = re.findall(r'<b>([^<]+)</b>', page)
+        self.assertEqual(steps, ['External forecast', 'Random Forest', '35% warning decision', 'Warning information', 'SMS communication'])
+        self.assertNotIn('Official', page)  # the officials' portal is a separate interface, not a stage in this workflow
+        self.assertEqual(page.count('class="arrow"'), 4)
+        sms = page[page.index('SMS communication') - 200:]
+        self.assertIn('Optional · not enabled', sms); self.assertIn('step optional', page)
         self.assertIn('Optional · configured', theme.flow_html('twilio'))
         self.assertIn('development outbox, nothing sent', theme.flow_html('outbox'))
-        self.assertIn('Future research · not implemented', page)
-        self.assertIn('badge on', main)
+        self.assertIn('flex-direction:column', theme.CSS)  # stacks vertically on phones
 
     def test_status_strip(self):
         live = theme.status_strip(False, '30 Oct 10:20 SAST', False)
@@ -166,7 +158,7 @@ class RedesignedDashboard(rd.DashboardHarness):
     def test_each_component_appears_on_exactly_one_page(self):
         self.write_prediction(.05)
         at = self.app().run()
-        markers = {'class="wx-card"': 'Dashboard', 'class="contacts-card"': 'Dashboard', 'class="alert-banner': 'Dashboard',
+        markers = {'class="wx-card"': 'Dashboard', 'class="contacts-card"': 'Dashboard', 'class="threshold-info"': 'Dashboard',
                    'class="risk-gauge"': 'Risk Analysis', 'class="risk-scale"': 'Risk Analysis',
                    'class="advice-grid"': 'Safety Advice', 'class="flow"': 'About', 'class="kpi': 'About'}
         found = {marker: [] for marker in markers}
@@ -179,6 +171,10 @@ class RedesignedDashboard(rd.DashboardHarness):
             if at.get('deck_gl_json_chart'):
                 maps.append(section)
         self.assertEqual(found, {marker: [section] for marker, section in markers.items()})
+        self.go(at, 'Dashboard')
+        self.assertNotIn('NO WARNING IN EFFECT', self.html(at))  # the redundant status card is gone; the risk card remains
+        self.assertIn('resident-card tone-green hero-risk', self.html(at))
+        self.assertIn('Warning threshold: 35%', self.html(at))
         self.assertEqual(maps, ['Weather Map'])
 
     def style(self, at):
@@ -229,6 +225,26 @@ class RedesignedDashboard(rd.DashboardHarness):
             self.assertFalse(emoji.findall(' '.join(visible)), section)
         portal = self.app(portal='officials').run()
         self.assertFalse(emoji.findall(self.html(portal)))
+
+    def test_threshold_model_and_low_connectivity_explanations(self):
+        self.write_prediction(.05)
+        at = self.app().run()
+        home = self.html(at)
+        self.assertIn('Why 35%?', home); self.assertIn('Warning threshold: 35%', home)
+        self.assertIn('href="?view=text"', home)  # low-data view reachable from Home
+        self.assertTrue([b for b in at.button if b.key == 'home_alerts'])
+        next(b for b in at.button if b.key == 'home_threshold').click().run()
+        self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')
+        text = ' '.join(m.value for m in at.markdown) + ' '.join(c.value for c in at.caption)
+        self.assertIn(rd.rv.THRESHOLD_TEXT, text)
+        self.assertIn('not an independently validated optimum', text)  # no claim that 35% is optimal
+        self.assertEqual((rd.ROOT / 'outputs' / 'model_live' / 'live_selected_threshold.txt').read_text().strip(), '0.35')
+        about = self.html(self.go(at, 'About'))
+        self.assertEqual(about.count('<li><b>'), 9 + 4)  # nine model steps and four low-connectivity points
+        for phrase in ('ERA5', '300 decision trees', 'does not produce weather forecasts', 'does not run offline', 'not implemented'):
+            self.assertIn(phrase, about)
+        self.assertEqual([e.label for e in at.expander if e.label in ('How the model and system work', 'Designed for low connectivity')],
+                         ['How the model and system work', 'Designed for low connectivity'])
 
     def test_text_view_loads_no_theme_or_animation(self):
         self.write_prediction(.05)

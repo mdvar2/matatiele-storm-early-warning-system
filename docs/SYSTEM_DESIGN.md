@@ -128,13 +128,11 @@ flowchart TD
 
 ### 4.4 Workflow shown on the About page
 
-The About page shows the same logic in one picture. The main pipeline ends in the warning record. Residents, officials and SMS are three separate branches from that record, so the officials' portal never depends on SMS. SMS is optional, and its badge shows the real state: *not enabled*, *development outbox* or *configured*. Future research is labelled as not implemented.
+The About page shows the main **resident-facing** warning workflow as one line. The officials' portal is a separate interface (see 4.3) and is not a stage in this workflow. SMS is optional, and its badge shows the real state: *not enabled*, *development outbox* or *configured*. Expandable sections explain how the model and system work (nine steps, verified against the project scripts) and the low-connectivity design.
 
 ```mermaid
 flowchart LR
-  F[Forecast<br/>ECMWF, hourly] --> M[Random Forest<br/>next-hour estimate] --> D{Warning decision<br/>35% or more}
-  D -- yes --> R[(Warning record<br/>public ledger)]
-  R --> V[Resident warning view] --> A[Acknowledgement<br/>once per device]
-  R --> P[Officials' portal] --> H[Review and audit history]
-  R -. optional, only when enabled and configured .-> S[SMS delivery]
+  F[External forecast<br/>ECMWF via Open-Meteo] --> M[Random Forest<br/>model-estimated storm risk] --> D{35% warning decision}
+  D -- at or above 35% --> W[Warning information<br/>Alerts page and public record]
+  W -. optional, only when enabled and configured .-> S[SMS communication]
 ```

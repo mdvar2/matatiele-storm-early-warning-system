@@ -18,7 +18,7 @@ from subscriber_store import iso, utc_now
 SAST = ZoneInfo('Africa/Johannesburg')
 KEY_PREFIX = 'REAL-SHORT-V1-'
 SEVERITY = 'Storm warning (model estimate of 35% or more)'
-LOCATION = 'Matatiele town and its immediate surroundings (one forecast point)'
+LOCATION = 'Matatiele town and its immediate surroundings (one model location)'
 GENUINE, DEV_TEST = 'genuine', 'development test'
 REVIEW_STATUSES = ('Not reviewed', 'Under review', 'Monitoring', 'Response coordinated outside this system',
                    'Closed - no further action')

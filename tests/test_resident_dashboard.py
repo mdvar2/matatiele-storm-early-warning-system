@@ -149,7 +149,7 @@ class ResidentStatus(unittest.TestCase):
                 s = self.status(probability)
                 self.assertEqual((s['level'], s['guidance_level'], s['estimate']), ('UNAVAILABLE', 'UNAVAILABLE', 'No model estimate'))
                 self.assertIn('Do not assume it is safe', s['explanation'])
-        self.assertEqual(self.status(.04, start=None)['period'], 'Forecast period unavailable')
+        self.assertEqual(self.status(.04, start=None)['period'], 'Prediction period unavailable')
 
     def test_simulation_is_fixed_labelled_and_ignores_genuine_inputs(self):
         for genuine, stale in ((.02, False), (.02, True), (float('nan'), True)):
@@ -429,7 +429,7 @@ class DashboardApp(DashboardHarness):
         self.navigate(at, 'Alerts')
         public = self.html(at)
         about = self.html(self.go(at, 'About'))  # how warnings reach people: one diagram, on About
-        for step in ('Forecast', 'Random Forest', 'Warning decision', 'Warning record', 'Warning view', 'Acknowledgement', 'SMS to subscribers'):
+        for step in ('External forecast', 'Random Forest', '35% warning decision', 'Warning information', 'SMS communication'):
             self.assertIn(f'<b>{step}</b>', about)
         self.assertIn('Optional · not enabled', about)  # SMS state shown honestly (registration is off in tests)
         self.navigate(at, 'Alerts')
@@ -463,7 +463,7 @@ class DashboardApp(DashboardHarness):
         at = self.app(view='text').run()
         self.assertFalse(at.exception)
         text = '\n'.join(m.value for m in at.markdown)
-        for part in ('Low storm risk (model estimate)', 'Forecast period', 'Last update', 'Safety advice: Be prepared', '**Rivers:**'):
+        for part in ('Low storm risk (model estimate)', 'Prediction period', 'warning threshold: 35%', 'Last update', 'Safety advice: Be prepared', '**Rivers:**'):
             self.assertIn(part, text)
         self.assertEqual(len(at.get('deck_gl_json_chart')), 0)
         self.assertEqual(len(at.get('arrow_vega_lite_chart')), 0)

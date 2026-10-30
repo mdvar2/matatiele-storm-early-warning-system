@@ -66,7 +66,7 @@ class Banner(unittest.TestCase):
         self.assertIn('NOT A REAL WARNING', banner); self.assertNotIn('STORM WARNING IN EFFECT', banner)
         genuine = we.make_event(ACTIVE_HOUR, NOW.isoformat(), we.GENUINE)
         self.assertIn('STORM WARNING IN EFFECT', resident_alerts.status_banner_html([test_event, genuine], self.STATUS))
-        self.assertIn('NO WARNING IN EFFECT', resident_alerts.status_banner_html([], self.STATUS))
+        self.assertEqual(resident_alerts.status_banner_html([], self.STATUS), '')  # no separate "no warning" card
 
 
 class Acknowledgements(unittest.TestCase):
@@ -155,7 +155,8 @@ class EmergencyContacts(unittest.TestCase):
         for number in ('10111', '10177', '112'):
             self.assertIn(f'href="tel:{number}"', page)
         self.assertEqual([c[0] for c in emergency_contacts.CONTACTS], ['10111', '10177', '112'])
-        self.assertIn('not to this research system', page)
+        self.assertIn('Calls connect to emergency services, not to the Matatiele Storm Early Warning System.', page)
+        self.assertNotRegex(page, r'20\d\d|checked against')  # no dates or source notes in the resident-facing disclaimer
 
 
 class WarningJourneys(rd.DashboardHarness):
