@@ -20,7 +20,7 @@ import tempfile
 import logging
 import json
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 import altair as alt
 import pandas as pd
@@ -253,11 +253,20 @@ def fetch_regional_forecast() -> pd.DataFrame:
         raise ValueError('Missing or invalid upcoming regional precipitation')
     return combined
 
-def upcoming_regional(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.Timestamp | None]:
+def regional_hours(frame: pd.DataFrame, count: int=36) -> list[pd.Timestamp]:
+    """Upcoming hourly endpoints (UTC) for which all 25 genuine ECMWF samples exist."""
+    if frame.empty:return []
+    values=frame.loc[frame['sample_id']<25].copy()
+    values['forecast_hour']=pd.to_datetime(values['forecast_hour'],utc=True,errors='coerce')
+    first=next_complete_hour_endpoint(datetime.now(UTC))
+    counts=values.loc[values['forecast_hour']>=first].groupby('forecast_hour')['sample_id'].nunique()
+    return [hour for hour,n in counts.items() if n==25][:count]
+
+def upcoming_regional(frame: pd.DataFrame, target: pd.Timestamp | None=None) -> tuple[pd.DataFrame, pd.Timestamp | None]:
     if frame.empty:return pd.DataFrame(),None
     values=frame.copy()
     values['forecast_hour']=pd.to_datetime(values['forecast_hour'],utc=True,errors='coerce')
-    target=next_complete_hour_endpoint(datetime.now(UTC))
+    target=target if target is not None else next_complete_hour_endpoint(datetime.now(UTC))
     values=pd.DataFrame(values.loc[(values['forecast_hour']==target) & (values['sample_id']<25)])
     if values.empty:return pd.DataFrame(),None
     if len(values)!=25 or values['sample_id'].nunique()!=25:return pd.DataFrame(),None
@@ -286,14 +295,18 @@ def make_rainfall_overlay(regional):
     lats=np.rad2deg(2*np.arctan(np.exp(np.linspace(float(mercator[0]),float(mercator[1]),height,retstep=False)))-np.pi/2)
     rows=np.stack([np.interp(lons,source_lon,row) for row in values])
     rainfall=np.stack([np.interp(lats,source_lat,rows[:,column]) for column in range(width)],axis=1)
-    # Continuous palette: transparent for zero; blue, cyan, green, yellow, orange, red for rain.
+    # Storm-map palette (as on nowcasting maps): transparent when dry; blue, green, yellow, orange, red as rain intensifies.
     stops=np.array([0,0.1,1,3,5,10,20,40],dtype=float)
-    colors=np.array([[95,170,230,0],[55,140,238,22],[25,120,234,115],
-                     [30,180,182,160],[50,190,90,170],[249,215,50,190],
-                     [250,115,32,205],[205,42,62,220]],dtype=float)
+    colors=np.array([[60,120,230,0],[60,120,230,120],[40,140,240,170],
+                     [40,190,110,190],[120,200,60,200],[250,205,50,215],
+                     [245,110,40,225],[190,30,50,240]],dtype=float)
     rgba=np.stack([np.interp(rainfall,stops,colors[:,c]) for c in range(4)],axis=2)
-    # The source sampling resolution is coarse; interpolation must not imply high-res radar.
-    out=Image.frombytes('RGBA',(int(rgba.shape[1]),int(rgba.shape[0])),np.clip(rgba,0,255).astype('uint8').tobytes())
+    # Fade out towards the edge of the sampled area (no data beyond it), so it does not read as a hard rectangle.
+    fade_y=np.clip(np.minimum(np.arange(height),np.arange(height)[::-1])/(height*.18),0,1)
+    fade_x=np.clip(np.minimum(np.arange(width),np.arange(width)[::-1])/(width*.18),0,1)
+    rgba[:,:,3]*=np.outer(fade_y,fade_x)
+    # Soft edges: the source grid is coarse (about 0.25 degrees), so sharp pixels would suggest radar detail that does not exist.
+    out=Image.frombytes('RGBA',(int(rgba.shape[1]),int(rgba.shape[0])),np.clip(rgba,0,255).astype('uint8').tobytes()).filter(ImageFilter.GaussianBlur(5))
     buf=io.BytesIO()
     out.save(buf,format='PNG')
     return 'data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode('ascii'),[west,south,east,north]
@@ -627,7 +640,7 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
     st.html('<div class="section-title">Next-hour forecast for Matatiele <small>ECMWF forecast data and the research model, not observations</small></div>')
     left,right=st.columns([2.15,1],gap='small')
     with left,st.container(border=True,key='map_card'):
-        panel_title('Rainfall forecast map (next hour)','cloud','map-heading')
+        panel_title('Storm map · forecast rain and storm risk','cloud','map-heading')
         control_basemap,control_overlay=st.columns([1.6,1],gap='small')
         with control_basemap:
             basemap=st.segmented_control('Basemap',list(BASEMAPS),default='Satellite',key='map_basemap',
@@ -635,7 +648,10 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
         with control_overlay:
             show_overlay=st.toggle('Rainfall overlay',value=True,key='map_overlay',help='Interpolated ECMWF forecast rainfall for the next hour.')
         basemap_url=BASEMAPS.get(basemap or 'Satellite',SATELLITE_STYLE_URL)
-        regional,regional_valid=upcoming_regional(state.regional)
+        hours=regional_hours(state.regional)
+        map_hour=st.select_slider('Forecast hour (SAST)',options=hours,key='map_hour',format_func=lambda hour:f'{hour.tz_convert(SAST):%a %H:%M}',
+                                  help='Step through the coming hours of the ECMWF rainfall forecast to see where rain is expected and how it moves.') if len(hours)>1 else None
+        regional,regional_valid=upcoming_regional(state.regional,map_hour)
         regional_retrieved=local_time(state.regional.iloc[0].get('forecast_retrieved_at')) if not state.regional.empty else None
         regional_stale=bool(state.regional_error) or regional_retrieved is None or (datetime.now(SAST)-regional_retrieved.to_pydatetime()).total_seconds()>1800
         layers=[]
@@ -648,6 +664,9 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
                 layers.append(pdk.Layer('ScatterplotLayer',regional,get_position='[lon, lat]',get_radius=700,get_fill_color=[25,45,65,150],pickable=True))
             except (ValueError,KeyError):st.warning('Incomplete rainfall grid: overlay unavailable. No artificial values substituted.')
         matatiele=pd.DataFrame([{'lat':MATATIELE_LAT,'lon':MATATIELE_LON,'name':'Matatiele','detail':'Location of the next-hour storm-risk model'}])
+        ring=[int(level_color[i:i+2],16) for i in (1,3,5)]
+        model_area=matatiele.assign(name=f'Storm model: {level}',detail=f'Next-hour model estimate {prob:.0%} for Matatiele (one forecast point)' if math.isfinite(prob) else 'No current model estimate')
+        layers.append(pdk.Layer('ScatterplotLayer',model_area,get_position='[lon, lat]',get_radius=9000,get_fill_color=ring+[40],get_line_color=ring+[230],line_width_min_pixels=3,stroked=True,pickable=True))
         layers.append(pdk.Layer('ScatterplotLayer',matatiele,get_position='[lon, lat]',get_radius=3000,get_fill_color=[221,45,67,240],get_line_color=[255,255,255,255],line_width_min_pixels=3,stroked=True,pickable=True))
         nearby=pd.DataFrame(NEARBY_PLACES)
         nearby['reference']='Geographic reference only; no town-specific storm prediction'
@@ -668,9 +687,9 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
         st.pydeck_chart(pdk.Deck(map_style=basemap_url,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=360)
         st.caption('Drag, zoom, or tap a point for its forecast value.')
         if not regional.empty and not regional_stale:
-            st.html('<div class="map-legend"><div class="title">Forecast rainfall in the next hour (mm)</div><div class="rain-legend"></div>'
+            st.html(f'<div class="map-legend"><div class="title">Risk of heavy rain · hour ending {regional_valid:%H:%M} SAST (forecast mm)</div><div class="rain-legend"></div>'
                     '<div class="legend-labels"><span>0</span><span>0.1</span><span>1</span><span>3</span><span>5</span><span>10</span><span>20</span><span>40+</span></div>'
-                    '<div class="note">Interpolated from 25 ECMWF forecast grid points. This is a forecast, not radar or observed rainfall.'
+                    '<div class="note">Coloured areas: rain forecast by ECMWF at 25 grid points, smoothed. Not radar or observed rainfall. Ring: storm-model level for Matatiele.'
                     +('' if show_overlay else ' Overlay hidden.')+'</div></div>')
         with st.expander('Map data and method'):
             if not regional.empty and not regional_stale:

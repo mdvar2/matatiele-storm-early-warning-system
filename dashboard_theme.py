@@ -140,7 +140,7 @@ CSS = r"""
 .map-source {font-size:11px;color:var(--muted);line-height:1.5;margin:5px 0}
 .map-legend {background:var(--card-solid);border:1px solid var(--card-border);border-radius:12px;padding:10px 12px;margin:8px 0 2px}
 .map-legend .title {font-size:12px;font-weight:700;color:var(--heading);margin-bottom:6px}
-.rain-legend {height:11px;border-radius:6px;background:linear-gradient(90deg,#e5edf5 0%,#378cee 14.286%,#1978ea 28.571%,#1eb4b6 42.857%,#32be5a 57.143%,#f9d732 71.429%,#fa7320 85.714%,#cd2a3e 100%)}
+.rain-legend {height:11px;border-radius:6px;background:linear-gradient(90deg,#e5edf5 0%,#3c78e6 14.286%,#288cf0 28.571%,#28be6e 42.857%,#78c83c 57.143%,#facd32 71.429%,#f56e28 85.714%,#be1e32 100%)}
 .legend-labels {display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
 .map-legend .note {font-size:11px;color:var(--muted);margin-top:6px}
 
@@ -212,6 +212,9 @@ CSS = r"""
 .action-chip i {font-style:normal}
 .st-key-weather_card {animation:rise .6s ease-out .1s both}
 .st-key-weather_card .temperature {font-size:clamp(34px,3.4vw,46px)}
+/* Menu button: three bars instead of Streamlit's double-arrow icon (open and close the side menu). */
+[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"],[data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"] {font-size:0!important;width:22px;height:16px;display:inline-block;
+  background:linear-gradient(currentColor 0 0) 0 0/100% 2.5px no-repeat,linear-gradient(currentColor 0 0) 0 50%/100% 2.5px no-repeat,linear-gradient(currentColor 0 0) 0 100%/100% 2.5px no-repeat}
 /* Alerts: status banner, warning cards, contacts (tap to call). */
 .alert-banner {border-radius:18px;padding:14px 18px 14px 20px;border:1px solid;box-shadow:var(--card-shadow);margin-bottom:4px}
 .alert-banner.green {background:#ecfdf3;border-color:#86d9a8;color:#0b3d24}.alert-banner.red {background:#fff0f1;border-color:#f08a96;color:#5c0a16}
@@ -237,12 +240,12 @@ CSS = r"""
 .portal-note {background:var(--accent-soft);border:1px solid var(--card-border);border-radius:12px;padding:9px 14px;font-size:13px;color:var(--text)}
 /* Blue weather card and hourly strip (genuine ECMWF forecast values only). */
 .wx-card {background:linear-gradient(135deg,#1e40af,#2563eb 55%,#3b82f6);color:#fff;border-radius:22px;padding:18px 22px;box-shadow:0 14px 30px #1e3a8a40;animation:rise .6s ease-out both}
-.wx-top {display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#e0ecff}
+.wx-top {display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;font-size:14px;font-weight:700;color:#e0ecff}
 .wx-main {display:flex;justify-content:space-between;align-items:center;gap:12px}
-.wx-temp {font-size:clamp(48px,6vw,78px);font-weight:300;line-height:1.05;margin-top:6px}
+.wx-temp {font-size:clamp(44px,5vw,78px);font-weight:300;line-height:1.05;margin-top:6px;white-space:nowrap}
 .wx-cond {font-size:20px;font-weight:700}.wx-sub {font-size:13px;color:#dbe8ff;margin-top:2px}
 .wx-main img {width:clamp(84px,9vw,124px);height:auto;filter:drop-shadow(0 6px 14px #0003)}
-.wx-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.wx-tiles {display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-top:14px}
 .wx-tile {background:#ffffff1f;border:1px solid #ffffff33;border-radius:14px;padding:9px 11px}
 .wx-tile span {display:block;font-size:11px;font-weight:700;letter-spacing:.6px;color:#dbe8ff;text-transform:uppercase}
 .wx-tile b {display:block;font-size:18px;color:#fff}.wx-tile small {color:#dbe8ff;font-size:11.5px}
@@ -251,7 +254,6 @@ CSS = r"""
 .hour {flex:1 0 84px;background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;text-align:center;box-shadow:var(--card-shadow)}
 .hour .t {font-size:12.5px;font-weight:700;color:var(--muted)}.hour img {width:40px;height:40px}
 .hour b {display:block;font-size:17px;color:var(--heading)}.hour small {display:block;font-size:11px;color:var(--muted)}
-@media (max-width:640px) {.wx-tiles {grid-template-columns:repeat(2,1fr)}}
 @keyframes rise {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes alarm {0%,100%{box-shadow:var(--card-shadow)}50%{box-shadow:0 0 0 6px #ed394b33,var(--card-shadow)}}
 

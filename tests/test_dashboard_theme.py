@@ -53,6 +53,11 @@ class Assets(unittest.TestCase):
         source = (rd.ROOT / '16_dashboard.py').read_text(encoding='utf-8')
         self.assertIn("initial_sidebar_state='collapsed' if text_view else 'auto'", source)
 
+    def test_menu_button_is_a_hamburger(self):
+        for control in ('stSidebarCollapseButton', 'stExpandSidebarButton'):
+            self.assertIn(f'[data-testid="{control}"] [data-testid="stIconMaterial"]', theme.CSS)
+        self.assertIn('font-size:0!important', theme.CSS)  # hides the double-arrow glyph; three bars are drawn instead
+
     def test_status_strip(self):
         live = theme.status_strip(False, '30 Oct 10:20 SAST', False)
         self.assertIn('Live forecast', live); self.assertNotIn('Outdated', live); self.assertNotIn('SIMULATION', live)
@@ -89,6 +94,7 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.assertEqual(json.loads(chart.tooltip)['html'], '<b>{name}</b><br/>{detail}')
         layers = {layer['@@type'] for layer in spec['layers']}
         self.assertNotIn('HeatmapLayer', layers)  # no invented radar-style layers
+        self.assertIn('Storm model: LOW', chart.json)  # ring at Matatiele coloured by the genuine model level
         group.set_value('Low data').run()
         spec = json.loads(at.get('deck_gl_json_chart')[0].proto.json)
         style = json.loads(__import__('base64').b64decode(spec['mapStyle'].split(',', 1)[1]))
