@@ -34,6 +34,7 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
                              is_next_complete_prediction,
                              TARGET_LABEL, GENERATED_LABEL)
 from sms_alert import sms_is_configured, send_test_sms
+from subscriptions import delivery_mode
 import resident_view
 import dashboard_theme
 import resident_pages
@@ -643,18 +644,22 @@ TOOLTIP_STYLE={'backgroundColor':'#0f2440','color':'white','fontFamily':'Segoe U
 map_tooltip=cast(Any, {'html':'<b>{name}</b><br/>{detail}', 'style':TOOLTIP_STYLE})
 basemap_url=SATELLITE_STYLE_URL
 if page=='🗺️ Weather Map':
-    with st.container(border=True,key='map_card'):
-        panel_title('Storm map · forecast rain and storm risk','cloud','map-heading')
-        control_basemap,control_overlay=st.columns([1.6,1],gap='small')
+    st.html('<div class="section-title">Storm map <small>Forecast rain around Matatiele and the storm-model level</small></div>')
+    with st.container(key='map_card'):
+        # One compact row of controls (stacks on phones); the map takes the remaining space.
+        hours=regional_hours(state.regional)
+        with st.container(key='map_controls'):
+            control_basemap,control_hour=st.columns([1.2,3],gap='medium',vertical_alignment='bottom')
         with control_basemap:
             basemap=st.segmented_control('Basemap',list(BASEMAPS),default='Satellite',key='map_basemap',
                                          help='Low data draws no map tiles: only the forecast overlay and labels.')
-        with control_overlay:
-            show_overlay=st.toggle('Rainfall overlay',value=True,key='map_overlay',help='Interpolated ECMWF forecast rainfall for the next hour.')
+        with control_hour:
+            map_hour=st.select_slider('Forecast hour (SAST)',options=hours,key='map_hour',format_func=lambda hour:f'{hour.tz_convert(SAST):%a %H:%M}',
+                                      help='Step through the coming hours of the ECMWF rainfall forecast to see where rain is expected and how it moves.') if len(hours)>1 else None
+        # The map is drawn into this slot; the overlay switch sits under it, beside the legend it controls.
+        map_slot=st.container()
+        show_overlay=st.toggle('Rainfall overlay',value=True,key='map_overlay',help='Interpolated ECMWF forecast rainfall for the next hour.')
         basemap_url=BASEMAPS.get(basemap or 'Satellite',SATELLITE_STYLE_URL)
-        hours=regional_hours(state.regional)
-        map_hour=st.select_slider('Forecast hour (SAST)',options=hours,key='map_hour',format_func=lambda hour:f'{hour.tz_convert(SAST):%a %H:%M}',
-                                  help='Step through the coming hours of the ECMWF rainfall forecast to see where rain is expected and how it moves.') if len(hours)>1 else None
         regional,regional_valid=upcoming_regional(state.regional,map_hour)
         regional_retrieved=local_time(state.regional.iloc[0].get('forecast_retrieved_at')) if not state.regional.empty else None
         regional_stale=bool(state.regional_error) or regional_retrieved is None or (datetime.now(SAST)-regional_retrieved.to_pydatetime()).total_seconds()>1800
@@ -688,12 +693,11 @@ if page=='🗺️ Weather Map':
             font_weight=600,get_pixel_offset='offset',get_text_anchor='anchor',
             get_alignment_baseline=String('center'),background=True,
             get_background_color=[12,32,54,235],background_padding=[5,3],pickable=True))
-        st.pydeck_chart(pdk.Deck(map_style=basemap_url,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=360)
-        st.caption('Drag, zoom, or tap a point for its forecast value.')
+        map_slot.pydeck_chart(pdk.Deck(map_style=basemap_url,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=560)
         if not regional.empty and not regional_stale:
             st.html(f'<div class="map-legend"><div class="title">Risk of heavy rain · hour ending {regional_valid:%H:%M} SAST (forecast mm)</div><div class="rain-legend"></div>'
                     '<div class="legend-labels"><span>0</span><span>0.1</span><span>1</span><span>3</span><span>5</span><span>10</span><span>20</span><span>40+</span></div>'
-                    '<div class="note">Coloured areas: rain forecast by ECMWF at 25 grid points, smoothed. Not radar or observed rainfall. Ring: storm-model level for Matatiele.'
+                    '<div class="note">Coloured areas: ECMWF rain forecast at 25 grid points, smoothed (not radar or observed rain). Ring: storm-model level for Matatiele. Drag, zoom, or tap a point for its value.'
                     +('' if show_overlay else ' Overlay hidden.')+'</div></div>')
         with st.expander('Map data and method'):
             if not regional.empty and not regional_stale:
@@ -773,7 +777,7 @@ if page=='🛠️ Administration' and is_admin:
     resident_pages.render_admin(secret,health)
 if page=='ℹ️ About':
     st.html('<div class="section-title">About <small>How this research system works</small></div>')
-    st.html(dashboard_theme.flow_html())
+    st.html(dashboard_theme.flow_html(delivery_mode(secret)))
     a,b,c=st.columns(3)
     verified=not stale and not state.regional_error
     with a:status_card('System status','ONLINE' if verified else 'SAVED DATA','Latest retrieval verified' if verified else 'Outdated / unverified','wifi','green' if verified else 'amber')

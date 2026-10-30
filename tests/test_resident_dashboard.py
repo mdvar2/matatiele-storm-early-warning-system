@@ -429,8 +429,9 @@ class DashboardApp(DashboardHarness):
         self.navigate(at, 'Alerts')
         public = self.html(at)
         about = self.html(self.go(at, 'About'))  # how warnings reach people: one diagram, on About
-        for step in ('Forecast', 'Storm model', '35% or more?', 'SMS', 'Officials'):
+        for step in ('Forecast', 'Random Forest', 'Warning decision', 'Warning record', 'Warning view', 'Acknowledgement', 'SMS to subscribers'):
             self.assertIn(f'<b>{step}</b>', about)
+        self.assertIn('Optional · not enabled', about)  # SMS state shown honestly (registration is off in tests)
         self.navigate(at, 'Alerts')
         for operational in ('MANAGED BY GITHUB ACTIONS', 'ACTIONS ONLY'):
             self.assertNotIn(operational, public)

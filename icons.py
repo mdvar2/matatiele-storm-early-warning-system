@@ -47,6 +47,7 @@ ICONS = {
     'arrow-right': '<path d="M5 12h14M13 6l6 6-6 6"/>',
     'gauge': '<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-5"/>',
     'calendar': '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    'history': '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
     'trend': '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
 }
 

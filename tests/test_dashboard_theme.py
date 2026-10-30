@@ -85,6 +85,26 @@ class Assets(unittest.TestCase):
                 self.assertGreaterEqual(ratio(token(name), token('card-solid')), 4.5, name)
             self.assertGreaterEqual(ratio(token('primary-text'), token('primary')), 4.5)
 
+    def test_workflow_diagram_structure(self):
+        page = theme.flow_html('disabled')
+        lanes = re.split(r'<div class="lane(?: branch)? (?:on|opt)">', page)[1:]  # one entry per lane
+        lane = lambda step: next(i for i, part in enumerate(lanes) if f'<b>{step}</b>' in part)  # noqa: E731
+        main = lanes[lane('Forecast')]
+        self.assertEqual([lane(s) for s in ('Forecast', 'Random Forest', 'Warning decision', 'Warning record')], [0] * 4)
+        for steps in (('Warning view', 'Acknowledgement'), ("Officials&#x27; portal", 'Review and audit history'), ('SMS to subscribers',)):
+            positions = {lane(step) for step in steps}
+            self.assertEqual(len(positions), 1, steps)       # each branch is one lane ...
+            branch = lanes[positions.pop()]
+            self.assertIn('From the warning record', branch)  # ... starting from the warning record
+            self.assertNotIn('<b>Warning record</b>', branch)
+        sms = lanes[lane('SMS to subscribers')]
+        self.assertNotIn('portal', sms)  # officials are never a stage after SMS
+        self.assertIn('Optional · not enabled', sms); self.assertIn('badge opt', sms)
+        self.assertIn('Optional · configured', theme.flow_html('twilio'))
+        self.assertIn('development outbox, nothing sent', theme.flow_html('outbox'))
+        self.assertIn('Future research · not implemented', page)
+        self.assertIn('badge on', main)
+
     def test_status_strip(self):
         live = theme.status_strip(False, '30 Oct 10:20 SAST', False)
         self.assertIn('Live forecast', live); self.assertNotIn('Outdated', live); self.assertNotIn('SIMULATION', live)

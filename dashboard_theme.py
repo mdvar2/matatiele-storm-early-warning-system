@@ -63,7 +63,7 @@ CSS = r"""
 @keyframes drift {from{transform:translateX(0)}to{transform:translateX(-1200px)}}
 [data-testid="stAppViewContainer"],[data-testid="stMain"],[data-testid="stHeader"] {background:transparent!important}
 [data-testid="stHeader"] {backdrop-filter:blur(6px)}
-[data-testid="stMainBlockContainer"] {max-width:1720px;padding:4.5rem 1.25rem 1.5rem}
+[data-testid="stMainBlockContainer"] {max-width:1720px;padding:3.1rem 1.25rem 1.25rem}
 [data-testid="stVerticalBlock"] {gap:.85rem}
 [data-testid="stMain"] [data-testid="stMarkdownContainer"],[data-testid="stMain"] [data-testid="stWidgetLabel"] p,
 [data-testid="stMain"] h1,[data-testid="stMain"] h2,[data-testid="stMain"] h3,[data-testid="stMain"] h4 {color:var(--text)}
@@ -71,7 +71,8 @@ CSS = r"""
 [data-testid="stMain"] [data-testid="stCaptionContainer"] * {color:var(--muted)!important}
 
 /* Sidebar */
-[data-testid="stSidebar"] {background:var(--sidebar);min-width:255px;max-width:275px}
+[data-testid="stSidebar"] {background:var(--sidebar)}
+[data-testid="stSidebar"][aria-expanded="true"] {min-width:255px;max-width:275px}  /* closed: no reserved width */
 [data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {padding:0}
 [data-testid="stSidebarHeader"],[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"] {color:var(--sidebar-text)}
 [data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"] {color:var(--heading)}
@@ -129,7 +130,7 @@ CSS = r"""
 .panel-heading {display:flex;align-items:center;gap:10px;font-size:16px;font-weight:750;color:var(--heading);margin:0 0 9px;line-height:1.4}
 .panel-heading img {width:22px;height:22px;flex-shrink:0}
 .map-heading {background:linear-gradient(110deg,#0f2f52,#123d68);color:#fff;padding:12px 16px;margin:0;border-radius:17px 17px 0 0}
-.section-title {display:flex;align-items:center;gap:10px;margin:14px 0 2px;font-size:18px;font-weight:800;letter-spacing:-.3px;color:var(--heading)}
+.section-title {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:6px 0 0;font-size:18px;font-weight:800;letter-spacing:-.3px;color:var(--heading)}
 .section-title small {font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0}
 .kpi {display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--card-border);border-left:5px solid var(--accent-c,var(--accent));
   border-radius:16px;padding:14px 12px;min-height:101px;box-shadow:var(--card-shadow)}
@@ -140,7 +141,7 @@ CSS = r"""
 .kpi .sub {font-size:11.5px;color:var(--muted);line-height:1.4}.kpi.compact .value {font-size:19px}
 [data-testid="stDeckGlJsonChart"] {border-radius:12px;overflow:hidden}
 .map-source {font-size:11px;color:var(--muted);line-height:1.5;margin:5px 0}
-.map-legend {background:var(--card-solid);border:1px solid var(--card-border);border-radius:12px;padding:10px 12px;margin:8px 0 2px}
+.map-legend {background:var(--card-solid);border:1px solid var(--card-border);border-radius:12px;padding:8px 12px;margin:6px 0 2px}
 .map-legend .title {font-size:12px;font-weight:700;color:var(--heading);margin-bottom:6px}
 .rain-legend {height:11px;border-radius:6px;background:linear-gradient(90deg,#e5edf5 0%,#3c78e6 14.286%,#288cf0 28.571%,#28be6e 42.857%,#78c83c 57.143%,#facd32 71.429%,#f56e28 85.714%,#be1e32 100%)}
 .legend-labels {display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:4px}
@@ -267,11 +268,24 @@ CSS = r"""
 .risk-scale .band:first-child {border-radius:11px 0 0 11px}.risk-scale .band:last-child {border-radius:0 11px 11px 0}
 .risk-scale .marker {position:absolute;top:-8px;width:4px;height:38px;background:var(--heading);border-radius:2px;transform:translateX(-2px)}
 .risk-scale .marker b {position:absolute;top:40px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;color:var(--heading)}
-.flow {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 14px}
-.flow .step {flex:1 1 140px;background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px;text-align:center;box-shadow:var(--card-shadow)}
-.flow .step i {display:block;font-style:normal;color:var(--accent)}.flow .step b {display:block;color:var(--heading);font-size:14px;margin-top:4px}
-.flow .step small {color:var(--muted);font-size:12px}.flow .arrow {font-size:22px;color:var(--muted)}
-.flow .step.decision {border:2px dashed #ed394b}
+.flow {display:grid;gap:10px;margin:6px 0 12px}
+.flow .lane {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:10px 12px;box-shadow:var(--card-shadow)}
+.flow .lane.opt {border-style:dashed}
+.flow .lane-head {display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:8px}
+.flow .lane-title {font-weight:800;color:var(--heading);font-size:14px}.flow .from {font-size:11.5px;color:var(--muted);width:100%}
+.flow .lane-steps {display:flex;align-items:stretch;gap:6px}
+.flow .step {flex:1 1 0;display:flex;align-items:center;gap:10px;min-width:0;background:var(--accent-soft);border-radius:12px;padding:9px 11px}
+.flow .step .ico {color:var(--accent)}
+.st-key-map_card [data-testid="stCheckbox"] {margin-top:2px}.flow .step b {display:block;color:var(--heading);font-size:13.5px;line-height:1.25}
+.flow .step small {display:block;color:var(--muted);font-size:12px;line-height:1.3}
+.flow .arrow {display:flex;align-items:center;color:var(--muted)}
+.flow .branches {display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.flow .badge {font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;letter-spacing:.3px}
+.flow .badge.on {background:#dcfce7;color:#14532d}.flow .badge.opt {background:#fef3c7;color:#713f12}.flow .badge.future {background:var(--divider);color:var(--text)}
+.flow .future {display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+@media (max-width:700px) {.flow .lane-steps {display:grid;grid-template-columns:1fr 1fr}.flow .arrow {display:none}
+  .status-strip {flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.status-strip .chip {white-space:nowrap}
+  .st-key-map_controls [data-testid="stHorizontalBlock"] {gap:4px!important}}
 .risk-body.single {grid-template-columns:1fr;justify-items:center}
 .ingredients {display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}
 .ingredient {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px 14px;box-shadow:var(--card-shadow)}
@@ -365,7 +379,7 @@ CSS = r"""
   .hero {flex-wrap:wrap}.clock-card {width:100%;box-sizing:border-box;text-align:left}.clock-card small {display:inline;margin-left:12px}
   .weather-body,.risk-body {grid-template-columns:1fr 1fr}}
 @media(max-width:640px) {[data-testid="stHorizontalBlock"]:has(>[data-testid="stColumn"] .kpi)>[data-testid="stColumn"] {min-width:0;flex:1 1 calc(50% - 12px)}
-  [data-testid="stMainBlockContainer"] {padding:4.5rem .85rem 1rem}.hero h1 {font-size:22px}.hero-main>img {width:38px;height:38px}.hero p {font-size:12.5px}
+  [data-testid="stMainBlockContainer"] {padding:3.1rem .85rem 1rem}.hero h1 {font-size:22px}.hero-main>img {width:38px;height:38px}.hero p {font-size:12.5px}
   .resident-card {padding:84px 16px 16px}.resident-card::before {left:16px;top:16px}.resident-card::after {left:30px;top:30px}.kpi {min-height:90px}.prediction-table {font-size:10.5px}
   .weather-body,.risk-body {grid-template-columns:1fr}.weather-primary {border-right:0;border-bottom:1px solid var(--divider);padding:0 0 10px}}
 """.replace('CLOUDS_URI', CLOUDS_URI)
@@ -482,15 +496,34 @@ def risk_scale_html(probability, threshold=0.35):
             f'<div class="bar">{segments}{marker}</div></div>')
 
 
-def flow_html():
-    """How a storm warning is produced and reaches people (one picture instead of a paragraph)."""
-    steps = [('radar', 'Forecast', 'ECMWF, every hour', ''), ('cpu', 'Storm model', 'Random Forest, next hour', ''),
-             ('scale', '35% or more?', 'No: check again next hour', ' decision'), ('siren', 'Warning', 'Alerts page', ''),
-             ('message', 'SMS', 'Registered phones', ''), ('clipboard', 'Officials', 'Review and record', '')]
-    parts = []
-    for name, title, detail, extra in steps:
-        parts.append(f'<div class="step{extra}"><i>{icons.icon(name, size="28px")}</i><b>{html.escape(title)}</b><small>{html.escape(detail)}</small></div>')
-    return '<div class="flow">' + f'<span class="arrow">{icons.icon("arrow-right")}</span>'.join(parts) + '</div>'
+def flow_html(sms_mode='disabled'):
+    """How the system works: the main pipeline, then three separate branches from the warning record.
+    SMS is optional and labelled with its real state; future research is labelled as not implemented."""
+    e = html.escape
+    arrow = f'<span class="arrow" aria-hidden="true">{icons.icon("arrow-right")}</span>'
+
+    def step(name, title, detail):
+        return f'<div class="step">{icons.icon(name, size="22px")}<div><b>{e(title)}</b><small>{e(detail)}</small></div></div>'
+
+    def lane(title, badge, kind, steps, branch=False):
+        head = (f'<div class="lane-head">{"<span class=from>From the warning record</span>" if branch else ""}'
+                f'<span class="lane-title">{e(title)}</span><span class="badge {kind}">{e(badge)}</span></div>')
+        return f'<div class="lane{" branch" if branch else ""} {kind}">{head}<div class="lane-steps">{arrow.join(steps)}</div></div>'
+
+    sms_badge = {'twilio': 'Optional · configured', 'outbox': 'Optional · development outbox, nothing sent'}.get(sms_mode, 'Optional · not enabled')
+    main = lane('Main pipeline', 'Active', 'on', [step('radar', 'Forecast', 'ECMWF, every hour'),
+                                                  step('cpu', 'Random Forest', 'Next-hour estimate'),
+                                                  step('scale', 'Warning decision', '35% or more: warning'),
+                                                  step('clipboard', 'Warning record', 'Public ledger')])
+    branches = (lane('Residents', 'Active', 'on', [step('siren', 'Warning view', 'Alerts page'),
+                                                   step('check-circle', 'Acknowledgement', 'Once per device')], True)
+                + lane('Officials', 'Active', 'on', [step('shield', "Officials' portal", 'Individual sign-in'),
+                                                     step('history', 'Review and audit history', 'Status, notes, CSV')], True)
+                + lane('SMS delivery', sms_badge, 'opt' if sms_mode != 'twilio' else 'on',
+                       [step('message', 'SMS to subscribers', 'Only when enabled and configured')], True))
+    future = ('<div class="future"><span class="badge future">Future research · not implemented</span>'
+              '<span>Local sensors, edge processing and LoRa links for areas without mobile data.</span></div>')
+    return f'<div class="flow">{main}<div class="branches">{branches}</div>{future}</div>'
 
 
 def ingredient_tiles_html(tiles):

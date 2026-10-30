@@ -125,3 +125,16 @@ flowchart TD
   Rec --> H[History and actions; CSV export]
   H --> Out([Decisions are acted on through<br/>the official's own channels:<br/>no dispatch from this system])
 ```
+
+### 4.4 Workflow shown on the About page
+
+The About page shows the same logic in one picture. The main pipeline ends in the warning record. Residents, officials and SMS are three separate branches from that record, so the officials' portal never depends on SMS. SMS is optional, and its badge shows the real state: *not enabled*, *development outbox* or *configured*. Future research is labelled as not implemented.
+
+```mermaid
+flowchart LR
+  F[Forecast<br/>ECMWF, hourly] --> M[Random Forest<br/>next-hour estimate] --> D{Warning decision<br/>35% or more}
+  D -- yes --> R[(Warning record<br/>public ledger)]
+  R --> V[Resident warning view] --> A[Acknowledgement<br/>once per device]
+  R --> P[Officials' portal] --> H[Review and audit history]
+  R -. optional, only when enabled and configured .-> S[SMS delivery]
+```
