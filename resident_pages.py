@@ -10,6 +10,7 @@ import html
 import pandas as pd
 import streamlit as st
 
+import dashboard_theme
 import subscriber_alerts as alerts
 import subscriptions as subs
 from subscriber_store import StoreError, open_store
@@ -200,31 +201,6 @@ def _manage(store, gateway):
             st.rerun()
 
 
-@st.cache_data(ttl=600, show_spinner=False)
-def _ledger(repo):
-    return alerts.ledger_warnings(repo)
-
-
-def render_warning_history():
-    st.html('<div class="section-title">Storm warnings issued <small>Genuine warnings from the automatic hourly checks</small></div>')
-    try:
-        warnings = _ledger(LEDGER_REPO)
-    except Exception:
-        st.info('The warning history is temporarily unavailable (the public record could not be reached). Please try again later.')
-        return
-    if not warnings:
-        st.info('No storm warnings have been issued by this system yet. Hours below the 35% warning level do not create warnings.')
-    else:
-        frame = pd.DataFrame(warnings)
-        end = pd.to_datetime(frame['forecast_hour_utc'], utc=True).dt.tz_convert('Africa/Johannesburg')
-        table = pd.DataFrame({'Warning period (SAST)': (end - pd.Timedelta(hours=1)).dt.strftime('%d %b %Y %H:%M') + ' - ' + end.dt.strftime('%H:%M'),
-                              'Issued (SAST)': pd.to_datetime(frame['issued_at_utc'], utc=True).dt.tz_convert('Africa/Johannesburg').dt.strftime('%d %b %Y %H:%M'),
-                              'Public record': frame['record']})
-        st.dataframe(table, hide_index=True, width='stretch', column_config={'Public record': st.column_config.LinkColumn(display_text='View')})
-    st.caption('Each warning is recorded publicly when the model reaches the 35% warning level for the next hour. '
-               'Who received an SMS is never published. Connectivity tests are not listed.')
-
-
 def render_admin(getter, health):
     st.html('<div class="section-title">Administration <small>Subscriptions, warning delivery and system health</small></div>')
     mode = subs.delivery_mode(getter)
@@ -250,14 +226,14 @@ def render_admin(getter, health):
     d.metric('Warnings sent to subscribers', len(overview['alerts']))
     st.markdown('**Warning activity**')
     if overview['alerts']:
-        st.dataframe(pd.DataFrame(overview['alerts'])[['key', 'created_at', 'forecast_period', 'probability']], hide_index=True, width='stretch')
+        st.html(dashboard_theme.table_html(pd.DataFrame(overview['alerts'])[['key', 'created_at', 'forecast_period', 'probability']], caption='Warning activity'))
     else:
         st.caption('No warnings have been delivered to subscribers yet.')
     st.markdown('**SMS deliveries** (numbers masked)')
     if overview['deliveries']:
         frame = pd.DataFrame(overview['deliveries'])
         cols = [c for c in ['alert', 'masked', 'status', 'provider_status', 'attempts', 'error', 'updated_at'] if c in frame]
-        st.dataframe(frame[cols], hide_index=True, width='stretch')
+        st.html(dashboard_theme.table_html(frame[cols], caption='SMS deliveries, numbers masked'))
         st.caption('Status: submitted = accepted by the provider; delivered = confirmed by the provider; failed = definitive failure; '
                    'uncertain/pending = outcome unknown, never resent automatically (check the provider console).')
     else:
@@ -296,9 +272,9 @@ def _recent_runs(repo):
 
 def _health(health):
     st.markdown('**System health**')
-    st.dataframe(pd.DataFrame([{'Check': k, 'Status': v} for k, v in health.items()]), hide_index=True, width='stretch')
+    st.html(dashboard_theme.table_html(pd.DataFrame([{'Check': k, 'Status': v} for k, v in health.items()]), caption='System health'))
     try:
-        st.dataframe(pd.DataFrame(_recent_runs(LEDGER_REPO)), hide_index=True, width='stretch')
+        st.html(dashboard_theme.table_html(pd.DataFrame(_recent_runs(LEDGER_REPO)), caption='Recent scheduled checks'))
         st.caption('Recent scheduled checks (public GitHub Actions record).')
     except Exception:
         st.caption('Recent GitHub Actions runs could not be retrieved.')

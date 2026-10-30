@@ -10,6 +10,8 @@ worker would send (via the same message builder), but nothing here can submit it
 import html
 import math
 
+import icons
+
 from sms_alert import _build_warning_message
 
 THRESHOLD = 0.35
@@ -187,12 +189,11 @@ def guidance_html(advice):
 
 
 # Short labels for the homepage action strip; the full advice above stays one tap away.
-SHORT_ACT_NOW = {'Lightning': ('⚡', 'Go indoors'), 'Flooding': ('🌊', 'Keep out of flood water'),
-                 'Roads': ('🚗', 'Turn around at flooded roads'), 'Rivers': ('🏞️', 'Stay away from rivers'),
-                 'Livestock': ('🐄', 'Do not go out for animals')}
-SHORT_PREPARE = {'Lightning': ('⚡', 'Know your shelter'), 'Flooding': ('🌊', 'Know your high ground'),
-                 'Roads': ('🚗', 'Plan travel early'), 'Rivers': ('🏞️', 'Cross rivers early'),
-                 'Livestock': ('🐄', 'Plan animal shelter')}
+TOPIC_ICONS = {'Lightning': 'zap', 'Flooding': 'droplets', 'Roads': 'car', 'Rivers': 'waves', 'Livestock': 'fence'}
+SHORT_ACT_NOW = {'Lightning': 'Go indoors', 'Flooding': 'Keep out of flood water', 'Roads': 'Turn around at flooded roads',
+                 'Rivers': 'Stay away from rivers', 'Livestock': 'Do not go out for animals'}
+SHORT_PREPARE = {'Lightning': 'Know your shelter', 'Flooding': 'Know your high ground', 'Roads': 'Plan travel early',
+                 'Rivers': 'Cross rivers early', 'Livestock': 'Plan animal shelter'}
 HERO_NOTE = 'Research model estimate · not a guarantee · not an official SAWS warning'
 
 
@@ -203,7 +204,7 @@ def hero_html(status):
     return (f'<div class="resident-card tone-{e(status["tone"])} hero-risk">{banner}'
             f'<div class="resident-head">{e(status["headline"])}</div>'
             f'<div class="hero-estimate">{e(status["estimate"])}</div>'
-            f'<div class="hero-facts"><span>🕑 {e(status["period"])}</span><span>🔄 Updated {e(status["updated"])}</span></div>'
+            f'<div class="hero-facts"><span>{icons.icon("clock")} {e(status["period"])}</span><span>{icons.icon("refresh")} Updated {e(status["updated"])}</span></div>'
             f'<div class="hero-note">{e(HERO_NOTE)}</div></div>')
 
 
@@ -219,15 +220,14 @@ def quick_actions_html(advice):
     """Icon chips with a few words each, matching the level's advice (act now or prepare)."""
     e = lambda value: html.escape(str(value))  # noqa: E731
     short = SHORT_ACT_NOW if advice['level'] in ('WARNING', 'UNAVAILABLE') else SHORT_PREPARE
-    chips = ''.join(f'<span class="action-chip"><i>{icon}</i>{e(text)}</span>'
-                    for icon, text in (short[topic] for topic, _ in advice['items']))
+    chips = ''.join(f'<span class="action-chip">{icons.icon(TOPIC_ICONS[topic])}{e(short[topic])}</span>'
+                    for topic, _ in advice['items'])
     return f'<div class="quick-actions"><div class="resident-action">{e(advice["action"])}</div><div class="action-chips">{chips}</div></div>'
 
 
 def advice_cards_html(advice, title):
     """Safety advice as icon cards (one per topic) under a short heading."""
     e = lambda value: html.escape(str(value))  # noqa: E731
-    icons = {topic: icon for topic, (icon, _) in SHORT_ACT_NOW.items()}
-    cards = ''.join(f'<div class="advice-card"><div class="advice-icon">{icons[topic]}</div><b>{e(topic)}</b><p>{e(text)}</p></div>'
+    cards = ''.join(f'<div class="advice-card"><div class="advice-icon">{icons.icon(TOPIC_ICONS[topic])}</div><b>{e(topic)}</b><p>{e(text)}</p></div>'
                     for topic, text in advice['items'])
     return f'<div class="advice-block"><div class="resident-action">{e(title)}</div><div class="advice-grid">{cards}</div></div>'

@@ -13,14 +13,18 @@ import pydeck as pdk
 import streamlit as st
 from pydeck.types import String
 
+import dashboard_theme
 import emergency_contacts
+import icons
 import officials
 import resident_view
 import warning_events as we
 from subscriber_store import StoreError, utc_now
 
 MATATIELE = (-30.3436, 28.8116)  # same point as the dashboard and the model
-VIEWS = ('🚨 Active warnings', '📋 Warning details', '🗺️ Geographic risk', '🗂️ History & actions')
+VIEWS = ('Active warnings', 'Warning details', 'Geographic risk', 'History & actions')
+VIEW_LABELS = dict(zip(VIEWS, (':material/notifications_active: Active warnings', ':material/description: Warning details',
+                               ':material/map: Geographic risk', ':material/history: History & actions')))
 DISCLAIMER = ('Decision support only. This portal records reviews and notes; it does not dispatch or contact emergency '
               'services, and acknowledgements are anonymous device counts, not people confirmed safe or affected.')
 
@@ -70,7 +74,7 @@ def render(official, events, ops_store, ops_error, regional, regional_valid, cur
         st.error(f'Operations records are unavailable: {exc}')
         return
     st.session_state.setdefault('portal_view', VIEWS[0])
-    view = st.segmented_control('Portal section', VIEWS, key='portal_view', label_visibility='collapsed') or VIEWS[0]
+    view = st.segmented_control('Portal section', VIEWS, key='portal_view', format_func=VIEW_LABELS.get, label_visibility='collapsed') or VIEWS[0]
     if view == VIEWS[0]:
         _active(events, doc, current)
     elif view == VIEWS[1]:
@@ -112,10 +116,10 @@ def _active(events, doc, current):
     for e in active:
         review = we.review_status(doc, e['key'])
         left, right = st.columns([4, 1], vertical_alignment='center')
-        left.html(f'<div class="warn-card active"><div class="warn-top"><b>⛈️ {html.escape(we.period_text(e))}</b>'
+        left.html(f'<div class="warn-card active"><div class="warn-top"><b>{icons.icon("siren")} {html.escape(we.period_text(e))}</b>'
                   f'<span class="warn-badge {"test" if e["source"] == we.DEV_TEST else "live"}">{html.escape(e["source"].upper())}</span></div>'
-                  f'<div class="warn-meta"><span>Issued {e["issued_at"]:%H:%M} SAST</span><span>📈 {html.escape(we.probability_text(e))}</span>'
-                  f'<span>👁️ {we.acknowledgement_count(doc, e["key"])} acknowledgements</span><span>🗂️ {html.escape(review["status"])}</span></div></div>')
+                  f'<div class="warn-meta"><span>Issued {e["issued_at"]:%H:%M} SAST</span><span>{icons.icon("trend")} {html.escape(we.probability_text(e))}</span>'
+                  f'<span>{icons.icon("eye")} {we.acknowledgement_count(doc, e["key"])} acknowledgements</span><span>{icons.icon("clipboard")} {html.escape(review["status"])}</span></div></div>')
         right.button('Review', key='review_' + e['key'], on_click=_open, args=(e['key'],), type='primary', width='stretch')
 
 
@@ -169,7 +173,7 @@ def _actions_table(rows, events):
         return
     frame = pd.DataFrame([{'Recorded (SAST)': _when(r['at']), 'Official': r['official'], 'Warning': periods.get(r['warning'], r['warning']),
                            'Status set': r['status'] or '-', 'Note': r['note'] or '-'} for r in rows])
-    st.dataframe(frame, hide_index=True, width='stretch')
+    st.html(dashboard_theme.table_html(frame, caption='Operational actions'))
 
 
 def _geography(regional, regional_valid, current):
@@ -194,15 +198,15 @@ def _geography(regional, regional_valid, current):
     hour = f'hour ending {regional_valid:%d %b %H:%M} SAST' if regional_valid is not None else 'next hour'
     st.caption(f'Forecast rainfall for the {hour}. Grey: dry; blue: 0.1-3 mm; orange: 3-10 mm; red: 10 mm or more.')
     top = frame.sort_values('precipitation_mm', ascending=False).head(5)[['lat', 'lon', 'precipitation_mm']]
-    st.dataframe(top.rename(columns={'lat': 'Latitude', 'lon': 'Longitude', 'precipitation_mm': 'Forecast rainfall (mm)'}),
-                 hide_index=True, width='stretch')
+    st.html(dashboard_theme.table_html(top.rename(columns={'lat': 'Latitude', 'lon': 'Longitude', 'precipitation_mm': 'Forecast rainfall (mm)'}),
+                                       caption='Grid points with the most forecast rain'))
     st.html(emergency_contacts.contacts_html('Emergency numbers residents see'))
 
 
 def _history(events, doc):
     st.markdown('**All warnings**')
     if events:
-        st.dataframe(_summary(events, doc), hide_index=True, width='stretch')
+        st.html(dashboard_theme.table_html(_summary(events, doc), caption='All warnings'))
     else:
         st.info('No warnings have been issued yet.')
     st.markdown('**All operational actions**')

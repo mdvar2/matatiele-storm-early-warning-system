@@ -180,7 +180,7 @@ class WarningJourneys(rd.DashboardHarness):
 
     def open_warning(self, at, key):
         self.go(at, 'Alerts')
-        next(g for g in at.button_group if g.key == 'alerts_view').set_value('⚠️ Warnings').run()
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value('Warnings').run()
         next(b for b in at.button if b.key == 'open_' + key).click().run()
         return at
 
@@ -256,7 +256,7 @@ class WarningJourneys(rd.DashboardHarness):
         self.assertIn('2 acknowledgements', page)
         self.assertNotIn(DEVICE, page)
         next(b for b in at.button if b.key == 'review_' + key).click().run()
-        self.assertEqual(at.session_state['portal_view'], '📋 Warning details')
+        self.assertEqual(at.session_state['portal_view'], 'Warning details')
         next(s for s in at.selectbox if s.label == 'Review or response status').set_value('Monitoring')
         next(t for t in at.text_area if t.label == 'Operational note (optional)').input('Ward councillors informed by phone.')
         next(b for b in at.button if b.label == 'Record review').click().run()
@@ -264,9 +264,8 @@ class WarningJourneys(rd.DashboardHarness):
         doc = self.ops().snapshot()
         self.assertEqual(we.review_status(doc, key)['updated_by'], 'n.dlamini')
         self.assertEqual(we.actions(doc)[0]['note'], 'Ward councillors informed by phone.')
-        next(g for g in at.button_group if g.key == 'portal_view').set_value('🗂️ History & actions').run()
-        frames = [f.value for f in at.dataframe]
-        self.assertTrue(any('Ward councillors informed by phone.' in f.to_csv() for f in frames))
+        next(g for g in at.button_group if g.key == 'portal_view').set_value('History & actions').run()
+        self.assertIn('Ward councillors informed by phone.', self.html(at))  # themed HTML table of actions
         self.assertEqual(json.loads(json.dumps(doc))['acknowledgements'][key].__len__(), 2)
 
     def test_simulation_creates_no_warning_events(self):

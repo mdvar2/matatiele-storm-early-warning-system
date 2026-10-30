@@ -2,6 +2,8 @@
 import json
 import re
 import unittest
+from types import SimpleNamespace
+import ast
 
 import dashboard_theme as theme
 import test_resident_dashboard as rd
@@ -57,6 +59,31 @@ class Assets(unittest.TestCase):
         for control in ('stSidebarCollapseButton', 'stExpandSidebarButton'):
             self.assertIn(f'[data-testid="{control}"] [data-testid="stIconMaterial"]', theme.CSS)
         self.assertIn('font-size:0!important', theme.CSS)  # hides the double-arrow glyph; three bars are drawn instead
+
+    def test_theme_stylesheet_switches_the_dark_layer_explicitly(self):
+        dark, light = theme.theme_css('dark'), theme.theme_css('light')
+        self.assertIn('@media all {', dark); self.assertNotIn('@media (prefers-color-scheme: dark)', dark)
+        self.assertIn('@media not all {', light); self.assertNotIn('@media (prefers-color-scheme: dark)', light)
+        for css in (dark, light):
+            self.assertIn('.ico-home{--m:url("data:image/svg+xml;base64,', css)  # icon masks follow the text colour
+            self.assertIn('.resident-card.tone-red{--m:url(', css)  # severity shown by icon shape, not colour alone
+            self.assertIn(':focus-visible', css)
+
+    def test_text_contrast_in_both_themes(self):
+        def luminance(hex_colour):
+            channels = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            channels = [c / 12.92 if c <= .03928 else ((c + .055) / 1.055) ** 2.4 for c in channels]
+            return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2]
+
+        def ratio(a, b):
+            high, low = sorted((luminance(a), luminance(b)), reverse=True)
+            return (high + .05) / (low + .05)
+        light_block, dark_block = theme.CSS.split('@media (prefers-color-scheme: dark)', 1)
+        for block in (light_block, dark_block[:1500]):
+            token = lambda name: re.search(rf'--{name}:(#[0-9a-fA-F]{{6}})', block).group(1)  # noqa: E731
+            for name in ('text', 'muted', 'heading'):
+                self.assertGreaterEqual(ratio(token(name), token('card-solid')), 4.5, name)
+            self.assertGreaterEqual(ratio(token('primary-text'), token('primary')), 4.5)
 
     def test_status_strip(self):
         live = theme.status_strip(False, '30 Oct 10:20 SAST', False)
@@ -133,6 +160,55 @@ class RedesignedDashboard(rd.DashboardHarness):
                 maps.append(section)
         self.assertEqual(found, {marker: [section] for marker, section in markers.items()})
         self.assertEqual(maps, ['Weather Map'])
+
+    def style(self, at):
+        return next(e.proto.body for e in at.get('html') if e.proto.body.startswith('<style>'))
+
+    def test_theme_switch_applies_everywhere_and_persists(self):
+        self.write_prediction(.05)
+        at = self.app().run()
+        self.assertIn('@media not all {', self.style(at))  # light by default
+        switch = next(t for t in at.toggle if t.key == 'theme_switch')
+        self.assertEqual((switch.label, switch.value), ('Dark theme', False))  # accessible name and state
+        switch.set_value(True).run()
+        self.assertEqual(at.query_params['theme'], ['dark'])  # kept in the link: survives a refresh
+        for section in ('Dashboard', 'Live Forecast', 'Weather Map', 'Safety Advice', 'Alerts', 'Risk Analysis', 'Historical Data', 'About'):
+            self.assertIn('@media all {', self.style(self.go(at, section)), section)
+        refreshed = self.app(theme='dark').run()  # a refresh keeps ?theme=dark
+        self.assertIn('@media all {', self.style(refreshed))
+        self.assertTrue(next(t for t in refreshed.toggle if t.key == 'theme_switch').value)
+        portal = self.app(portal='officials', theme='dark').run()  # the officials' portal uses the same theme system
+        self.assertIn('@media all {', self.style(portal))
+        self.assertTrue([t for t in portal.toggle if t.key == 'theme_switch'])
+        next(t for t in refreshed.toggle if t.key == 'theme_switch').set_value(False).run()
+        self.assertEqual(refreshed.query_params['theme'], ['light'])
+        self.assertIn('@media not all {', self.style(refreshed))
+
+    def test_theme_choice_order(self):
+        tree = ast.parse((rd.ROOT / '16_dashboard.py').read_text(encoding='utf-8'))
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'resolve_theme')
+        for session, query, prefs, expected in ((None, {}, None, 'light'), (None, {}, {'dark': True}, 'dark'),
+                                               (None, {}, {'theme': 'light', 'dark': True}, 'light'),  # remembered choice beats the device
+                                               (None, {'theme': 'dark'}, {'theme': 'light'}, 'dark'),    # the link beats the browser
+                                               ('light', {'theme': 'dark'}, None, 'light'),             # this session's switch beats all
+                                               (None, {'theme': 'purple'}, None, 'light')):
+            state = {} if session is None else {'theme': session}
+            namespace = dict(st=SimpleNamespace(session_state=SimpleNamespace(get=state.get, theme=session), query_params=query),
+                             THEMES=('light', 'dark'), Any=object)
+            exec(compile(ast.Module(body=[function], type_ignores=[]), '<theme>', 'exec'), namespace)
+            self.assertEqual(namespace['resolve_theme'](prefs), expected, (session, query, prefs))
+
+    def test_no_emoji_on_any_page(self):
+        emoji = re.compile('[🀀-🫿☀-➿⬀-⯿️]')
+        self.write_prediction(.05)
+        at = self.app().run()
+        for section in ('Dashboard', 'Live Forecast', 'Weather Map', 'Safety Advice', 'Alerts', 'Risk Analysis', 'Historical Data', 'About'):
+            self.go(at, section)
+            visible = [self.html(at)] + [b.label for b in at.button] + [t.label for t in at.toggle]
+            visible += [str(o) for g in at.button_group for o in g.options]
+            self.assertFalse(emoji.findall(' '.join(visible)), section)
+        portal = self.app(portal='officials').run()
+        self.assertFalse(emoji.findall(self.html(portal)))
 
     def test_text_view_loads_no_theme_or_animation(self):
         self.write_prediction(.05)

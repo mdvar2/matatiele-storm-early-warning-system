@@ -27,23 +27,25 @@ CLOUDS_URI = 'data:image/svg+xml;base64,' + base64.b64encode(_CLOUDS_SVG.encode(
 CSS = r"""
 :root {
   --font: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Roboto,Arial,sans-serif;
-  --sky-top:#7cc4f2; --sky-mid:#b9e2fb; --sky-bottom:#eef8ff; --cloud-opacity:.95; --star-opacity:0;
-  --card:rgba(255,255,255,.90); --card-solid:#ffffff; --card-border:rgba(18,78,140,.14);
-  --card-shadow:0 10px 28px rgba(16,64,118,.13),0 2px 6px rgba(16,64,118,.06);
-  --text:#0d2540; --muted:#3c5877; --heading:#072a52; --accent:#0a6fd6; --accent-soft:#e3f1ff;
-  --chip:#ffffffd9; --chip-text:#0d2b4f; --divider:#d6e6f5;
+  --sky-top:#e3eefb; --sky-mid:#eff4fb; --sky-bottom:#f5f7fb; --cloud-opacity:.55; --star-opacity:0;
+  --card:#ffffff; --card-solid:#ffffff; --card-border:rgba(15,40,80,.11);
+  --card-shadow:0 1px 2px rgba(16,24,40,.05),0 6px 18px rgba(16,40,80,.07);
+  --text:#14243a; --muted:#4a5b70; --heading:#0b1f3a; --accent:#1d4ed8; --accent-soft:#e8efff;
+  --primary:#1d4ed8; --primary-text:#ffffff; --focus:#f59e0b;
+  --chip:#ffffff; --chip-text:#1e2f46; --divider:#e3e9f1;
   --sidebar:linear-gradient(170deg,#103152 0%,#0b2440 55%,#081a30 100%); --sidebar-text:#dce9f8; --sidebar-muted:#a9c0da;
   --input-bg:#ffffff; --input-text:#0d2540;
   --good:#0d8a4c; --warn:#a85f00; --bad:#d4283e;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --sky-top:#050f22; --sky-mid:#0b1d3a; --sky-bottom:#13294b; --cloud-opacity:.16; --star-opacity:.75;
-    --card:rgba(16,30,52,.90); --card-solid:#132540; --card-border:rgba(132,176,228,.22);
-    --card-shadow:0 12px 30px rgba(0,0,0,.40),0 2px 6px rgba(0,0,0,.25);
-    --text:#e7f0fb; --muted:#a9c0da; --heading:#f3f8fe; --accent:#64b5ff; --accent-soft:#16365a;
-    --chip:#13284699; --chip-text:#e7f0fb; --divider:#2a4467;
-    --input-bg:#1b304d; --input-text:#e7f0fb;
+    --sky-top:#0a1222; --sky-mid:#0c1527; --sky-bottom:#101a2d; --cloud-opacity:.05; --star-opacity:.45;
+    --card:#16233a; --card-solid:#16233a; --card-border:rgba(148,170,200,.17);
+    --card-shadow:0 1px 2px rgba(0,0,0,.35);
+    --text:#e6edf7; --muted:#a3b3c7; --heading:#f4f7fc; --accent:#60a5fa; --accent-soft:#1c3156;
+    --primary:#2563eb; --primary-text:#ffffff; --focus:#fbbf24;
+    --chip:#1a2a44; --chip-text:#e6edf7; --divider:#26354f;
+    --input-bg:#0f1a2d; --input-text:#e6edf7;
     --good:#4fd18b; --warn:#ffbf5a; --bad:#ff7085;
   }
 }
@@ -179,13 +181,14 @@ CSS = r"""
 /* Resident status banner */
 .resident-card {position:relative;border-radius:22px;padding:22px 24px 20px 92px;border:1px solid var(--r-border);background:var(--r-bg);
   color:#102544;line-height:1.55;box-shadow:var(--card-shadow);overflow:hidden}
-.resident-card::before {content:var(--r-icon);position:absolute;left:22px;top:22px;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
-  font-size:28px;font-weight:800;color:var(--r-border);background:var(--r-badge);box-shadow:0 6px 14px #00000022}
-.resident-card.tone-green {--r-border:#36a46b;--r-bg:linear-gradient(120deg,#effcf4,#e3f6ff);--r-badge:#d7f5e3;--r-icon:"\2714"}
-.resident-card.tone-amber {--r-border:#d98b16;--r-bg:linear-gradient(120deg,#fff8e8,#fff1d6);--r-badge:#ffe8b8;--r-icon:"\26A0"}
-.resident-card.tone-red {--r-border:#d93449;--r-bg:linear-gradient(120deg,#fff0f1,#ffe4e8);--r-badge:#ffd2d9;--r-icon:"\26C8\FE0F"}
-.resident-card.tone-gray {--r-border:#8a9bb0;--r-bg:linear-gradient(120deg,#f4f7fa,#e9eef4);--r-badge:#dfe6ee;--r-icon:"\2753"}
-.resident-card.tone-off {--r-border:#8a9bb0;--r-bg:linear-gradient(120deg,#f4f7fa,#e9eef4);--r-badge:#dfe6ee;--r-icon:"\1F515"}
+.resident-card::before {content:"";position:absolute;left:22px;top:22px;width:52px;height:52px;border-radius:16px;background:var(--r-badge)}
+.resident-card::after {content:"";position:absolute;left:36px;top:36px;width:24px;height:24px;background-color:var(--r-border);
+  -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.resident-card.tone-green {--r-border:#36a46b;--r-bg:linear-gradient(120deg,#effcf4,#e3f6ff);--r-badge:#d7f5e3}
+.resident-card.tone-amber {--r-border:#d98b16;--r-bg:linear-gradient(120deg,#fff8e8,#fff1d6);--r-badge:#ffe8b8}
+.resident-card.tone-red {--r-border:#d93449;--r-bg:linear-gradient(120deg,#fff0f1,#ffe4e8);--r-badge:#ffd2d9}
+.resident-card.tone-gray {--r-border:#8a9bb0;--r-bg:linear-gradient(120deg,#f4f7fa,#e9eef4);--r-badge:#dfe6ee}
+.resident-card.tone-off {--r-border:#8a9bb0;--r-bg:linear-gradient(120deg,#f4f7fa,#e9eef4);--r-badge:#dfe6ee}
 .resident-head {font-size:clamp(20px,2.3vw,30px);font-weight:800;letter-spacing:-.6px;color:#0b2747}
 .resident-text {font-size:16px;margin:8px 0 14px;color:#1d3a5c}
 .resident-facts {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
@@ -266,7 +269,7 @@ CSS = r"""
 .risk-scale .marker b {position:absolute;top:40px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;color:var(--heading)}
 .flow {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 14px}
 .flow .step {flex:1 1 140px;background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px;text-align:center;box-shadow:var(--card-shadow)}
-.flow .step i {display:block;font-style:normal;font-size:28px}.flow .step b {display:block;color:var(--heading);font-size:14px;margin-top:4px}
+.flow .step i {display:block;font-style:normal;color:var(--accent)}.flow .step b {display:block;color:var(--heading);font-size:14px;margin-top:4px}
 .flow .step small {color:var(--muted);font-size:12px}.flow .arrow {font-size:22px;color:var(--muted)}
 .flow .step.decision {border:2px dashed #ed394b}
 .risk-body.single {grid-template-columns:1fr;justify-items:center}
@@ -277,7 +280,50 @@ CSS = r"""
 .advice-block {margin:4px 0 8px}.advice-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:8px}
 .advice-card {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px 14px;box-shadow:var(--card-shadow)}
 .advice-card b {color:var(--heading)}.advice-card p {font-size:13.5px;margin:4px 0 0;color:var(--text)}
-.advice-icon {font-size:26px}
+.advice-icon {color:var(--accent);font-size:24px}
+.sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Streamlit widgets: one token set for both themes (base theme is pinned to light in config). */
+[data-testid="stHeader"] {background:transparent!important}
+.stApp [data-testid="stMain"] [data-testid="stMarkdownContainer"],[data-testid="stMain"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stMain"] [data-testid="stWidgetLabel"] p,[data-testid="stMain"] label {color:var(--text)}
+[data-testid="stMain"] [data-testid="stCaptionContainer"],[data-testid="stMain"] [data-testid="stCaptionContainer"] p {color:var(--muted)!important}
+[data-testid="stMain"] [data-baseweb="input"],[data-testid="stMain"] [data-baseweb="base-input"],[data-testid="stMain"] [data-baseweb="textarea"],
+[data-testid="stMain"] [data-baseweb="select"] > div {background:var(--input-bg)!important;border-color:var(--card-border)!important}
+[data-testid="stMain"] input,[data-testid="stMain"] textarea,[data-testid="stMain"] [data-baseweb="select"] * {color:var(--input-text)!important;-webkit-text-fill-color:var(--input-text)}
+[data-baseweb="popover"] ul,[data-baseweb="popover"] li {background:var(--card-solid)!important;color:var(--text)!important}
+[data-testid="stMain"] [data-testid="stExpander"] details {background:var(--card);border-color:var(--card-border)!important;border-radius:14px}
+[data-testid="stMain"] [data-testid="stExpander"] summary,[data-testid="stMain"] [data-testid="stExpander"] summary p {color:var(--text)}
+[data-testid="stMain"] [data-testid="stAlertContainer"] {background:var(--accent-soft)!important;border:1px solid var(--card-border);border-radius:12px}
+[data-testid="stMain"] [data-testid="stAlertContainer"] p,[data-testid="stMain"] [data-testid="stAlertContainer"] div {color:var(--text)!important}
+[data-testid="stMain"] [data-testid="stBaseButton-secondary"],[data-testid="stMain"] [data-testid="stBaseButton-secondaryFormSubmit"],
+[data-testid="stMain"] [data-testid="stBaseLinkButton-secondary"] {background:var(--card-solid)!important;color:var(--text)!important;border-color:var(--card-border)!important}
+[data-testid="stMain"] [data-testid="stBaseButton-secondary"] p,[data-testid="stMain"] [data-testid="stBaseLinkButton-secondary"] p {color:var(--text)!important}
+[data-testid="stMain"] [data-testid="stBaseButton-primary"],[data-testid="stMain"] [data-testid="stBaseButton-primaryFormSubmit"],
+[data-testid="stMain"] [data-testid="stBaseLinkButton-primary"] {background:var(--primary)!important;border-color:var(--primary)!important;color:var(--primary-text)!important}
+[data-testid="stMain"] [data-testid="stBaseButton-primary"] p,[data-testid="stMain"] [data-testid="stBaseLinkButton-primary"] p {color:var(--primary-text)!important}
+[data-testid="stMain"] [data-testid="stMetricLabel"] p {color:var(--muted)!important}[data-testid="stMain"] [data-testid="stMetricValue"] {color:var(--heading)!important}
+[data-testid="stMain"] [data-baseweb="tab"] p {color:var(--muted)}[data-testid="stMain"] [data-baseweb="tab"][aria-selected="true"] p {color:var(--heading);font-weight:700}
+[data-testid="stMain"] [data-testid="stCode"] pre,[data-testid="stMain"] code {background:var(--card-solid)!important;color:var(--text)!important}
+[data-testid="stMain"] [data-testid="stSliderThumbValue"],[data-testid="stMain"] [data-testid="stSliderTickBar"] {color:var(--muted)!important}
+[data-testid="stMain"] hr {border-color:var(--divider)}
+[data-testid="stMain"] [data-testid="stButtonGroup"] button[aria-checked="true"] *,.st-key-top_nav_bar button[aria-checked="true"] * {color:#fff!important}
+.call-icon {color:#fff}
+/* Visible keyboard focus everywhere (buttons, links, inputs, switches). */
+.stApp a:focus-visible,.stApp button:focus-visible,.stApp input:focus-visible,.stApp textarea:focus-visible,.stApp [role="switch"]:focus-visible,
+.stApp [role="radio"]:focus-visible,.stApp summary:focus-visible {outline:3px solid var(--focus)!important;outline-offset:2px}
+/* Header tools: clock and theme switch. */
+.st-key-header_tools [data-testid="stCheckbox"] {justify-content:flex-end}
+.st-key-header_tools label p {font-weight:700;color:var(--heading)}
+.st-key-browser_prefs {height:0;overflow:hidden;margin:0}
+/* Themed tables (canvas tables cannot follow the page theme). */
+.dtable-wrap {overflow-x:auto;border:1px solid var(--card-border);border-radius:14px;background:var(--card);box-shadow:var(--card-shadow)}
+.dtable {width:100%;border-collapse:collapse;font-size:13.5px;color:var(--text)}
+.dtable th {text-align:left;font-size:12px;font-weight:700;color:var(--muted);background:var(--accent-soft);padding:9px 12px;white-space:nowrap}
+.dtable td {padding:8px 12px;border-top:1px solid var(--divider);vertical-align:top}
+.dtable td.num {text-align:right;font-variant-numeric:tabular-nums}
+.dtable .bar {display:inline-block;width:80px;height:7px;border-radius:4px;background:var(--divider);margin-right:8px;vertical-align:middle;overflow:hidden}
+.dtable .bar i {display:block;height:100%;background:var(--accent)}
+.dtable a {color:var(--accent)}
 @keyframes rise {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes alarm {0%,100%{box-shadow:var(--card-shadow)}50%{box-shadow:0 0 0 6px #ed394b33,var(--card-shadow)}}
 
@@ -320,7 +366,7 @@ CSS = r"""
   .weather-body,.risk-body {grid-template-columns:1fr 1fr}}
 @media(max-width:640px) {[data-testid="stHorizontalBlock"]:has(>[data-testid="stColumn"] .kpi)>[data-testid="stColumn"] {min-width:0;flex:1 1 calc(50% - 12px)}
   [data-testid="stMainBlockContainer"] {padding:4.5rem .85rem 1rem}.hero h1 {font-size:22px}.hero-main>img {width:38px;height:38px}.hero p {font-size:12.5px}
-  .resident-card {padding:84px 16px 16px}.resident-card::before {left:16px;top:16px}.kpi {min-height:90px}.prediction-table {font-size:10.5px}
+  .resident-card {padding:84px 16px 16px}.resident-card::before {left:16px;top:16px}.resident-card::after {left:30px;top:30px}.kpi {min-height:90px}.prediction-table {font-size:10.5px}
   .weather-body,.risk-body {grid-template-columns:1fr}.weather-primary {border-right:0;border-bottom:1px solid var(--divider);padding:0 0 10px}}
 """.replace('CLOUDS_URI', CLOUDS_URI)
 
@@ -406,9 +452,9 @@ def status_strip(stale, updated, simulated, refresh_minutes=15):
 def weather_card_html(icon_img, temperature, condition, subtitle, tiles, status, updated=''):
     """Blue forecast-weather card. Every value comes from the genuine ECMWF model input."""
     e = html.escape
-    tile_html = ''.join(f'<div class="wx-tile"><span>{e(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
+    tile_html = ''.join(f'<div class="wx-tile"><span>{icons.icon(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
                         for icon, label, value, detail in tiles)
-    return (f'<div class="wx-card"><div class="wx-top"><span>📍 Matatiele, Eastern Cape</span><span>{e(updated)}</span></div>'
+    return (f'<div class="wx-card"><div class="wx-top"><span>{icons.icon("map-pin")} Matatiele, Eastern Cape</span><span>{e(updated)}</span></div>'
             f'<div class="wx-main"><div><div class="wx-temp">{e(temperature)}</div><div class="wx-cond">{e(condition)}</div>'
             f'<div class="wx-sub">{e(subtitle)}</div></div>{icon_img}</div><div class="wx-tiles">{tile_html}</div>'
             f'<div class="wx-status">{e(status)}</div></div>')
@@ -417,38 +463,86 @@ def weather_card_html(icon_img, temperature, condition, subtitle, tiles, status,
 def hourly_html(hours):
     """hours: (label, icon_img, temperature, rain, wind) per forecast hour."""
     e = html.escape
-    cells = ''.join(f'<div class="hour"><div class="t">{e(label)}</div>{icon}<b>{e(temp)}</b><small>🌧️ {e(rain)}</small><small>💨 {e(wind)}</small></div>'
+    cells = ''.join(f'<div class="hour"><div class="t">{e(label)}</div>{icon}<b>{e(temp)}</b><small>{icons.icon("cloud-rain", "Rain")} {e(rain)}</small><small>{icons.icon("wind", "Wind")} {e(wind)}</small></div>'
                     for label, icon, temp, rain, wind in hours)
     return f'<div class="hourly">{cells}</div>'
 
 
 def risk_scale_html(probability, threshold=0.35):
     """The four risk bands on one bar, with a marker at the current estimate (None: no marker)."""
-    bands = [(0, 10, '#30b262', 'Low'), (10, 20, '#e0a800', 'Elevated'), (20, round(threshold * 100), '#fa782b', 'Moderate'),
-             (round(threshold * 100), 100, '#ed394b', 'Warning')]
-    segments = ''.join(f'<div class="band" style="flex:{high - low};background:{color}">{name}</div>' for low, high, color, name in bands)
+    # Label colours keep at least 4.5:1 contrast on each band.
+    bands = [(0, 10, '#4cc27a', '#0b1f3a', 'Low'), (10, 20, '#f5c242', '#0b1f3a', 'Elevated'),
+             (20, round(threshold * 100), '#fb9a4b', '#0b1f3a', 'Moderate'), (round(threshold * 100), 100, '#c81e33', '#ffffff', 'Warning')]
+    segments = ''.join(f'<div class="band" style="flex:{high - low};background:{color};color:{text}">{name}</div>' for low, high, color, text, name in bands)
     marker = ''
     if probability is not None and 0 <= probability <= 1:
         side = 'left:0;transform:none' if probability < .08 else ('right:0;left:auto;transform:none' if probability > .92 else '')
-        marker = f'<div class="marker" style="left:{probability * 100:.1f}%"><b style="{side}">Now {probability:.0%}</b></div>'
+        marker = f'<div class="marker" style="left:{probability * 100:.1f}%"><b style="{side}">Now {probability:.1%}</b></div>'
     return (f'<div class="risk-scale"><div class="title">Risk scale · warning at {threshold:.0%}</div>'
             f'<div class="bar">{segments}{marker}</div></div>')
 
 
 def flow_html():
     """How a storm warning is produced and reaches people (one picture instead of a paragraph)."""
-    steps = [('🛰️', 'Forecast', 'ECMWF, every hour', ''), ('🧠', 'Storm model', 'Random Forest, next hour', ''),
-             ('⚖️', '35% or more?', 'No: check again next hour', ' decision'), ('🚨', 'Warning', 'Alerts page', ''),
-             ('📲', 'SMS', 'Registered phones', ''), ('🗂️', 'Officials', 'Review and record', '')]
+    steps = [('radar', 'Forecast', 'ECMWF, every hour', ''), ('cpu', 'Storm model', 'Random Forest, next hour', ''),
+             ('scale', '35% or more?', 'No: check again next hour', ' decision'), ('siren', 'Warning', 'Alerts page', ''),
+             ('message', 'SMS', 'Registered phones', ''), ('clipboard', 'Officials', 'Review and record', '')]
     parts = []
-    for icon, title, detail, extra in steps:
-        parts.append(f'<div class="step{extra}"><i>{icon}</i><b>{html.escape(title)}</b><small>{html.escape(detail)}</small></div>')
-    return '<div class="flow">' + '<span class="arrow">→</span>'.join(parts) + '</div>'
+    for name, title, detail, extra in steps:
+        parts.append(f'<div class="step{extra}"><i>{icons.icon(name, size="28px")}</i><b>{html.escape(title)}</b><small>{html.escape(detail)}</small></div>')
+    return '<div class="flow">' + f'<span class="arrow">{icons.icon("arrow-right")}</span>'.join(parts) + '</div>'
 
 
 def ingredient_tiles_html(tiles):
     """tiles: (icon, label, value, detail)."""
     e = html.escape
     return '<div class="ingredients">' + ''.join(
-        f'<div class="ingredient"><span>{e(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
+        f'<div class="ingredient"><span>{icons.icon(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
         for icon, label, value, detail in tiles) + '</div>'
+
+
+import icons  # noqa: E402  (icon masks share this theme)
+
+TONE_ICONS = {'green': 'check-circle', 'amber': 'alert', 'red': 'siren', 'gray': 'help-circle', 'off': 'bell-off'}
+CHART_COLORS = {'light': {'text': '#334155', 'grid': '#e2e8f0'}, 'dark': {'text': '#a3b3c7', 'grid': '#26354f'}}
+
+
+def theme_css(mode):
+    """The whole stylesheet for 'light' or 'dark': the dark token layer is switched on or off explicitly,
+    so every page (and the officials' portal) follows the visitor's choice rather than the device setting."""
+    switch = '@media all' if mode == 'dark' else '@media not all'
+    tones = ''.join(f'.resident-card.tone-{tone}{{--m:url("{icons._uri(name)}")}}' for tone, name in TONE_ICONS.items())
+    return CSS.replace('@media (prefers-color-scheme: dark)', switch) + icons.CSS + tones
+
+
+def style_chart(chart, mode):
+    """Altair chart colours for the selected theme (transparent background, readable axes)."""
+    colours = CHART_COLORS[mode]
+    return (chart.configure(background='transparent').configure_view(stroke=None)
+            .configure_axis(labelColor=colours['text'], titleColor=colours['text'], gridColor=colours['grid'],
+                            domainColor=colours['grid'], tickColor=colours['grid'])
+            .configure_legend(labelColor=colours['text'], titleColor=colours['text']))
+
+
+def table_html(frame, bars=None, links=None, caption=''):
+    """A themed, scrollable HTML table. bars: {column: maximum} shows a bar beside the value; links: {column: text}."""
+    bars, links = bars or {}, links or {}
+    e = html.escape
+    head = ''.join(f'<th scope="col">{e(str(c))}</th>' for c in frame.columns)
+    rows = []
+    for _, row in frame.iterrows():
+        cells = []
+        for column in frame.columns:
+            value = row[column]
+            text = '' if value is None or (isinstance(value, float) and math.isnan(value)) else str(value)
+            if column in links and text:
+                cells.append(f'<td><a href="{e(text, quote=True)}" target="_blank" rel="noopener">{e(links[column])}</a></td>')
+            elif column in bars and text:
+                width = max(0.0, min(100.0, float(value) / bars[column] * 100))
+                cells.append(f'<td class="num"><span class="bar"><i style="width:{width:.0f}%"></i></span>{e(text)}</td>')
+            else:
+                numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
+                cells.append(('<td class="num">' if numeric else '<td>') + e(text) + '</td>')
+        rows.append('<tr>' + ''.join(cells) + '</tr>')
+    cap = f'<caption class="sr-only">{e(caption)}</caption>' if caption else ''
+    return f'<div class="dtable-wrap"><table class="dtable">{cap}<thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'

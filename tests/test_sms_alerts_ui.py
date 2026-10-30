@@ -60,12 +60,12 @@ class SmsJourney(rd.DashboardHarness):
         self.write_prediction(.05)
         at = self.app(**query).run()
         self.go(at, 'Alerts')
-        next(g for g in at.button_group if g.key == 'alerts_view').set_value('📲 SMS alerts').run()
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value('SMS alerts').run()
         return at
 
     def warnings_view(self, at):
         self.go(at, 'Alerts')
-        next(g for g in at.button_group if g.key == 'alerts_view').set_value('⚠️ Warnings').run()
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value('Warnings').run()
         return at
 
     def subscribe_via_ui(self, at, phone=PHONE):

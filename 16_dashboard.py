@@ -25,6 +25,7 @@ from PIL import Image, ImageFilter
 import altair as alt
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import pydeck as pdk
 from pydeck.types import String
 from app_config import get_setting
@@ -87,11 +88,33 @@ SIM_BANNER_STYLE='background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;bord
 # ?view=text: minimal low-data page. ?admin=1: show the administrator login (password still required).
 text_view=st.query_params.get('view','')=='text'
 show_admin_login=st.query_params.get('admin','')=='1'
-st.set_page_config(page_title='Matatiele | Storm Early Warning Research', page_icon='⛈️', layout='centered' if text_view else 'wide',
+st.set_page_config(page_title='Matatiele | Storm Early Warning Research', page_icon=':material/thunderstorm:', layout='centered' if text_view else 'wide',
                    initial_sidebar_state='collapsed')  # the ☰ menu opens the side menu
 
-# Theme: sky background, cards, light/dark palettes (dashboard_theme.py). Not loaded in the text view.
-if not text_view:st.html('<style>'+dashboard_theme.CSS+'</style>')
+# Theme: light or dark, chosen with the header switch and applied to every page and the officials' portal.
+# Order: this session's choice, the ?theme= link (kept on refresh), the choice remembered in this browser,
+# then the device setting. Not loaded in the text view.
+THEMES=('light','dark')
+_browser_prefs=components.declare_component('browser_prefs',path=str(BASE/'components'/'browser_prefs'))
+
+def resolve_theme(prefs: Any) -> str:
+    if st.session_state.get('theme') in THEMES:return st.session_state.theme
+    if st.query_params.get('theme') in THEMES:return st.query_params['theme']
+    prefs=prefs if isinstance(prefs,dict) else {}
+    if prefs.get('theme') in THEMES:return prefs['theme']
+    return 'dark' if prefs.get('dark') is True else 'light'
+
+def toggle_theme() -> None:
+    st.session_state.theme='dark' if st.session_state.theme_switch else 'light'
+    st.query_params['theme']=st.session_state.theme
+
+prefs=None
+if not text_view:
+    with st.container(key='browser_prefs'):
+        try:prefs=_browser_prefs(key='browser_prefs_value',theme=st.session_state.get('theme'),default=None)
+        except Exception:prefs=None  # components unavailable: the link or the default decides
+theme_mode=resolve_theme(prefs)
+if not text_view:st.html('<style>'+dashboard_theme.theme_css(theme_mode)+'</style>')
 
 def secret(name):
     return get_setting(name)
@@ -362,8 +385,7 @@ def render_history(hist: pd.DataFrame) -> None:
             cols.append('Risk')
         for field,label in [('precipitation_mm','Precipitation (mm)'),('temperature_c','Temperature (°C)'),('wind_gust_ms','Wind gust (m/s)')]:
             if field in display:display[label]=numeric_series(pd.Series(display[field])).round(2);cols.append(label)
-        st.dataframe(display[cols],hide_index=True,width='stretch',height=330,
-            column_config={'Probability (%)':st.column_config.ProgressColumn(format='%.1f%%',min_value=0,max_value=100)})
+        st.html(dashboard_theme.table_html(display[cols],bars={'Probability (%)':100},caption='Saved model predictions'))
         st.caption('Only genuine saved model predictions are included; demonstration values are excluded.')
     else:st.info('Prediction history will appear after multiple successful updates.')
 
@@ -386,7 +408,8 @@ with sidebar:
     # Top bar: everyday sections. The ☰ side menu: Alerts and the research sections.
     navigation = ['🏠 Dashboard','🌦️ Live Forecast','🗺️ Weather Map','🛟 Safety Advice']
     MENU = [('🚨 Alerts','notifications'),('📈 Risk Analysis','monitoring'),('🕒 Historical Data','insert_chart'),('ℹ️ About','info')]
-    NAV_LABELS = {'🏠 Dashboard':'🏠 Home','🌦️ Live Forecast':'🌦️ Forecast','🗺️ Weather Map':'🗺️ Map','🛟 Safety Advice':'🛟 Safety'}
+    NAV_LABELS = {'🏠 Dashboard':':material/home: Home','🌦️ Live Forecast':':material/partly_cloudy_day: Forecast',
+                  '🗺️ Weather Map':':material/map: Map','🛟 Safety Advice':':material/health_and_safety: Safety'}
     if 'dashboard_page' not in st.session_state:st.session_state.dashboard_page=navigation[0]
     if st.session_state.dashboard_page in ('🔔 SMS Alerts','📜 Warning History','📱 Alerts & Notifications'):st.session_state.dashboard_page='🚨 Alerts'
     def _go(section: str) -> None:
@@ -399,7 +422,7 @@ with sidebar:
     # The login is shown only via ?admin=1 (or while signed in), never in the text view;
     # the password check is unchanged.
     if not text_view and (show_admin_login or st.session_state.admin_authenticated):
-        with st.expander('🔐 Administrator Access'):
+        with st.expander('Administrator Access'):
             if st.session_state.admin_authenticated:
                 st.success('Administrator access enabled')
                 if st.button('Log Out',width='stretch'):
@@ -421,9 +444,9 @@ with sidebar:
     if is_admin:
         st.divider()
         st.markdown('**Administrator controls**')
-        test_mode=st.toggle('🧪 Warning simulation (on screen only)',key='presentation_test_mode',value=False,help='Shows a clearly labelled 60% simulated model output, the warning advice and an SMS preview. Nothing is sent, saved or recorded; genuine data return when switched off.')
+        test_mode=st.toggle('Warning simulation (on screen only)',key='presentation_test_mode',value=False,help='Shows a clearly labelled 60% simulated model output, the warning advice and an SMS preview. Nothing is sent, saved or recorded; genuine data return when switched off.')
         if test_mode:st.html('<div style="background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;border-radius:10px;padding:10px 12px;font-weight:700;font-size:13px;line-height:1.5">Simulation on: on screen only. No SMS can be sent and no records change.</div>')
-        if not test_mode and sms_is_configured() and st.button('📲 Send Test SMS',width='stretch'):
+        if not test_mode and sms_is_configured() and st.button('Send Test SMS',icon=':material/sms:',width='stretch'):
             outcome=send_test_sms()
             (st.success if outcome.get('sent') else st.error)('SMS accepted by provider.' if outcome.get('sent') else 'SMS request failed. Review private server logs.')
     else:test_mode=False
@@ -434,7 +457,13 @@ with sidebar:
     # Administration is never shown to a session that is not signed in (e.g. after logging out).
     if page=='🛠️ Administration' and not is_admin:page=st.session_state.dashboard_page=navigation[0]
 
-if not text_view:st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Is a storm likely in Matatiele in the next hour, and what should you do?</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
+if not text_view:
+    head,tools=st.columns([4,1.3],vertical_alignment='center')
+    head.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Is a storm likely in Matatiele in the next hour, and what should you do?</p></div></div></div>')
+    with tools,st.container(key='header_tools'):
+        st.html(f'<div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div>')
+        st.session_state.theme_switch=theme_mode=='dark'
+        st.toggle('Dark theme',key='theme_switch',on_change=toggle_theme,help='Switch between the light and dark theme. Your choice is kept when you change page or refresh.')
 # Officials use a separate portal (?portal=officials); it has its own sign-in and never shows resident pages.
 portal_mode=st.query_params.get('portal')=='officials' and not text_view
 if not text_view and not portal_mode:
@@ -463,7 +492,7 @@ if state.regional_error:st.warning(state.regional_error)
 if state.history_error:st.warning(state.history_error)
 if test_mode:
     # Fixed colours (not theme colours) keep the notice readable in light and dark themes.
-    st.html(f'<div style="{SIM_BANNER_STYLE}">🧪 SIMULATION ONLY: the resident card shows a fixed 60% simulated model output, not a forecast. Genuine predictions and records are unchanged, and SMS sending is disabled.</div>')
+    st.html(f'<div style="{SIM_BANNER_STYLE}">SIMULATION ONLY: the resident card shows a fixed 60% simulated model output, not a forecast. Genuine predictions and records are unchanged, and SMS sending is disabled.</div>')
 
 df=pd.DataFrame()
 try:
@@ -502,7 +531,7 @@ updated_label=(generated_time or retrieved_time).strftime('%d %b %H:%M SAST') if
 st.html(dashboard_theme.status_strip(stale,updated_label,simulated))
 
 if stale:
-    st.warning('⚠️ **Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or no longer matches the next complete hourly interval. This is NOT a current storm-risk assessment. Refresh is required.')
+    st.warning('**Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or no longer matches the next complete hourly interval. This is NOT a current storm-risk assessment. Refresh is required.')
 
 # GitHub Actions is the sole storm-warning sender; dashboard tests remain manual.
 if is_admin and not test_mode and not stale and threshold<=real_prob<=1:
@@ -515,9 +544,9 @@ def weather_card() -> None:
     """Forecast weather for Matatiele from the saved model input (ECMWF), never an observation."""
     condition_kind,condition_label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
     forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
-    tiles=[('🌧️','Rainfall',weather_value(number(latest,'precipitation_mm'),'mm'),'Forecast hour'),
-           ('💨','Wind',weather_value(number(latest,'wind_speed_ms'),'m/s'),'Gusts '+weather_value(number(latest,'wind_gust_ms'),'m/s')),
-           ('☁️','Cloud',weather_value(number(latest,'cloud_cover_percent'),'%',0),'Pressure '+weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
+    tiles=[('cloud-rain','Rainfall',weather_value(number(latest,'precipitation_mm'),'mm'),'Forecast hour'),
+           ('wind','Wind',weather_value(number(latest,'wind_speed_ms'),'m/s'),'Gusts '+weather_value(number(latest,'wind_gust_ms'),'m/s')),
+           ('cloud','Cloud',weather_value(number(latest,'cloud_cover_percent'),'%',0),'Pressure '+weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
     st.html(dashboard_theme.weather_card_html(svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label),
         weather_value(number(latest,'temperature_c'),chr(176)+'C'),condition_label,'Weather · next hour (forecast)',tiles,
         'OUTDATED SAVED CONDITIONS' if stale else f'ECMWF forecast for {forecast_hour} - not an observation',
@@ -555,7 +584,7 @@ def forecast_chart() -> None:
         y=alt.Y('temperature_2m:Q',title='Temperature (°C)'),
         tooltip=[alt.Tooltip('Hour (SAST):T',format='%a %H:%M'),alt.Tooltip('temperature_2m:Q',title='Temperature (°C)',format='.1f')])
     with st.container(border=True,key='forecast_chart'):
-        st.altair_chart(alt.layer(rain,temperature).resolve_scale(y='independent').properties(height=270),width='stretch')
+        st.altair_chart(dashboard_theme.style_chart(alt.layer(rain,temperature).resolve_scale(y='independent').properties(height=270),theme_mode),width='stretch',theme=None)
         st.caption('Bars: rain (mm, hour ending). Line: temperature. ECMWF forecast for Matatiele.')
 
 def open_sms_alerts() -> None:
@@ -594,7 +623,7 @@ if page=='🏠 Dashboard':
         hourly_forecast()
     with right:
         st.link_button('Official weather warnings (SAWS)',resident_alerts.SAWS_URL,icon=':material/campaign:',type='primary',width='stretch')
-        st.button('🔔 Get free SMS storm warnings',key='cta_sms_alerts',on_click=open_sms_alerts,width='stretch')
+        st.button('Get free SMS storm warnings',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch')
         st.html(emergency_contacts.contacts_html())
     st.html(resident_view.quick_actions_html(advice))
     st.button('More safety advice',key='home_more_safety',on_click=more_safety_advice,icon=':material/health_and_safety:')
@@ -679,10 +708,10 @@ if page=='🌦️ Live Forecast':
     cape,previous=number(latest,'cape'),number(latest,'previous_cape')
     change=f'{cape-previous:+.0f} J/kg vs previous hour' if math.isfinite(cape) and math.isfinite(previous) else 'Change unavailable'
     st.html(dashboard_theme.ingredient_tiles_html([
-        ('⚡','Storm energy (CAPE)',weather_value(cape,'J/kg',0),change),
-        ('💧','Dew point',weather_value(number(latest,'dewpoint_c'),chr(176)+'C'),'Moisture in the air'),
-        ('🌦️','Showers',weather_value(number(latest,'showers_mm'),'mm'),'Convective rain in the input hour'),
-        ('🕑','Model input hour',f'{input_time:%H:%M} SAST' if input_time is not None else 'Unknown','ECMWF forecast used by the model')]))
+        ('zap','Storm energy (CAPE)',weather_value(cape,'J/kg',0),change),
+        ('droplets','Dew point',weather_value(number(latest,'dewpoint_c'),chr(176)+'C'),'Moisture in the air'),
+        ('cloud-rain','Showers',weather_value(number(latest,'showers_mm'),'mm'),'Convective rain in the input hour'),
+        ('clock','Model input hour',f'{input_time:%H:%M} SAST' if input_time is not None else 'Unknown','ECMWF forecast used by the model')]))
     st.caption('Forecast values from ECMWF via Open-Meteo, not observations.')
 
 if page=='📈 Risk Analysis':
@@ -714,7 +743,7 @@ if page=='🕒 Historical Data':
             series['Target (SAST)']=series['target'].dt.tz_convert(SAST).dt.tz_localize(None)
             points=alt.Chart(series).mark_line(point=True,color='#1268c4').encode(x=alt.X('Target (SAST):T',title=None,axis=alt.Axis(format='%d %b %H:%M',labelAngle=0,tickCount=6)),y=alt.Y('Probability (%):Q',scale=alt.Scale(domain=[0,100])),tooltip=[alt.Tooltip('Target (SAST):T',format='%d %b %H:%M'),alt.Tooltip('Probability (%):Q',format='.2f')]).properties(height=230)
             line=alt.Chart(pd.DataFrame({'threshold':[35]})).mark_rule(color='#d93449',strokeDash=[6,4]).encode(y='threshold:Q')
-            st.altair_chart(points+line,width='stretch')
+            st.altair_chart(dashboard_theme.style_chart(points+line,theme_mode),width='stretch',theme=None)
         else:st.info('No valid recorded probabilities available.')
     else:st.info('Recorded predictions will appear after successful forecast updates.')
     render_history(hist)
@@ -731,7 +760,7 @@ if page=='🚨 Alerts':
             try:
                 log=pd.read_csv(SMS_LOG)
                 cols=[c for c in ['logged_at_utc','storm_probability','status'] if c in log]
-                if cols:st.dataframe(log[cols].tail(20),hide_index=True,width='stretch')
+                if cols:st.html(dashboard_theme.table_html(log[cols].tail(20),caption='SMS log'))
             except Exception:st.info('SMS log is currently unavailable.')
         st.info('Automatic storm-warning checks are handled by an independent GitHub Actions scheduled worker. The dashboard does not need to remain open.')
 

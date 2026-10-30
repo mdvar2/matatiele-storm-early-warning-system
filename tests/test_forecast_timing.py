@@ -123,13 +123,15 @@ class ForecastTimingTests(unittest.TestCase):
         names = {'numeric_series','risk','render_history'}
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
         st = Mock()
-        namespace = dict(pd=pd, math=math, st=st, SAST=SAST, timestamp_labels=timestamp_labels,
+        captured = {}
+        theme = SimpleNamespace(table_html=lambda frame, **kw: captured.setdefault('frame', frame) is None or '')
+        namespace = dict(pd=pd, math=math, st=st, SAST=SAST, timestamp_labels=timestamp_labels, dashboard_theme=theme,
                          TARGET_LABEL=TARGET_LABEL, GENERATED_LABEL=GENERATED_LABEL, threshold=.35)
         exec(compile(ast.Module(body=functions,type_ignores=[]), '<history table>', 'exec'), namespace)
         namespace['render_history'](pd.DataFrame([{
             'prediction_for':'2026-10-10T19:00Z', 'prediction_generated_at':'2026-10-10T18:29Z',
             'storm_probability':.0533, 'precipitation_mm':0.1}]))
-        frame = st.dataframe.call_args.args[0]
+        frame = captured['frame']  # rendered as a themed HTML table
         self.assertEqual(frame[TARGET_LABEL].tolist(), ['10 Oct 21:00'])  # target (hour ending), SAST
         self.assertIn('20:29:00', frame[GENERATED_LABEL].iloc[0])        # generation time shown separately
         self.assertEqual(frame['Risk'].tolist(), ['LOW'])
@@ -158,7 +160,8 @@ class ForecastTimingTests(unittest.TestCase):
         st = MagicMock()
         frame = self.frame().assign(temperature_2m=12.0)
         clock = SimpleNamespace(now=lambda tz: pd.Timestamp('2026-10-10T20:29:00+02:00'))
-        namespace = dict(pd=pd, alt=alt, st=st, SAST=SAST, UTC=UTC, datetime=clock,
+        import dashboard_theme
+        namespace = dict(pd=pd, alt=alt, st=st, SAST=SAST, UTC=UTC, datetime=clock, dashboard_theme=dashboard_theme, theme_mode='dark',
                          state=SimpleNamespace(regional=frame, regional_error=''))
         exec(compile(ast.Module(body=[function], type_ignores=[]), '<forecast chart>', 'exec'), namespace)
         namespace['forecast_chart']()
@@ -168,6 +171,8 @@ class ForecastTimingTests(unittest.TestCase):
         hours = [row['Hour (SAST)'] for row in next(iter(chart['datasets'].values()))]
         self.assertEqual(hours, sorted(hours))
         self.assertEqual(len(hours), 8)  # only future hours: 21:00 SAST onwards
+        self.assertEqual(chart['config']['axis']['labelColor'], '#a3b3c7')  # chart colours follow the selected (dark) theme
+        self.assertIsNone(st.altair_chart.call_args.kwargs['theme'])
 
 if __name__ == '__main__':
     unittest.main()

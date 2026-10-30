@@ -212,7 +212,7 @@ class DashboardHarness(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
         for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
                      'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
-                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py'):
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
         shutil.copytree(ROOT / 'components', cls.tmp / 'components')
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
@@ -325,7 +325,7 @@ class DashboardApp(DashboardHarness):
         self.assertIn('Incorrect password.', [e.value for e in at.error])
         self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         self.login(at)
-        self.assertEqual([t.label for t in at.toggle if t.key == 'presentation_test_mode'], ['🧪 Warning simulation (on screen only)'])
+        self.assertEqual([t.label for t in at.toggle if t.key == 'presentation_test_mode'], ['Warning simulation (on screen only)'])
 
     def test_simulation_is_on_screen_only_and_reverts(self):
         self.write_prediction(.05)

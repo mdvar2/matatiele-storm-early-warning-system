@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>preferences</title></head>
+<body style="margin:0">
+<script>
+// Theme preference for this browser: remembers the visitor's light/dark choice in local storage and
+// reports the device's colour-scheme preference for first visits. Nothing else is read or sent.
+(function () {
+  var KEY = 'msrsews-theme', last = null;
+  function post(type, extra) {
+    window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, extra || {}), '*');
+  }
+  window.addEventListener('message', function (event) {
+    if (!event.data || event.data.type !== 'streamlit:render') return;
+    var chosen = (event.data.args || {}).theme, stored = null;
+    try {
+      if (chosen === 'light' || chosen === 'dark') window.localStorage.setItem(KEY, chosen);
+      stored = window.localStorage.getItem(KEY);
+    } catch (e) { stored = null; }
+    var value = {theme: stored, dark: !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)};
+    var text = JSON.stringify(value);
+    if (text !== last) {  // only send changes, so the page does not rerun in a loop
+      last = text;
+      post('streamlit:setComponentValue', {value: value, dataType: 'json'});
+    }
+  });
+  post('streamlit:componentReady', {apiVersion: 1});
+  post('streamlit:setFrameHeight', {height: 0});
+})();
+</script>
+</body>
+</html>

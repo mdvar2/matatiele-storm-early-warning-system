@@ -6,6 +6,8 @@ notices (112 from any cellphone). No local or invented numbers are listed.
 """
 import html
 
+import icons
+
 CONTACTS = (('10111', 'Police (SAPS)', 'Crime and police emergencies'),
             ('10177', 'Ambulance and fire', 'Medical emergencies and fires'),
             ('112', 'Any emergency from a cellphone', 'Free from any mobile network'))
@@ -15,7 +17,7 @@ SOURCE = 'Numbers checked against SAPS and South African government sources (Oct
 
 def contacts_html(title='Emergency contacts'):
     rows = ''.join(f'<a class="call-row" href="tel:{number}" aria-label="Call {html.escape(label)} on {number}">'
-                   f'<span class="call-icon">📞</span><span><b>{number}</b><small>{html.escape(label)} · {html.escape(detail)}</small></span></a>'
+                   f'<span class="call-icon">{icons.icon("phone")}</span><span><b>{number}</b><small>{html.escape(label)} · {html.escape(detail)}</small></span></a>'
                    for number, label, detail in CONTACTS)
     return (f'<div class="contacts-card"><div class="contacts-head">{html.escape(title)}<small>Tap to call</small></div>{rows}'
             f'<div class="contacts-note">{html.escape(NOTE)} {html.escape(SOURCE)}</div></div>')
@@ -23,6 +25,6 @@ def contacts_html(title='Emergency contacts'):
 
 def call_row_html():
     """Compact tap-to-call buttons shown inside an open warning."""
-    buttons = ''.join(f'<a class="call-chip" href="tel:{number}" aria-label="Call {html.escape(label)} on {number}">📞 {number}</a>'
+    buttons = ''.join(f'<a class="call-chip" href="tel:{number}" aria-label="Call {html.escape(label)} on {number}">{icons.icon("phone")} {number}</a>'
                       for number, label, _ in CONTACTS)
     return f'<div class="call-chips"><span>Need help?</span>{buttons}</div>'

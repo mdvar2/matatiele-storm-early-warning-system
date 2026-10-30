@@ -36,6 +36,8 @@ The homepage also shows:
 - **Official weather warnings (SAWS)**, a link to the South African Weather Service;
 - **Emergency contacts**: tap a number to call it from a phone.
 
+**Light or dark?** Use the **Dark theme** switch under the clock. Your choice stays when you change page or reload.
+
 **Slow or expensive data?** Use the **Low-data text version** link. It shows the same information as plain text.
 
 ### Other pages

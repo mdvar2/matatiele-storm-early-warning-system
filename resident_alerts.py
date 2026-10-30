@@ -9,6 +9,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import emergency_contacts
+import icons
 import resident_pages
 import resident_view
 import subscriber_alerts as alerts
@@ -18,7 +19,8 @@ from subscriber_store import StoreError, open_store, utc_now
 
 LEDGER_REPO = resident_pages.LEDGER_REPO
 SAWS_URL = 'https://www.weathersa.co.za/'
-VIEWS = ('⚠️ Warnings', '📲 SMS alerts')
+VIEWS = ('Warnings', 'SMS alerts')
+VIEW_LABELS = {'Warnings': ':material/warning: Warnings', 'SMS alerts': ':material/sms: SMS alerts'}
 _device = components.declare_component('device_id', path=str(Path(__file__).resolve().parent / 'components' / 'device_id'))
 
 
@@ -70,9 +72,9 @@ def warning_card_html(event, active):
     test = event['source'] == we.DEV_TEST
     badge = '<span class="warn-badge test">DEVELOPMENT TEST · not a real warning</span>' if test else \
         ('<span class="warn-badge live">IN EFFECT</span>' if active else '<span class="warn-badge past">ENDED</span>')
-    return (f'<div class="warn-card {"active" if active else "past"}"><div class="warn-top"><b>⛈️ {html.escape(event["severity"])}</b>{badge}</div>'
-            f'<div class="warn-meta"><span>🕑 {html.escape(we.period_text(event))}</span><span>📍 Matatiele</span>'
-            f'<span>📈 {html.escape(we.probability_text(event))}</span></div></div>')
+    return (f'<div class="warn-card {"active" if active else "past"}"><div class="warn-top"><b>{icons.icon("siren")} {html.escape(event["severity"])}</b>{badge}</div>'
+            f'<div class="warn-meta"><span>{icons.icon("clock")} {html.escape(we.period_text(event))}</span><span>{icons.icon("map-pin")} Matatiele</span>'
+            f'<span>{icons.icon("trend")} {html.escape(we.probability_text(event))}</span></div></div>')
 
 
 def status_banner_html(active_events, status):
@@ -95,7 +97,7 @@ def render_alerts(getter, status):
     """Warnings (list and details) and SMS alerts. The current status, contacts and SAWS link are on Home only."""
     st.html('<div class="section-title">Alerts <small>Storm warnings for Matatiele and SMS alerts</small></div>')
     st.session_state.setdefault('alerts_view', VIEWS[0])
-    view = st.segmented_control('Alerts section', VIEWS, key='alerts_view', label_visibility='collapsed')
+    view = st.segmented_control('Alerts section', VIEWS, key='alerts_view', format_func=VIEW_LABELS.get, label_visibility='collapsed')
     if view == VIEWS[1]:
         resident_pages.render_sms_alerts(getter)
         return
@@ -116,7 +118,7 @@ def render_alerts(getter, status):
         for event in active:
             _event_row(event, True)
     else:
-        st.html('<div class="warn-card"><div class="warn-top"><b>✅ No warning in effect</b></div></div>')
+        st.html(f'<div class="warn-card"><div class="warn-top"><b>{icons.icon("check-circle")} No warning in effect</b></div></div>')
     past = [e for e in events if not we.is_active(e, now)]
     st.markdown('**Past warnings**')
     if past:
@@ -135,7 +137,7 @@ def _event_row(event, active):
 
 
 def _detail(getter, event):
-    if st.button('← All warnings', key='alert_back'):
+    if st.button('All warnings', key='alert_back', icon=':material/arrow_back:'):
         st.session_state.pop('alert_selected', None)
         st.rerun()
     test = event['source'] == we.DEV_TEST
@@ -155,7 +157,7 @@ def _detail(getter, event):
     if event.get('record'):
         st.link_button('Public record of this warning', event['record'], icon=':material/open_in_new:')
     _acknowledge(getter, event)
-    st.button('📲 Get warnings like this by SMS', key='alert_to_sms', on_click=show_sms_alerts)
+    st.button('Get warnings like this by SMS', key='alert_to_sms', on_click=show_sms_alerts, icon=':material/sms:')
 
 
 def show_sms_alerts():
