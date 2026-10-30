@@ -79,6 +79,14 @@ def prune(doc, now=None):
     doc['events'] = doc['events'][-MAX_EVENTS:]
 
 
+def empty_operations():
+    return {'schema': SCHEMA, 'acknowledgements': {}, 'reviews': {}, 'actions': []}
+
+
+def prune_operations(doc, now=None):
+    """Acknowledgement counts and officials' records are the operational evidence: they are kept."""
+
+
 def empty_document():
     return {'schema': SCHEMA, 'subscribers': {}, 'alerts': {}, 'deliveries': {}, 'otp_sends': {}, 'events': []}
 
@@ -252,12 +260,15 @@ class GitHubContentsBlob:
 
 # ------------------------------------------------------------------ store
 class SubscriberStore:
-    def __init__(self, blob, crypto):
+    """One JSON document. `empty` gives its shape and `housekeeping` runs before every write."""
+
+    def __init__(self, blob, crypto, empty=None, housekeeping=None):
         self.blob, self.crypto = blob, crypto
+        self.empty, self.housekeeping = empty or empty_document, housekeeping or prune
 
     def snapshot(self):
         doc, _ = self.blob.read()
-        for key, value in empty_document().items():
+        for key, value in self.empty().items():
             doc.setdefault(key, value)
         return doc
 
@@ -266,18 +277,18 @@ class SubscriberStore:
         if hasattr(self.blob, 'transaction'):
             with self.blob.transaction():
                 doc, version = self.blob.read()
-                for key, value in empty_document().items():
+                for key, value in self.empty().items():
                     doc.setdefault(key, value)
                 result = change(doc)
-                prune(doc)
+                self.housekeeping(doc)
                 self.blob.write(doc, version, locked=True)
                 return result
         for attempt in range(attempts):
             doc, version = self.blob.read()
-            for key, value in empty_document().items():
+            for key, value in self.empty().items():
                 doc.setdefault(key, value)
             result = change(doc)
-            prune(doc)
+            self.housekeeping(doc)
             try:
                 self.blob.write(doc, version)
                 return result
@@ -303,19 +314,27 @@ def dev_keys(path=DEV_KEYS_PATH):
     return data['encryption_key'], data['hash_key']
 
 
-def open_store(getter=None):
-    """Store from configuration, or raise StoreError explaining what is missing (no secrets in messages)."""
+def open_store(getter=None, kind='subscribers'):
+    """Store from configuration, or raise StoreError explaining what is missing (no secrets in messages).
+
+    kind='operations' opens the separate document for warning acknowledgements and officials' review
+    records: same keys and backend, file `operations.json` beside the subscriber file.
+    """
     get = lambda name: setting(name, getter)  # noqa: E731
     encryption_key, hash_key = get('SUBSCRIBER_ENCRYPTION_KEY'), get('SUBSCRIBER_HASH_KEY')
     if not (encryption_key and hash_key) and get('SMS_DELIVERY_MODE') == 'outbox':
         encryption_key, hash_key = dev_keys()
     crypto = Crypto(encryption_key, hash_key)
     backend = get('SUBSCRIBER_STORE') or 'file'
+    operations = kind == 'operations'
     if backend == 'github':
-        blob = GitHubContentsBlob(get('SUBSCRIBER_STORE_REPO'), get('SUBSCRIBER_STORE_TOKEN'),
-                                  get('SUBSCRIBER_STORE_FILE') or 'subscribers.json', get('SUBSCRIBER_STORE_BRANCH') or 'main')
+        name = (get('OPERATIONS_STORE_FILE') or 'operations.json') if operations else (get('SUBSCRIBER_STORE_FILE') or 'subscribers.json')
+        blob = GitHubContentsBlob(get('SUBSCRIBER_STORE_REPO'), get('SUBSCRIBER_STORE_TOKEN'), name, get('SUBSCRIBER_STORE_BRANCH') or 'main')
     elif backend == 'file':
-        blob = LocalFileBlob(get('SUBSCRIBER_STORE_PATH') or DEFAULT_PATH)
+        path = Path(get('SUBSCRIBER_STORE_PATH') or DEFAULT_PATH)
+        blob = LocalFileBlob(path.with_name('operations.json') if operations else path)
     else:
         raise StoreError('SUBSCRIBER_STORE must be "file" or "github".')
+    if operations:
+        return SubscriberStore(blob, crypto, empty_operations, prune_operations)
     return SubscriberStore(blob, crypto)

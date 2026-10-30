@@ -73,6 +73,8 @@ The **same two values** must go into Streamlit secrets and into GitHub Actions s
 | `SUBSCRIBER_STORE_FILE`, `SUBSCRIBER_STORE_BRANCH` | optional | – | defaults `subscribers.json`, `main` |
 | `SUBSCRIBER_ALERTS_ENABLED` | – | **repository variable** | `true` to send warnings to subscribers |
 | `ADMIN_PASSWORD` | ✔ (existing) | – | administrator sign-in |
+| `OFFICIAL_ACCOUNTS` | ✔ | – | one `username:pbkdf2_sha256$...` line per official, from `23_create_official_account.py` |
+| `OPERATIONS_STORE_FILE` | optional | – | default `operations.json` (acknowledgements and officials' records, same private repository) |
 
 In **Streamlit Cloud**, add the settings under App → Settings → Secrets (TOML):
 

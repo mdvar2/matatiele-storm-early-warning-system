@@ -105,7 +105,10 @@ Residents can register their own mobile number for SMS storm warnings on the das
 - [Resident User Manual](docs/RESIDENT_USER_MANUAL.md)
 - [Administrator and System Maintenance Manual](docs/ADMINISTRATOR_AND_MAINTENANCE_MANUAL.md)
 - [Deployment and Configuration](docs/DEPLOYMENT_AND_CONFIGURATION.md), including the Twilio trial restriction and the POPIA notes
-- [End-to-end test evidence](evaluation_reports/integrated_application_evidence_2026-10-30/README.md)
+- [System design: stakeholders, use case diagram, architecture and activity diagrams](docs/SYSTEM_DESIGN.md)
+- [End-to-end test evidence](evaluation_reports/integrated_application_evidence_2026-10-30/README.md) and [warning interactions evidence](evaluation_reports/warning_interactions_evidence_2026-10-30/README.md)
+
+Authorised disaster-management officials use a separate decision-support portal at `?portal=officials`, with individual accounts. Residents can view and acknowledge warnings and call emergency numbers from the **Alerts** page.
 
 ## Beta Status and Limitations
 

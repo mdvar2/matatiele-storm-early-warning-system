@@ -110,9 +110,34 @@ Delivery statuses are not pushed to the dashboard; there is no webhook. **Refres
 
 - **On:** in the repository, go to Settings → Secrets and variables → Actions → Variables, and set `SUBSCRIBER_ALERTS_ENABLED` = `true`.
 - **Off (emergency stop):** set it to `false` or delete it. The next hourly run skips subscribers and records `subscriber_alerts: disabled`. Residents can still register.
-- **Close registration:** set `SMS_DELIVERY_MODE` to `disabled` in Streamlit secrets. The SMS Alerts page then says registration is not open.
+- **Close registration:** set `SMS_DELIVERY_MODE` to `disabled` in Streamlit secrets. **Alerts → SMS alerts** then says registration is not open.
 
-## 8. Troubleshooting
+## 8. Officials' decision-support portal
+
+Officials sign in at the dashboard address with `?portal=officials`. The portal is never linked from the resident pages. Each official has an individual account, and the administrator password does not open the portal.
+
+**Creating an account** (owner or administrator):
+1. Run `python 23_create_official_account.py`, then type the username and password. The password is not shown or saved.
+2. Add the printed line (`username:pbkdf2_sha256$...`) to the `OFFICIAL_ACCOUNTS` secret in Streamlit, one line per official.
+3. To remove an account, delete its line.
+
+**What officials can do:**
+- review active warnings, their timestamps and aggregate acknowledgements;
+- view the ECMWF rainfall forecast around Matatiele;
+- set a review or response status (*Under review, Monitoring, Response coordinated outside this system, Closed - no further action*) and add notes;
+- review the history of warnings and actions, and download the actions as CSV.
+
+Every record carries the official's username and the time. The portal does **not** dispatch or contact emergency services.
+
+**Sign-in lockout:** after 10 wrong attempts in 15 minutes, sign-in is locked for 15 minutes for every session, counted separately from the administrator lockout.
+
+**Records** are kept in `operations.json`, beside the subscriber file (or in the same private repository), and are not deleted automatically.
+
+**Acknowledgement counts** are anonymous device counts. They indicate engagement; they are not counts of people, and are not proof of safety. A resident who clears their browser storage can acknowledge again, so treat the counts as indicative.
+
+**Demonstrations on a development computer:** `SMS_DELIVERY_MODE=outbox python 24_create_dev_test_warning.py` creates one warning labelled *development test - not a real warning*, through the worker's real subscriber hook. It refuses to run against the real store and never touches the public ledger.
+
+## 9. Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
@@ -120,5 +145,5 @@ Delivery statuses are not pushed to the dashboard; there is no webhook. **Refres
 | `subscriber_alerts: failed` with `subscriber_error: StoreError` | Store repository, token or keys are missing or wrong. |
 | Admin page: *Subscriber store unavailable* | The same, in Streamlit secrets. |
 | *SMS registration is temporarily unavailable* | Store or Twilio configuration is incomplete in Streamlit secrets. |
-| Warning History says *temporarily unavailable* | The GitHub API could not be reached or is rate-limited. It retries after 10 minutes. |
+| Alerts says *the public warning record could not be reached* | The GitHub API could not be reached or is rate-limited. It retries after 10 minutes. |
 | A resident received two SMS for one warning | Their number is also in `ALERT_TO_NUMBERS`, the original fixed recipient list. Remove it from one of the two lists. |

@@ -29,15 +29,19 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 | **About this estimate and full safety advice** | Tap to open the full explanation, the area covered, the model caveat and the complete safety advice. |
 | **Rainfall forecast map** | Forecast rain around Matatiele. **Map data and method** explains how it is made. It is not radar. |
 
-On a phone, the page buttons (Dashboard, Safety Advice, SMS Alerts, …) appear under the title. On a computer, they appear in the left-hand menu.
+The menu bar under the title has **Home, Alerts, Forecast, Map, Safety, Risk Analysis, Historical Data** and **About**. On a phone it wraps onto several lines.
+
+The homepage also shows:
+- a **banner** at the top saying whether a storm warning is in effect;
+- **Official weather warnings (SAWS)**, a link to the South African Weather Service;
+- **Emergency contacts**: tap a number to call it from a phone.
 
 **Slow or expensive data?** Use the **Low-data text version** link. It shows the same information as plain text.
 
 ### Other pages
 
 - **Safety Advice:** what to do before, during and after a storm.
-- **SMS Alerts:** register for, check or cancel SMS warnings (see below).
-- **Warning History:** every genuine storm warning the system has issued. It never shows who received an SMS.
+- **Alerts:** current and past storm warnings, warning details, emergency contacts, and **SMS alerts** (register, check or cancel; see below). Who received an SMS is never shown.
 - **Live Forecast, Weather Map, Risk Analysis, Historical Data:** more detail for interested users.
 - **About:** how the system works, and its limits.
 
@@ -45,7 +49,7 @@ On a phone, the page buttons (Dashboard, Safety Advice, SMS Alerts, …) appear 
 
 You need a South African mobile number, for example `082 123 4567` or `+27 82 123 4567`. Landlines and toll-free numbers cannot receive warnings.
 
-1. Open **SMS Alerts** and stay on the **Subscribe** tab.
+1. Open **Alerts**, choose **SMS alerts**, and stay on the **Subscribe** tab. (The **Get free SMS storm warnings** button on the homepage goes straight there.)
 2. Enter your mobile number.
 3. Check that the warning area is **Matatiele (town and immediate surroundings)**. This is currently the only area.
 4. Read the agreement and tick **I agree to receive SMS storm warnings…**.
@@ -71,7 +75,7 @@ If your number is **already registered**, you receive an SMS that says so instea
 
 ## 4. Checking or cancelling your subscription
 
-1. Open **SMS Alerts**, then the **Manage my subscription** tab.
+1. Open **Alerts** → **SMS alerts**, then the **Manage my subscription** tab.
 2. Enter your registered mobile number and press **Send code**.
 3. Enter the 6-digit code from the SMS and press **Confirm**.
 4. Your status appears: **Active**, the area, and the date you joined.
@@ -82,7 +86,22 @@ To protect your privacy, the page never says whether a number is registered. Onl
 
 **Replying STOP:** if you reply STOP to a warning SMS and the SMS provider reports it, the system unsubscribes you automatically. Some sender numbers cannot receive replies, so **the web page is the reliable way to unsubscribe**.
 
-## 5. What a warning SMS looks like
+## 5. Storm warnings on the Alerts page
+
+1. Open **Alerts**. The banner says whether a warning is in effect. **Current warnings** and **Past warnings** are listed below it.
+2. Press **View** on a warning to see:
+   - its severity;
+   - the forecast period (the hour the warning covers);
+   - the location;
+   - the model estimate;
+   - when it was issued;
+   - short actions under **Act now**, with full advice one tap away.
+3. Press **I have read this warning** to acknowledge it. **This only records that the warning was viewed on your device.** It does not tell anyone you are safe, and it does not ask for help. Each device can acknowledge a warning once; if you return later, the page shows when you acknowledged it.
+4. If you need help, tap **10111** (police), **10177** (ambulance and fire) or **112** (any emergency from a cellphone). Calls go to national emergency services, not to this system.
+
+A warning marked **DEVELOPMENT TEST · not a real warning** appears only on a project computer during testing or demonstrations.
+
+## 6. What a warning SMS looks like
 
 ```
 MATATIELE MODEL ALERT: 30 Oct 09:00-10:00 SAST. Storm risk 62%. If severe weather
@@ -91,14 +110,15 @@ develops, stay indoors. Avoid lightning/flooded roads. Check SAWS.
 
 The SMS gives the hour of the expected storm and the model's estimate. You receive **at most one SMS per warning hour**.
 
-## 6. Your information
+## 7. Your information
 
 - The system asks only for your mobile number and area, and records the date you gave consent.
 - Your number is stored encrypted. Staff screens show only a partly hidden number.
-- Your number is never published, and never shown on the Warning History page.
+- Your number is never published, and never shown with warnings.
+- Acknowledging a warning stores only a random code kept in your browser (scrambled before it is saved) and the time. It does not store your name or number.
 - When you unsubscribe, the encrypted number is deleted.
 - A number that is never verified is deleted after 2 days. Records of cancelled subscriptions and of sent messages are deleted after 30 days.
 
-## 7. If SMS registration is closed
+## 8. If SMS registration is closed
 
 You may see *SMS registration is not open yet*. This means the project team has not switched on the SMS service. The dashboard, safety advice and warning history still work.

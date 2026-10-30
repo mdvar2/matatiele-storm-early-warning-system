@@ -94,16 +94,17 @@ class RedesignedDashboard(rd.DashboardHarness):
         style = json.loads(__import__('base64').b64decode(spec['mapStyle'].split(',', 1)[1]))
         self.assertEqual(style['sources'], {})  # no map tiles are requested
 
-    def test_mobile_navigation_reaches_every_section(self):
+    def test_top_navigation_reaches_every_section(self):
         self.write_prediction(.05)
         at = self.app().run()
-        nav = next(g for g in at.button_group if g.key == 'mobile_nav_choice')
-        self.assertEqual(len(nav.options), 10)  # 8 sections plus SMS Alerts and Warning History
+        nav = next(g for g in at.button_group if g.key == 'top_nav')
+        self.assertEqual(len(nav.options), 8)  # Home, Alerts, Forecast, Map, Safety and three research sections
+        self.assertFalse([b for b in at.button if (b.key or '').startswith('nav_🏠')])  # one navigation, not two
         nav.set_value('🛟 Safety Advice').run()
         self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
         self.assertIn('Full advice for when a storm is close', '\n'.join(c.value for c in at.caption))
-        self.button(at, 'Historical Data').click().run()  # sidebar navigation still works and stays in sync
-        self.assertEqual(at.session_state['mobile_nav_choice'], '🕒 Historical Data')
+        self.go(at, 'Historical Data')
+        self.assertEqual(at.session_state['top_nav'], '🕒 Historical Data')
 
     def test_text_view_loads_no_theme_or_animation(self):
         self.write_prediction(.05)
@@ -111,7 +112,7 @@ class RedesignedDashboard(rd.DashboardHarness):
         page = self.html(at)
         self.assertNotIn('<style>', page)
         self.assertNotIn('@keyframes', page)
-        self.assertEqual([g for g in at.button_group if g.key == 'mobile_nav_choice'], [])
+        self.assertEqual([g for g in at.button_group if g.key == 'top_nav'], [])
 
 
 if __name__ == '__main__':

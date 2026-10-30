@@ -59,7 +59,13 @@ class SmsJourney(rd.DashboardHarness):
     def open_alerts(self, **query):
         self.write_prediction(.05)
         at = self.app(**query).run()
-        self.button(at, 'SMS Alerts').click().run()
+        self.go(at, 'Alerts')
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value('📲 SMS alerts').run()
+        return at
+
+    def warnings_view(self, at):
+        self.go(at, 'Alerts')
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value('⚠️ Warnings').run()
         return at
 
     def subscribe_via_ui(self, at, phone=PHONE):
@@ -173,8 +179,8 @@ class SmsJourney(rd.DashboardHarness):
 
     def test_public_pages_never_show_phone_numbers(self):
         at = self.subscribe_via_ui(self.open_alerts())
-        for label in ('Dashboard', 'Safety Advice', 'Warning History', 'Alerts & Notifications', 'About'):
-            self.button(at, label).click().run()
+        for label in ('Dashboard', 'Safety Advice', 'Alerts', 'About'):
+            self.warnings_view(at) if label == 'Alerts' else self.go(at, label)
             self.assertNotRegex(self.text(at), r'0?82\s?123\s?4567|\+?27821234567|\*\*\*', label)
 
     def test_warning_history_lists_genuine_warnings(self):
@@ -182,25 +188,22 @@ class SmsJourney(rd.DashboardHarness):
         st.cache_data.clear()
         sample = [{'forecast_hour_utc': '2026-11-02T15:00:00+00:00', 'issued_at_utc': '2026-11-02T14:05:40Z', 'record': 'https://github.com/x/issues/9'}]
         with patch.object(alerts, 'ledger_warnings', return_value=sample):
-            at = self.open_alerts()
-            self.button(at, 'Warning History').click().run()
-        frame = at.dataframe[0].value
-        self.assertEqual(frame['Warning period (SAST)'].tolist(), ['02 Nov 2026 16:00 - 17:00'])
+            at = self.warnings_view(self.open_alerts())
+        self.assertIn('02 Nov 2026 16:00 - 17:00 SAST', self.text(at))
+        self.assertIn('Past warnings', self.text(at))
         st.cache_data.clear()
         with patch.object(alerts, 'ledger_warnings', return_value=[]):
-            at = self.open_alerts()
-            self.button(at, 'Warning History').click().run()
+            at = self.warnings_view(self.open_alerts())
         self.assertIn('No storm warnings have been issued', self.text(at))
         st.cache_data.clear()  # network refused by the harness: the page says so instead of failing
-        at = self.open_alerts()
-        self.button(at, 'Warning History').click().run()
-        self.assertIn('temporarily unavailable', self.text(at))
+        at = self.warnings_view(self.open_alerts())
+        self.assertIn('could not be reached', self.text(at))
 
     def test_simulation_never_reaches_subscribers(self):
         at = self.subscribe_via_ui(self.open_alerts(admin='1'))
         self.login(at)
         at.toggle(key='presentation_test_mode').set_value(True).run()
-        self.button(at, 'Dashboard').click().run()
+        self.go(at, 'Dashboard')
         self.assertIn(rd.rv.SIMULATION_LABEL, self.text(at))
         self.assertEqual([m for m in self.outbox() if m['kind'] == 'warning'], [])
         store = store_mod.open_store(os.environ.get)

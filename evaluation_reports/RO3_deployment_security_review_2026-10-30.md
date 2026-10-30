@@ -59,3 +59,15 @@ Not blockers, but recommended: a CAPTCHA on Subscribe; Twilio delivery webhooks 
 4. Delete the old repository.
 
 The keys stay the same.
+
+## 5. Addendum: warning interactions and the officials' portal
+
+| Area | Assessment |
+|---|---|
+| **Official authentication** | Each official has an individual account, with a PBKDF2-SHA256 hash (310,000 iterations) kept in the `OFFICIAL_ACCOUNTS` secret. No plain passwords are stored. Unknown usernames take the same time to check as known ones. Sign-in locks for 15 minutes after 10 failures, across all sessions. The portal appears only at `?portal=officials`: a URL parameter alone grants nothing, and the administrator password does not open it. |
+| **Attribution** | Every review status and note is stored with the official's username and a UTC timestamp, in an append-only actions list that is not deleted automatically. |
+| **No dispatch** | The portal records decisions taken outside the system. No status triggers a message, a call or a dispatch (`test_no_dispatch_status_exists`). |
+| **Acknowledgements** | One per device and warning. The server stores only a keyed hash of a random identifier held in the browser's local storage. Acknowledgements are anonymous and say nothing about anyone's safety; the wording is tested. **Limitation:** clearing browser storage or using another browser allows another acknowledgement, so counts are *indicative engagement*, not verified people. |
+| **Genuine data only** | Warnings come from the public ledger the worker writes. Development test warnings exist only in local outbox mode, which is refused against the real store, and are labelled "not a real warning" on every screen. The simulation creates no warnings or records (`test_simulation_creates_no_warning_events`). |
+| **Emergency numbers** | Only the national numbers 10111, 10177 and 112, checked against SAPS and government sources. No local number is listed until one is verified (open item for the owner). |
+| **New blocker** | **B8:** before officials use the portal, confirm with the municipality who is authorised, create their accounts, and agree how long operational records are kept. |

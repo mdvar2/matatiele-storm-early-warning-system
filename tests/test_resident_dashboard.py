@@ -198,6 +198,10 @@ class SmsPreviewNeverSends(unittest.TestCase):
         self.assertFalse({c for c in called if c.startswith('send') or c in {'open', 'write_text', 'to_csv', 'create'}})
 
 
+SECTIONS = ('🏠 Dashboard', '🚨 Alerts', '🌦️ Live Forecast', '🗺️ Weather Map', '🛟 Safety Advice', '📈 Risk Analysis',
+            '🕒 Historical Data', 'ℹ️ About')  # internal page keys behind the top navigation labels
+
+
 class DashboardHarness(unittest.TestCase):
     """The real 16_dashboard.py, run hermetically with Streamlit's AppTest. Defines no tests."""
 
@@ -206,8 +210,10 @@ class DashboardHarness(unittest.TestCase):
         from streamlit.testing.v1 import AppTest  # noqa: F401  (skip cleanly if unavailable)
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
         for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
-                     'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py'):
+                     'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
+        shutil.copytree(ROOT / 'components', cls.tmp / 'components')
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
         cls.model = cls.tmp / 'outputs' / 'model_live'
         cls.model.mkdir(parents=True)
@@ -263,6 +269,12 @@ class DashboardHarness(unittest.TestCase):
 
     def button(self, at, label):
         return next(b for b in at.button if b.label == label)
+
+    def go(self, at, section):
+        """Navigate with the top navigation bar (sections keep their internal names, e.g. 'Safety Advice')."""
+        nav = next(g for g in at.button_group if g.key == 'top_nav')
+        nav.set_value(next(o for o in SECTIONS if o.endswith(section))).run()
+        return at
 
     def digest(self):
         return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(self.model.glob('*.csv'))}
@@ -349,7 +361,7 @@ class DashboardApp(DashboardHarness):
         self.assertFalse(sms_alert.sms_is_configured())
 
     def navigate(self, at, label):
-        self.button(at, label).click().run()
+        self.go(at, label)
 
     def test_url_parameters_alone_never_grant_admin_or_simulation(self):
         self.write_prediction(.05)
@@ -409,9 +421,9 @@ class DashboardApp(DashboardHarness):
     def test_operational_information_is_admin_only(self):
         self.write_prediction(.05)
         at = self.app(admin='1').run()
-        self.navigate(at, 'Alerts & Notifications')
+        self.navigate(at, 'Alerts')
         public = self.html(at)
-        self.assertIn('How storm warnings reach you', '\n'.join(m.value for m in at.markdown) + public)
+        self.assertIn('How storm warnings reach you', [e.label for e in at.expander])
         for operational in ('MANAGED BY GITHUB ACTIONS', 'ACTIONS ONLY'):
             self.assertNotIn(operational, public)
         self.assertNotIn('Operational status (administrators)', '\n'.join(m.value for m in at.markdown))

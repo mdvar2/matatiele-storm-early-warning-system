@@ -36,6 +36,10 @@ from sms_alert import sms_is_configured, send_test_sms
 import resident_view
 import dashboard_theme
 import resident_pages
+import resident_alerts
+import official_portal
+import emergency_contacts
+import warning_events
 
 BASE = Path(__file__).resolve().parent
 MODEL = BASE / 'outputs' / 'model_live'
@@ -141,6 +145,10 @@ LOGIN_WINDOW_SECONDS,MAX_FAILED_LOGINS=900,10
 @st.cache_resource
 def failed_logins() -> list[float]:
     # Shared by every session of this server process: a new browser session cannot reset it.
+    return []
+
+@st.cache_resource
+def failed_official_logins() -> list[float]:
     return []
 
 def refresh_due(state: RefreshState, now: datetime, force: bool=False) -> bool:
@@ -413,14 +421,10 @@ sidebar = cast(Any, st.sidebar)
 if 'admin_authenticated' not in st.session_state:st.session_state.admin_authenticated=False
 with sidebar:
     st.html(f'<div class="brand">{ui_icon("cloud")}<div><strong>Matatiele</strong><span>Storm Early Warning</span><small>Eastern Cape · Research Beta</small></div></div>')
-    navigation = ['🏠 Dashboard','🛟 Safety Advice','🔔 SMS Alerts','📜 Warning History','🌦️ Live Forecast','🗺️ Weather Map','📈 Risk Analysis','🕒 Historical Data','📱 Alerts & Notifications','ℹ️ About']
+    navigation = ['🏠 Dashboard','🚨 Alerts','🌦️ Live Forecast','🗺️ Weather Map','🛟 Safety Advice','📈 Risk Analysis','🕒 Historical Data','ℹ️ About']
+    NAV_LABELS = {'🏠 Dashboard':'🏠 Home','🌦️ Live Forecast':'🌦️ Forecast','🗺️ Weather Map':'🗺️ Map','🛟 Safety Advice':'🛟 Safety'}
     if 'dashboard_page' not in st.session_state:st.session_state.dashboard_page=navigation[0]
-    nav_icons=['home','health_and_safety','sms','history','partly_cloudy_day','public','monitoring','insert_chart','notifications','info']
-    for item,nav_icon in zip(navigation,nav_icons):
-        if st.button(item.split(' ',1)[1],icon=f':material/{nav_icon}:',key='nav_'+item,width='stretch',
-                     type='primary' if st.session_state.dashboard_page==item else 'secondary'):
-            st.session_state.dashboard_page=item
-            st.rerun()
+    if st.session_state.dashboard_page in ('🔔 SMS Alerts','📜 Warning History','📱 Alerts & Notifications'):st.session_state.dashboard_page='🚨 Alerts'
     page=st.session_state.dashboard_page
     st.divider()
     # The login is shown only via ?admin=1 (or while signed in), never in the text view;
@@ -462,13 +466,15 @@ with sidebar:
     if page=='🛠️ Administration' and not is_admin:page=st.session_state.dashboard_page=navigation[0]
 
 if not text_view:st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Is a storm likely in Matatiele in the next hour, and what should you do?</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
-if not text_view:
-    # Small screens hide the sidebar behind a menu, so the same sections are offered here too.
-    st.session_state.mobile_nav_choice=page if page in navigation else None
-    def _go_to_mobile_section():
-        if st.session_state.get('mobile_nav_choice'):st.session_state.dashboard_page=st.session_state.mobile_nav_choice
-    with st.container(key='mobile_nav'):
-        st.segmented_control('Dashboard section',navigation,key='mobile_nav_choice',on_change=_go_to_mobile_section,label_visibility='collapsed')
+# Officials use a separate portal (?portal=officials); it has its own sign-in and never shows resident pages.
+portal_mode=st.query_params.get('portal')=='officials' and not text_view
+if not text_view and not portal_mode:
+    # One navigation bar for every screen size.
+    st.session_state.top_nav=page if page in navigation else None
+    def _go_to_section():
+        if st.session_state.get('top_nav'):st.session_state.dashboard_page=st.session_state.top_nav
+    with st.container(key='top_nav_bar'):
+        st.segmented_control('Section',navigation,key='top_nav',format_func=lambda item:NAV_LABELS.get(item,item),on_change=_go_to_section,label_visibility='collapsed')
 
 st.session_state.refresh_clock_count=0
 refresh_clock()
@@ -536,28 +542,68 @@ if is_admin and not test_mode and not stale and threshold<=real_prob<=1:
 # Show real data in every chart. Do not invent a spatial rainfall/radar field.
 forecast_status='OUTDATED' if stale else 'FIXED HOURLY TARGET'
 model_status='FILE AVAILABLE' if (MODEL/'random_forest_live_model.pkl').exists() else 'MODEL FILE MISSING'
-def weather_card(key: str) -> None:
+def weather_card() -> None:
     """Forecast weather for Matatiele from the saved model input (ECMWF), never an observation."""
-    with st.container(border=True,key=key):
-        panel_title('Weather · next hour (forecast)','cloud')
-        condition_kind,condition_label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
-        details=[('Gusts',weather_value(number(latest,'wind_gust_ms'),'m/s')),('Cloud',weather_value(number(latest,'cloud_cover_percent'),'%',0)),('Pressure',weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
-        detail_html=''.join(f'<div class="weather-detail"><span>{label}</span><strong>{value}</strong></div>' for label,value in details)
-        forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
-        st.html(f'<div class="weather-body"><div class="weather-primary">{svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label)}<div class="temperature">{weather_value(number(latest,"temperature_c"),chr(176)+"C")}</div><div class="condition">{html.escape(condition_label)}<small>🌧️ Rainfall {weather_value(number(latest,"precipitation_mm"),"mm")} · 💨 Wind {weather_value(number(latest,"wind_speed_ms"),"m/s")}</small></div></div><div>{detail_html}</div></div><div class="weather-status">{"OUTDATED SAVED CONDITIONS" if stale else f"ECMWF forecast for {forecast_hour} - not an observation"}</div>')
+    condition_kind,condition_label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
+    forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
+    usable=math.isfinite(real_prob) and 0<=real_prob<=1
+    tiles=[('🌧️','Rainfall',weather_value(number(latest,'precipitation_mm'),'mm'),'Forecast hour'),
+           ('💨','Wind',weather_value(number(latest,'wind_speed_ms'),'m/s'),'Gusts '+weather_value(number(latest,'wind_gust_ms'),'m/s')),
+           ('☁️','Cloud',weather_value(number(latest,'cloud_cover_percent'),'%',0),'Pressure '+weather_value(number(latest,'pressure_msl_hpa'),'hPa',0)),
+           ('⛈️','Storm risk',f'{real_prob:.0%}' if usable else 'n/a','Next hour (model)')]
+    st.html(dashboard_theme.weather_card_html(svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label),
+        weather_value(number(latest,'temperature_c'),chr(176)+'C'),condition_label,'Weather · next hour (forecast)',tiles,
+        'OUTDATED SAVED CONDITIONS' if stale else f'ECMWF forecast for {forecast_hour} - not an observation',
+        f'Updated {updated_label}' if updated_label else ''))
+
+def hourly_forecast() -> None:
+    """Genuine ECMWF hourly values at the Matatiele grid point (no imputation; missing hours are omitted)."""
+    hours=six_hour_forecast(state.regional,datetime.now(SAST),complete_intervals=True)
+    if hours.empty:
+        st.caption('Hourly forecast unavailable until the next successful forecast retrieval.');return
+    cells=[]
+    for _,row in hours.iterrows():
+        kind,label=dashboard_theme.weather_condition(number(row,'precipitation'),number(row,'cloud_cover'),row['time'].hour)
+        cells.append((f'{row["time"]:%H:%M}',svg_image(dashboard_theme.weather_icon_svg(kind),label),
+                      weather_value(number(row,'temperature_2m'),chr(176),0),weather_value(number(row,'precipitation'),'mm'),
+                      weather_value(number(row,'wind_speed_10m'),'m/s')))
+    st.html('<div class="section-title">Next hours <small>ECMWF forecast for Matatiele, hour ending (SAST)</small></div>'+dashboard_theme.hourly_html(cells))
+
+def open_sms_alerts() -> None:
+    st.session_state.dashboard_page='🚨 Alerts';st.session_state.alerts_view=resident_alerts.VIEWS[1]
+    st.session_state.pop('alert_selected',None)
+
+def open_warning(key: str) -> None:
+    st.session_state.dashboard_page='🚨 Alerts';st.session_state.alerts_view=resident_alerts.VIEWS[0]
+    st.session_state.alert_selected=key
+
+# The banner and officials always use the genuine estimate; only the resident card shows the simulation.
+genuine_status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,stale,False)
+if portal_mode:
+    official=official_portal.sign_in(secret,failed_official_logins(),LOGIN_WINDOW_SECONDS,MAX_FAILED_LOGINS)
+    if official:
+        events,_=resident_alerts.load_events(secret)
+        operations,operations_error=resident_alerts.operations_store(secret)
+        regional_now,regional_hour=upcoming_regional(state.regional)
+        official_portal.render(official,events,operations,operations_error,regional_now,regional_hour,genuine_status)
+    st.stop()
 
 if page=='🏠 Dashboard':
-    hero_risk,hero_weather=st.columns([1.3,1],gap='small')
-    with hero_risk:
-        st.html(resident_view.hero_html(resident))
-    with hero_weather:
-        weather_card('weather_card')
-    actions,cta=st.columns([2.6,1],gap='small',vertical_alignment='center')
-    with actions:
-        st.html(resident_view.quick_actions_html(advice))
-    with cta:
-        if st.button('🔔 Get free SMS storm warnings',key='cta_sms_alerts',type='primary',width='stretch'):
-            st.session_state.dashboard_page='🔔 SMS Alerts';st.rerun()
+    events,_=resident_alerts.load_events(secret)
+    active_events=[e for e in events if warning_events.is_active(e)]
+    st.html(resident_alerts.status_banner_html(active_events,genuine_status))
+    if active_events:
+        st.button('Open the warning',key='home_open_warning',on_click=open_warning,args=(active_events[0]['key'],),type='primary',icon=':material/warning:')
+    st.html(resident_view.hero_html(resident))
+    left,right=st.columns([2,1],gap='medium')
+    with left:
+        weather_card()
+        hourly_forecast()
+    with right:
+        st.link_button('Official weather warnings (SAWS)',resident_alerts.SAWS_URL,icon=':material/campaign:',type='primary',width='stretch')
+        st.button('🔔 Get free SMS storm warnings',key='cta_sms_alerts',on_click=open_sms_alerts,width='stretch')
+        st.html(emergency_contacts.contacts_html())
+    st.html(resident_view.quick_actions_html(advice))
     with st.expander('📖 About this estimate and full safety advice'):
         st.html(resident_view.details_html(resident))
         st.html(resident_view.guidance_html(advice))
@@ -633,7 +679,7 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
             st.caption('Town labels are geographic references. The Random Forest storm prediction applies only to Matatiele.')
         if regional.empty or regional_stale:st.info('Matatiele is shown in red. Refresh to retrieve genuine regional rainfall forecasts.')
     with right:
-        if page!='🏠 Dashboard':weather_card('weather_card')
+        if page!='🏠 Dashboard':weather_card()
         with st.container(border=True,key='risk_card'):
             panel_title('Next-hour prediction','risk')
             usable=math.isfinite(prob) and 0<=prob<=1
@@ -716,13 +762,8 @@ if page in ('🌦️ Live Forecast','📈 Risk Analysis'):
         st.caption('Low <10%; Elevated 10% to <20%; Moderate 20% to <35%; Warning >=35%. History contains saved predictions, not a six-hour model forecast.')
 
 
-if page=='📱 Alerts & Notifications':
-    panel_title('How storm warnings reach you','warning')
-    st.html('<div class="resident-guidance"><ul>'
-            '<li><b>Every hour</b> the system checks the next-hour storm risk for Matatiele automatically, even when nobody has this page open.</li>'
-            '<li><b>If the model estimate reaches the warning level</b>, a short SMS warning is sent to the phone numbers registered for this research trial. An SMS needs only mobile signal: no data or smartphone.</li>'
-            '<li><b>During the research trial</b>, only registered numbers receive SMS. Use this page or the low-data text version to check the current status.</li>'
-            '<li><b>This is a research prototype.</b> Always follow official warnings from the South African Weather Service (SAWS).</li></ul></div>')
+if page=='🚨 Alerts':
+    resident_alerts.render_alerts(secret,genuine_status)
     if is_admin:
         st.markdown('**Operational status (administrators)**')
         a,b,c=st.columns(3)
@@ -737,10 +778,6 @@ if page=='📱 Alerts & Notifications':
             except Exception:st.info('SMS log is currently unavailable.')
         st.info('Automatic storm-warning checks are handled by an independent GitHub Actions scheduled worker. The dashboard does not need to remain open.')
 
-if page=='🔔 SMS Alerts':
-    resident_pages.render_sms_alerts(secret)
-if page=='📜 Warning History':
-    resident_pages.render_warning_history()
 if page=='🛠️ Administration' and is_admin:
     health={'Prediction data':'Outdated' if stale else 'Fresh',
             'Last forecast update':updated_label or 'Unknown',

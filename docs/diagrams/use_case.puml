@@ -1,0 +1,85 @@
+@startuml use_case
+!pragma layout smetana
+title Matatiele Smart Resilient Storm Early Warning System - Use Case Diagram
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #EEF6FF
+  BorderColor #1D4ED8
+}
+skinparam actorStyle awesome
+
+actor "Resident" as Resident
+actor "Disaster-management\nofficial" as Official
+actor "Administrator /\ndeveloper" as Admin
+actor "Time\n(hourly schedule)" as Clock
+
+actor "Weather data provider\n(ECMWF via Open-Meteo)" as Weather <<external system>>
+actor "Telecommunications provider\n(SMS gateway, mobile networks)" as Telecom <<external system>>
+actor "Emergency services\n(SAPS 10111, 10177, 112)" as Emergency <<external>>
+
+rectangle "Storm Early Warning System" {
+  rectangle "Resident services" {
+    usecase "View storm risk\nand forecast" as UC_Risk
+    usecase "View safety advice" as UC_Safety
+    usecase "View warnings\n(current and past)" as UC_Warnings
+    usecase "View warning details" as UC_Details
+    usecase "Acknowledge warning" as UC_Ack
+    usecase "Call emergency services" as UC_Call
+    usecase "Register for SMS warnings" as UC_Register
+    usecase "Manage or cancel\nSMS subscription" as UC_Manage
+    usecase "Verify phone number" as UC_Verify
+    usecase "Receive SMS storm warning" as UC_ReceiveSMS
+  }
+  rectangle "Decision support (authorised officials)" {
+    usecase "Sign in to decision-\nsupport portal" as UC_SignIn
+    usecase "Review active warnings\nand acknowledgements" as UC_Review
+    usecase "Record review status\nand notes" as UC_Record
+    usecase "View geographic risk" as UC_Geo
+    usecase "Review warning and\naction history" as UC_History
+  }
+  rectangle "Operations" {
+    usecase "Issue automatic\nstorm warning" as UC_Issue
+    usecase "Monitor system health\nand SMS delivery" as UC_Monitor
+    usecase "Retry failed SMS delivery" as UC_Retry
+    usecase "Run on-screen\nwarning simulation" as UC_Sim
+  }
+}
+
+Resident --> UC_Risk
+Resident --> UC_Safety
+Resident --> UC_Warnings
+Resident --> UC_Register
+Resident --> UC_Manage
+Resident --> UC_ReceiveSMS
+UC_Warnings <.. UC_Details : <<extend>>
+UC_Details <.. UC_Ack : <<extend>>
+UC_Details <.. UC_Call : <<extend>>
+UC_Register ..> UC_Verify : <<include>>
+UC_Manage ..> UC_Verify : <<include>>
+
+Official --> UC_Review
+Official --> UC_Geo
+Official --> UC_History
+UC_Review ..> UC_SignIn : <<include>>
+UC_Review ..> UC_Details : <<include>>
+UC_Review <.. UC_Record : <<extend>>
+
+Admin --> UC_Monitor
+Admin --> UC_Retry
+Admin --> UC_Sim
+Clock --> UC_Issue
+
+UC_Issue --> Weather
+UC_Issue --> Telecom
+UC_ReceiveSMS --> Telecom
+UC_Verify --> Telecom
+UC_Call --> Emergency
+
+note bottom of UC_Issue
+  Data collection, preprocessing, model inference,
+  risk classification and SMS delivery are internal
+  steps: see the architecture and activity diagrams.
+end note
+@enduml

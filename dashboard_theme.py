@@ -93,12 +93,13 @@ CSS = r"""
 .sidebar-note a {color:#8fd0ff}
 
 /* Mobile section navigation (sidebar is hidden behind a menu on small screens). */
-.st-key-mobile_nav {display:none}
-@media (max-width:900px) {.st-key-mobile_nav {display:block}}
-.st-key-mobile_nav [data-testid="stButtonGroup"] {width:100%}
-.st-key-mobile_nav [role="radiogroup"],.st-key-mobile_nav [data-testid="stButtonGroup"] > div {display:flex;flex-wrap:wrap;gap:6px}
-.st-key-mobile_nav button {border-radius:999px!important;min-height:40px;background:var(--chip)!important;color:var(--chip-text)!important;border:1px solid var(--card-border)!important}
-.st-key-mobile_nav button[aria-checked="true"],.st-key-mobile_nav button[kind*="Active"] {background:#0a6fd6!important;color:#fff!important;border-color:#0a6fd6!important}
+.st-key-top_nav_bar {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:6px 8px;box-shadow:var(--card-shadow)}
+.st-key-top_nav_bar [data-testid="stButtonGroup"] {width:100%}
+.st-key-top_nav_bar [role="radiogroup"],.st-key-top_nav_bar [data-testid="stButtonGroup"] > div {display:flex;flex-wrap:wrap;gap:6px}
+.st-key-top_nav_bar button {border-radius:12px!important;min-height:40px;background:transparent!important;color:var(--chip-text)!important;border:0!important;font-weight:600}
+.st-key-top_nav_bar button:hover {background:var(--accent-soft)!important}
+.st-key-top_nav_bar button[aria-checked="true"],.st-key-top_nav_bar button[kind*="Active"] {background:#1d4ed8!important;color:#fff!important}
+.st-key-top_nav_bar button[aria-checked="true"] p,.st-key-top_nav_bar button[kind*="Active"] p {color:#fff!important}
 
 /* Hero */
 .hero {display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 6px}
@@ -197,7 +198,7 @@ CSS = r"""
 .resident-guidance .resident-note {color:var(--muted)}
 .resident-action {font-size:18px;font-weight:800;color:var(--heading)}
 /* Homepage hero: compact status tile and short action chips. */
-.resident-card.hero-risk {min-height:208px;box-sizing:border-box;padding:22px 22px 18px 92px;animation:rise .5s ease-out both}
+.resident-card.hero-risk {box-sizing:border-box;padding:22px 22px 18px 92px;animation:rise .5s ease-out both}
 .resident-card.hero-risk.tone-red {animation:rise .5s ease-out both,alarm 2.6s ease-in-out 1s infinite}
 .hero-estimate {display:inline-block;margin:12px 0 10px;padding:7px 14px;border-radius:999px;background:var(--r-badge);
   color:var(--heading);font-weight:800;font-size:clamp(15px,1.5vw,19px)}
@@ -211,7 +212,46 @@ CSS = r"""
 .action-chip i {font-style:normal}
 .st-key-weather_card {animation:rise .6s ease-out .1s both}
 .st-key-weather_card .temperature {font-size:clamp(34px,3.4vw,46px)}
-@media (min-width:1100px) {.resident-card.hero-risk {min-height:292px}}
+/* Alerts: status banner, warning cards, contacts (tap to call). */
+.alert-banner {border-radius:18px;padding:14px 18px 14px 20px;border:1px solid;box-shadow:var(--card-shadow);margin-bottom:4px}
+.alert-banner.green {background:#ecfdf3;border-color:#86d9a8;color:#0b3d24}.alert-banner.red {background:#fff0f1;border-color:#f08a96;color:#5c0a16}
+.alert-banner.amber {background:#fff6e0;border-color:#e6b04a;color:#4a3000}
+.ab-kicker {font-size:11.5px;font-weight:800;letter-spacing:1.2px;opacity:.85}.ab-title {font-size:17px;font-weight:800;margin:3px 0}
+.ab-text {font-size:14px}
+.alert-banner.red {animation:alarm 2.6s ease-in-out infinite}
+.warn-card {background:var(--card);border:1px solid var(--card-border);border-left:6px solid #8a9bb0;border-radius:14px;padding:10px 14px;box-shadow:var(--card-shadow)}
+.warn-card.active {border-left-color:#e11d48}
+.warn-top {display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--heading)}
+.warn-meta {display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin-top:5px}
+.warn-badge {font-size:11px;font-weight:800;letter-spacing:.6px;border-radius:999px;padding:3px 9px}
+.warn-badge.live {background:#e11d48;color:#fff}.warn-badge.past {background:#dfe6ee;color:#334155}.warn-badge.test {background:#7a4b00;color:#fff}
+.contacts-card {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:14px;box-shadow:var(--card-shadow)}
+.contacts-head {display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.contacts-head small {text-transform:none;letter-spacing:0;font-weight:500}
+.call-row {display:flex;gap:12px;align-items:center;padding:10px 12px;margin:6px 0;border-radius:12px;border:1px solid var(--card-border);
+  background:var(--card-solid);text-decoration:none!important;color:var(--text)!important}
+.call-row:hover,.call-row:focus-visible {border-color:#dc2626;outline:none}
+.call-icon {display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#dc2626;flex-shrink:0}
+.call-row b {display:block;font-size:19px;color:var(--heading)}.call-row small {color:var(--muted);font-size:12.5px}
+.contacts-note {font-size:11.5px;color:var(--muted);margin-top:8px}
+.portal-note {background:var(--accent-soft);border:1px solid var(--card-border);border-radius:12px;padding:9px 14px;font-size:13px;color:var(--text)}
+/* Blue weather card and hourly strip (genuine ECMWF forecast values only). */
+.wx-card {background:linear-gradient(135deg,#1e40af,#2563eb 55%,#3b82f6);color:#fff;border-radius:22px;padding:18px 22px;box-shadow:0 14px 30px #1e3a8a40;animation:rise .6s ease-out both}
+.wx-top {display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#e0ecff}
+.wx-main {display:flex;justify-content:space-between;align-items:center;gap:12px}
+.wx-temp {font-size:clamp(48px,6vw,78px);font-weight:300;line-height:1.05;margin-top:6px}
+.wx-cond {font-size:20px;font-weight:700}.wx-sub {font-size:13px;color:#dbe8ff;margin-top:2px}
+.wx-main img {width:clamp(84px,9vw,124px);height:auto;filter:drop-shadow(0 6px 14px #0003)}
+.wx-tiles {display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.wx-tile {background:#ffffff1f;border:1px solid #ffffff33;border-radius:14px;padding:9px 11px}
+.wx-tile span {display:block;font-size:11px;font-weight:700;letter-spacing:.6px;color:#dbe8ff;text-transform:uppercase}
+.wx-tile b {display:block;font-size:18px;color:#fff}.wx-tile small {color:#dbe8ff;font-size:11.5px}
+.wx-status {font-size:11px;color:#dbe8ff;margin-top:10px}
+.hourly {display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
+.hour {flex:1 0 84px;background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;text-align:center;box-shadow:var(--card-shadow)}
+.hour .t {font-size:12.5px;font-weight:700;color:var(--muted)}.hour img {width:40px;height:40px}
+.hour b {display:block;font-size:17px;color:var(--heading)}.hour small {display:block;font-size:11px;color:var(--muted)}
+@media (max-width:640px) {.wx-tiles {grid-template-columns:repeat(2,1fr)}}
 @keyframes rise {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes alarm {0%,100%{box-shadow:var(--card-shadow)}50%{box-shadow:0 0 0 6px #ed394b33,var(--card-shadow)}}
 
@@ -234,13 +274,16 @@ CSS = r"""
   .resident-card.tone-red {--r-border:#ff6b80;--r-bg:linear-gradient(120deg,#43121c,#3a1020);--r-badge:#6a1d2c}
   .resident-card.tone-gray {--r-border:#8aa0bb;--r-bg:linear-gradient(120deg,#1c2a3d,#18263a);--r-badge:#2b3d55}
   .resident-card.tone-off {--r-border:#8aa0bb;--r-bg:linear-gradient(120deg,#1c2a3d,#18263a);--r-badge:#2b3d55}
+  .alert-banner.green {background:#0f3326;border-color:#2f8f5f;color:#d7f7e5}.alert-banner.red {background:#43121c;border-color:#ff6b80;color:#ffe1e6}
+  .alert-banner.amber {background:#3a2a0c;border-color:#e0a03a;color:#fff1c8}
+  .warn-badge.past {background:#2b3d55;color:#dbe7f5}.wx-card {background:linear-gradient(135deg,#0b2a6b,#1e40af 60%,#2457c5)}
   .resident-head {color:#f4f8fd}.resident-text {color:#dbe7f5}
   .resident-facts span {background:#ffffff12;border-color:#ffffff1f;color:#e3edf9}.resident-facts b,.resident-note {color:#b5c8de}
   .research-notice {background:#3d3216;color:#fff1c8;border-color:#b78e34}
   .clock-card {background:linear-gradient(120deg,#0b3f80,#0d5bb0)}
 }
 @media (prefers-reduced-motion: reduce) {
-  .stApp::before,.chip .dot,.weather-anim *,.resident-card.hero-risk,.st-key-weather_card {animation:none!important}
+  .stApp::before,.chip .dot,.weather-anim *,.resident-card.hero-risk,.st-key-weather_card,.wx-card,.alert-banner.red {animation:none!important}
   [data-testid="stSidebar"] [data-testid="stButton"] button {transition:none}
 }
 @media(max-width:1100px) {.hero {align-items:flex-start}.clock-card {padding:10px}.kpi {gap:7px;padding:12px 8px}.kpi-icon {width:34px;height:34px}
@@ -332,3 +375,22 @@ def status_strip(stale, updated, simulated, refresh_minutes=15):
     if simulated:
         chips.insert(0, '<span class="chip sim"><b>SIMULATION ON</b> &middot; on screen only</span>')
     return '<div class="status-strip">' + ''.join(chips) + '</div>'
+
+
+def weather_card_html(icon_img, temperature, condition, subtitle, tiles, status, updated=''):
+    """Blue forecast-weather card. Every value comes from the genuine ECMWF model input."""
+    e = html.escape
+    tile_html = ''.join(f'<div class="wx-tile"><span>{e(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
+                        for icon, label, value, detail in tiles)
+    return (f'<div class="wx-card"><div class="wx-top"><span>📍 Matatiele, Eastern Cape</span><span>{e(updated)}</span></div>'
+            f'<div class="wx-main"><div><div class="wx-temp">{e(temperature)}</div><div class="wx-cond">{e(condition)}</div>'
+            f'<div class="wx-sub">{e(subtitle)}</div></div>{icon_img}</div><div class="wx-tiles">{tile_html}</div>'
+            f'<div class="wx-status">{e(status)}</div></div>')
+
+
+def hourly_html(hours):
+    """hours: (label, icon_img, temperature, rain, wind) per forecast hour."""
+    e = html.escape
+    cells = ''.join(f'<div class="hour"><div class="t">{e(label)}</div>{icon}<b>{e(temp)}</b><small>🌧️ {e(rain)}</small><small>💨 {e(wind)}</small></div>'
+                    for label, icon, temp, rain, wind in hours)
+    return f'<div class="hourly">{cells}</div>'
