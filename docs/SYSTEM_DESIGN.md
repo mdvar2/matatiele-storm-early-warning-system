@@ -136,3 +136,11 @@ flowchart LR
   D -- at or above 35% --> W[Warning information<br/>Alerts page and public record]
   W -. optional, only when enabled and configured .-> S[SMS communication]
 ```
+
+## 5. Research refinement (30 October 2026)
+
+- **Home** shows four summary cards that keep three things apart: the *weather forecast* (ECMWF), the *model-estimated storm risk* (Random Forest), and the *warning decision* (35%, plus whether a genuine warning record exists). A fourth card gives the *communication status* (the real SMS mode, registration and record counts).
+- **Risk Analysis** reads [model_evidence.json](model_evidence.json) for the feature importance, threshold comparison, persistence baseline and calibration check. See [MODEL_EVALUATION.md](MODEL_EVALUATION.md).
+- **Map:** the 25 requested points resolve to 25 ECMWF 0.25° grid cells, 0.25° to 0.5° apart. The model's own forecast is requested separately for Matatiele.
+- **SMS modes** (simulation, controlled test, public disabled), the reproducible simulation and the low-connectivity behaviour: [SMS_AND_LOW_CONNECTIVITY.md](SMS_AND_LOW_CONNECTIVITY.md).
+- **RO3 mapping:** [RO3_EVIDENCE.md](RO3_EVIDENCE.md).

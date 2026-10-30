@@ -1,0 +1,73 @@
+[
+ {
+  "step": "Test subscriber registered and verified",
+  "subscribers": {
+   "active": 1,
+   "pending": 0,
+   "unsubscribed": 0
+  }
+ },
+ {
+  "step": "Threshold evaluated",
+  "test_probability": 0.62,
+  "threshold": 0.35,
+  "warning": true,
+  "note": "stated TEST input, not a model output"
+ },
+ {
+  "step": "Warning event recorded",
+  "event_id": "REAL-SHORT-V1-2026-10-30T20:00:00+00:00",
+  "label": "development test",
+  "period": "30 Oct 2026 21:00 - 22:00 SAST"
+ },
+ {
+  "step": "Simulated SMS written to the local outbox (not sent)",
+  "to": "+27 82 *** **01",
+  "body": "TEST ONLY - NOT A REAL WARNING. MATATIELE MODEL ALERT: 30 Oct 21:00-22:00 SAST. Storm risk 62%. If severe weather develops, stay indoors. Avoid lightning/flooded roads. Check SAWS.",
+  "delivery_status": [
+   "outbox"
+  ],
+  "worker_result": {
+   "subscriber_alerts": "sent",
+   "subscriber_recipients": 1,
+   "subscriber_submitted": 1,
+   "subscriber_failed": 0,
+   "subscriber_uncertain": 0
+  }
+ },
+ {
+  "step": "Same warning run again",
+  "worker_result": {
+   "subscriber_alerts": "no_active_subscribers",
+   "subscriber_recipients": 0,
+   "subscriber_submitted": 0,
+   "subscriber_failed": 0,
+   "subscriber_uncertain": 0
+  },
+  "outbox_messages": 2
+ },
+ {
+  "step": "Provider failure",
+  "counts": {
+   "recipients": 1,
+   "submitted": 0,
+   "failed": 0,
+   "uncertain": 1
+  },
+  "warning_still_recorded": true,
+  "delivery_status": "uncertain"
+ },
+ {
+  "step": "Below-threshold value",
+  "test_probability": 0.2,
+  "warning": false,
+  "note": "the worker stops before the subscriber hook when the estimate is below 35%, so nothing is created"
+ },
+ {
+  "step": "Summary",
+  "all_messages_labelled_test": true,
+  "messages_sent_to_a_phone": 0,
+  "temporary_folder": "<temporary folder>",
+  "real_ledger_or_store_touched": false
+ }
+]

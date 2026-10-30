@@ -1,0 +1,19 @@
+# RO3 evidence
+
+**RO3:** To design and develop a smart resilient storm early warning system for low-connectivity environments, using Matatiele as a case study.
+
+| RO3 requirement | Implementation | Evidence | Limitations | Demonstration method |
+|---|---|---|---|---|
+| **Storm early warning** | Hourly ECMWF forecast (Open-Meteo) → Random Forest next-hour estimate → 35% decision → warning reserved in the public ledger → Alerts page | `18_scheduled_sms_worker.py`; unattended scheduled live run #6 (0.00%, below 35%, no warning); worker equivalence 21/21 | A warning during a genuine high-risk event has not yet been observed. It covers one location. | Dashboard Home "Warning decision" card; `python 18_scheduled_sms_worker.py --dry-run` |
+| **Smart (machine learning)** | Random Forest, 300 trees, 29 inputs, trained on ERA5 2018–2025 | [MODEL_EVALUATION.md](MODEL_EVALUATION.md), [model_evidence.json](model_evidence.json): F1 0.601 at 35% on held-out data (optimistic), 0.57–0.59 with a validation-year threshold; persistence 0.559 | Proxy labels from ERA5 rules, not observed storms. No meaningful F1 gain over persistence. Not calibrated. | Risk Analysis page; `python 25_build_model_evidence.py` |
+| **Resilient** | The worker runs independently of the dashboard (GitHub Actions). Warnings are reserved before SMS, so an SMS failure never removes a warning. There is one record per hour and per subscriber (no duplicates). Stale forecasts are rejected. Last known information is shown, labelled out of date. | `tests/test_run_record.py` (stale forecast), `tests/test_scheduled_sms_worker.py` (duplicates), `26_sms_simulation_demo.py` (provider failure), `test_connectivity_failure_then_recovery` | Depends on GitHub Actions, Open-Meteo and the SMS provider being reachable | Connectivity-failure test and screenshots; SMS simulation step 6 |
+| **Low-connectivity environments** | Low-data text view (decision and freshness included), low-data map, SMS that needs no data on the recipient's phone | Screenshots in `evaluation_reports/research_refinement_evidence_2026-10-30/` | The system itself needs Internet access. No offline mode, sensors, LoRa or MQTT (future work). | `?view=text`; map "Low data" basemap |
+| **SMS communication** | Delivery modes A (simulation), B (controlled test) and C (public, disabled); honest statuses; TEST ONLY label in simulation | `26_sms_simulation_demo.py`; `tests/test_research_refinement.py`; run #4 (one labelled connectivity SMS received on a verified trial number) | Trial account only. Public SMS needs POPIA and ethics clearance and approval. Provider acceptance is not proof of delivery. | `python 26_sms_simulation_demo.py` |
+| **Matatiele case study** | Model location: ERA5 cell 30.25° S, 28.75° E; forecast requested at 30.30° S, 28.80° E; regional rainfall map from 25 ECMWF cells | Map page "Map data and method"; `12_live_forecast_and_predict.py` | One model location. Towns on the map get no separate estimates. | Map page |
+| **Residents' use** | Four Home summary cards, safety advice, tap-to-call 10111 / 10177 / 112, Alerts with acknowledgements, light and dark themes, phone layout | 353 automated tests; screenshots at 1440 / 820 / 390 px | Not yet tested with Matatiele residents | Dashboard walkthrough |
+
+## Implemented, simulated, not implemented
+
+| Implemented | Simulated or controlled test | Not implemented (future) |
+|---|---|---|
+| Forecast retrieval, Random Forest inference, 35% decision, public warning record, Alerts, acknowledgements, officials' portal, low-data view, stale-data handling, scheduled worker | SMS warnings to subscribers (outbox simulation), trial-account connectivity SMS, on-screen warning simulation for administrators | Public SMS service, offline operation, local sensors, edge processing, LoRa, MQTT, calibration of the model, evaluation against observed storms |

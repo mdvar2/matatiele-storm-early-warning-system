@@ -7,6 +7,7 @@ dashboard's existing `risk()` function, and the 0.35 warning threshold is unchan
 The simulation is display-only. `sms_preview` formats the text the scheduled
 worker would send (via the same message builder), but nothing here can submit it.
 """
+import base64
 import html
 import math
 
@@ -134,7 +135,21 @@ def resident_status(probability, period_start, period_end, updated, stale, simul
         estimate = f'{"Last" if stale else "Model"} estimate: {float(probability):.0%} chance of a storm'
     else:
         estimate = 'No model estimate'
-    return {'level': level, 'guidance_level': guidance_level, 'headline': headline,
+    if simulated:
+        decision = 'Simulated: at or above 35%, warning condition shown on screen only. No warning record is created.'
+    elif stale:
+        decision = 'No warning decision: the information is out of date, and warnings are never issued from out-of-date data.'
+    elif level == 'UNAVAILABLE':
+        decision = 'No warning decision: there is no current model estimate.'
+    elif level == 'WARNING':
+        decision = 'At or above the 35% warning threshold: warning condition met.'
+    else:
+        decision = 'Below the 35% warning threshold: no warning.'
+    if stale:
+        freshness = f'OUT OF DATE: last known information from {updated:%d %b %Y %H:%M} SAST' if updated is not None else 'OUT OF DATE: update time unknown'
+    else:
+        freshness = 'Current' if updated is not None else 'Update time unknown'
+    return {'level': level, 'guidance_level': guidance_level, 'headline': headline, 'decision': decision, 'freshness': freshness,
             'explanation': explanation, 'period': period,
             'updated': f'{updated:%d %b %Y %H:%M} SAST' if updated is not None else 'Unknown',
             'coverage': COVERAGE, 'estimate': estimate, 'model_note': MODEL_NOTE, 'tone': tone,
@@ -158,7 +173,9 @@ def text_only_page(status, advice):
     lines += [f"## {status['headline']}", '', status['explanation'], '',
               f"- **Prediction period:** {status['period']}",
               f"- **{status['estimate']}** (warning threshold: {THRESHOLD:.0%})",
+              f"- **Warning decision:** {status['decision']}",
               f"- **Last update:** {status['updated']}",
+              f"- **Information status:** {status['freshness']}",
               f"- **Area:** {status['coverage']}", '',
               f"_{status['model_note']}_", '',
               f"### Safety advice: {advice['action']}"]
@@ -204,19 +221,55 @@ THRESHOLD_METHOD = ("How it was set: the project's threshold-evaluation step com
                     'practical working setting, not an independently validated optimum.')
 
 
-def hero_html(status):
-    """Compact resident status for the homepage: headline, estimate, period and update time."""
+GAUGE_COLOURS = {'green': '#36a46b', 'amber': '#d98b16', 'red': '#d93449', 'gray': '#8a9bb0'}
+
+
+def gauge_svg(probability, tone):
+    """Small semicircle gauge with a tick at the 35% threshold; the value is also given as alt text."""
+    try:
+        p = min(max(float(probability), 0.0), 1.0)
+        usable = math.isfinite(p)
+    except (TypeError, ValueError):
+        p, usable = 0.0, False
+    angle = math.pi * (1 - THRESHOLD)
+    x1, y1 = 60 + 41 * math.cos(angle), 60 - 41 * math.sin(angle)
+    x2, y2 = 60 + 59 * math.cos(angle), 60 - 59 * math.sin(angle)
+    label = f'Model-estimated storm risk {p:.0%}, warning threshold 35%' if usable else 'No model estimate'
+    colour = GAUGE_COLOURS.get(tone, GAUGE_COLOURS['gray'])
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 68">'
+           '<path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#c7d2e0" stroke-width="12" stroke-linecap="round"/>'
+           f'<path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="{colour}" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{p * 100 if usable else 0:.1f} 100"/>'
+           f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#64748b" stroke-width="3"/></svg>')
+    # An image, because the page's HTML sanitiser removes inline SVG; the value is in the alt text.
+    return f'<img class="mini-gauge" src="data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}" alt="{label}">'
+
+
+def summary_html(status, probability, weather, record, communication):
+    """The four homepage summary cards: forecast weather, model estimate, warning decision, communication status.
+
+    weather: dict of display strings (temperature, rain, wind, status); record: text on the genuine warning record;
+    communication: list of (label, value) strings. Nothing here is computed from anything but these inputs.
+    """
     e = lambda value: html.escape(str(value))  # noqa: E731
-    banner = f'<div class="resident-sim">{e(status["label"])}</div>' if status['simulated'] else ''
-    return (f'<div class="resident-card tone-{e(status["tone"])} hero-risk">{banner}'
-            f'<div class="resident-head">{e(status["headline"])}</div>'
-            f'<div class="hero-estimate">{e(status["estimate"])}</div>'
-            f'<div class="hero-facts"><span>{icons.icon("clock")} Prediction period {e(status["period"])}</span>'
-            f'<span>{icons.icon("refresh")} Model updated {e(status["updated"])}</span>'
-            f'<span>{icons.icon("scale")} Warning threshold: {THRESHOLD:.0%}</span></div>'
-            f'<details class="threshold-info"><summary>{icons.icon("info")} Why 35%?</summary><p>{e(THRESHOLD_TEXT)}</p>'
-            '<p>More detail: menu, then Risk Analysis.</p></details>'
-            f'<div class="hero-note">{e(HERO_NOTE)}</div></div>')
+    sim = f'<div class="resident-sim">{e(status["label"])}</div>' if status['simulated'] else ''
+    estimate = f'{float(SIMULATED_PROBABILITY if status["simulated"] else probability):.0%}' if status['level'] != 'UNAVAILABLE' else 'n/a'
+    weather_card = (f'<div class="summary-card wx-summary"><div class="sc-title">{icons.icon("cloud-rain")} Weather forecast (ECMWF)</div>'
+                    f'<div class="sc-value">{e(weather["temperature"])}</div>'
+                    f'<div class="sc-line">Rain {e(weather["rain"])} · Wind {e(weather["wind"])}</div>'
+                    f'<div class="sc-line">Gusts {e(weather["gust"])}</div><div class="sc-foot">{e(weather["status"])}</div></div>')
+    risk_card = (f'<div class="summary-card risk-summary tone-{e(status["tone"])}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div>'
+                 f'<div class="sc-gauge">{gauge_svg(SIMULATED_PROBABILITY if status["simulated"] else probability, status["tone"])}<b>{e(estimate)}</b></div>'
+                 f'<div class="sc-head">{e(status["headline"])}</div><div class="sc-line">{e(status["estimate"])}</div>'
+                 f'<div class="sc-line">{icons.icon("clock")} Prediction period {e(status["period"])}</div>'
+                 f'<div class="sc-foot">Model updated {e(status["updated"])} · {e(HERO_NOTE)}</div></div>')
+    decision_card = (f'<div class="summary-card decision-summary"><div class="sc-title">{icons.icon("scale")} Warning decision</div>'
+                     f'<div class="sc-line"><b>Warning threshold: {THRESHOLD:.0%}</b></div>'
+                     f'<div class="sc-line">{e(status["decision"])}</div><div class="sc-line">{e(record)}</div>'
+                     f'<details class="threshold-info"><summary>{icons.icon("info")} Why 35%?</summary><p>{e(THRESHOLD_TEXT)}</p>'
+                     '<p>More detail: menu, then Risk Analysis.</p></details></div>')
+    rows = ''.join(f'<div class="sc-line"><b>{e(label)}:</b> {e(value)}</div>' for label, value in communication)
+    comms_card = f'<div class="summary-card comms-summary"><div class="sc-title">{icons.icon("message")} Warning communication</div>{rows}</div>'
+    return f'<div class="summary-grid">{weather_card}{risk_card}{decision_card}{comms_card}</div>'
 
 
 def details_html(status):

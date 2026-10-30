@@ -25,6 +25,7 @@ FINAL_OK, FINAL_FAIL = {'delivered', 'outbox'}, {'failed', 'undelivered', 'cance
 DEFINITIVE_ERRORS = {21211: 'invalid_number', 21614: 'not_a_mobile', 21608: 'trial_unverified_number',
                      21610: 'recipient_opted_out', 21612: 'unreachable_route', 30006: 'landline_or_unreachable'}
 MAX_ATTEMPTS = 3
+TEST_PREFIX = 'TEST ONLY - NOT A REAL WARNING. '
 
 
 def _delivery_key(alert_key, subscriber_id):
@@ -155,6 +156,8 @@ def run_for_worker(prediction_for, probability, threshold, environ=None):
         store = open_store(getter)
         hour = _hour_key(prediction_for)
         body = _build_warning_message('Matatiele', prediction_for, probability, threshold, 0.0, 0.0, 0.0, 0.0)
+        if not gateway.real:
+            body = TEST_PREFIX + body  # simulation (outbox) messages are labelled; live wording is unchanged
         counts = deliver_warning(store, gateway, 'REAL-SHORT-V1-' + hour, body, str(prediction_for), probability)
         state = 'no_active_subscribers' if not counts['recipients'] else 'sent' if counts['submitted'] == counts['recipients'] else 'partial'
         return {'subscriber_alerts': state, 'subscriber_recipients': counts['recipients'], 'subscriber_submitted': counts['submitted'],

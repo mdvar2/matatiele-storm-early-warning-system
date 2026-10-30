@@ -57,6 +57,32 @@ def load_events(getter):
     return we.collect(rows, doc, include_tests=subs.delivery_mode(getter) == 'outbox'), error
 
 
+SMS_STATUS_LABELS = {'outbox': 'simulated, not sent', 'pending': 'queued', 'submitted': 'accepted by provider, delivery not confirmed',
+                     'delivered': 'delivery confirmed by provider', 'failed': 'failed', 'uncertain': 'outcome unknown'}
+
+
+def sms_record_counts(getter):
+    """SMS delivery records by status (counts only: no numbers or personal data). None when SMS is not configured."""
+    if subs.delivery_mode(getter) == 'disabled':
+        return None
+    try:
+        doc = open_store(getter).snapshot()
+    except Exception:
+        return None
+    counts = {}
+    for delivery in doc.get('deliveries', {}).values():
+        counts[delivery['status']] = counts.get(delivery['status'], 0) + 1
+    return counts
+
+
+def sms_counts_text(counts):
+    if counts is None:
+        return 'none: SMS is not active on this deployment'
+    if not counts:
+        return 'none recorded'
+    return ', '.join(f'{n} {SMS_STATUS_LABELS.get(status, status)}' for status, n in sorted(counts.items()))
+
+
 def operations_store(getter):
     try:
         return open_store(getter, kind='operations'), None

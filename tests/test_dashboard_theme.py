@@ -119,7 +119,6 @@ class RedesignedDashboard(rd.DashboardHarness):
     def test_weather_card_icon_is_from_forecast_values(self):
         self.write_prediction(.05)  # fixture: 0.0 mm rain, 10 % cloud at 11:00 SAST
         page = self.html(self.app().run())
-        self.assertIn('alt="Clear (forecast)"', page)
         self.assertIn('ECMWF forecast for 11:00 SAST - not an observation', page)
 
     def test_map_controls_tooltips_and_low_data_basemap(self):
@@ -158,7 +157,7 @@ class RedesignedDashboard(rd.DashboardHarness):
     def test_each_component_appears_on_exactly_one_page(self):
         self.write_prediction(.05)
         at = self.app().run()
-        markers = {'class="wx-card"': 'Dashboard', 'class="contacts-card"': 'Dashboard', 'class="threshold-info"': 'Dashboard',
+        markers = {'class="summary-grid"': 'Dashboard', 'class="contacts-card"': 'Dashboard', 'class="threshold-info"': 'Dashboard',
                    'class="risk-gauge"': 'Risk Analysis', 'class="risk-scale"': 'Risk Analysis',
                    'class="advice-grid"': 'Safety Advice', 'class="flow"': 'About', 'class="kpi': 'About'}
         found = {marker: [] for marker in markers}
@@ -173,7 +172,18 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.assertEqual(found, {marker: [section] for marker, section in markers.items()})
         self.go(at, 'Dashboard')
         self.assertNotIn('NO WARNING IN EFFECT', self.html(at))  # the redundant status card is gone; the risk card remains
-        self.assertIn('resident-card tone-green hero-risk', self.html(at))
+        home = self.html(at)
+        self.assertIn('summary-card risk-summary tone-green', home)  # compact risk card, not the large panel
+        for title in ('Weather forecast (ECMWF)', 'Model-estimated storm risk', 'Warning decision', 'Warning communication'):
+            self.assertIn(title, home)
+        self.assertIn('Below the 35% warning threshold: no warning.', home)
+        self.assertIn('Warning record could not be checked: the public record is unreachable.', home)  # the harness blocks the network
+        self.assertIn('research prototype, not active on this deployment', home)  # SMS_DELIVERY_MODE is unset in tests
+        self.assertIn('SMS records:</b> none: SMS is not active', home)
+        labels = [b.label for b in at.button]
+        self.assertNotIn('Get free SMS storm warnings', labels)
+        self.assertIn('SMS warning service (research prototype)', labels)
+        self.assertFalse([b for b in at.get('link_button') if 'SAWS' in b.proto.label])  # no prominent SAWS button
         self.assertIn('Warning threshold: 35%', self.html(at))
         self.assertEqual(maps, ['Weather Map'])
 
@@ -240,7 +250,11 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.assertIn('not an independently validated optimum', text)  # no claim that 35% is optimal
         self.assertEqual((rd.ROOT / 'outputs' / 'model_live' / 'live_selected_threshold.txt').read_text().strip(), '0.35')
         about = self.html(self.go(at, 'About'))
-        self.assertEqual(about.count('<li><b>'), 9 + 4)  # nine model steps and four low-connectivity points
+        self.assertEqual(about.count('<li><b>'), 9 + 4 + 2)  # nine model steps, four low-connectivity points, two phases
+        about += ' '.join(m.value for m in at.markdown)
+        for phrase in ('RO3:', 'Simulated / controlled test', 'Future work', 'not an official weather warning service',
+                       'Follow official warnings and local emergency guidance', 'weathersa.co.za'):
+            self.assertIn(phrase, about)
         for phrase in ('ERA5', '300 decision trees', 'does not produce weather forecasts', 'does not run offline', 'not implemented'):
             self.assertIn(phrase, about)
         self.assertEqual([e.label for e in at.expander if e.label in ('How the model and system work', 'Designed for low connectivity')],

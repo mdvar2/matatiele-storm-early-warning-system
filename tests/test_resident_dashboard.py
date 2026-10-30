@@ -212,8 +212,10 @@ class DashboardHarness(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
         for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
                      'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
-                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py'):
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
+        (cls.tmp / 'docs').mkdir()
+        shutil.copy(ROOT / 'docs' / 'model_evidence.json', cls.tmp / 'docs' / 'model_evidence.json')
         shutil.copytree(ROOT / 'components', cls.tmp / 'components')
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
         cls.model = cls.tmp / 'outputs' / 'model_live'
@@ -466,7 +468,7 @@ class DashboardApp(DashboardHarness):
         for part in ('Low storm risk (model estimate)', 'Prediction period', 'warning threshold: 35%', 'Last update', 'Safety advice: Be prepared', '**Rivers:**'):
             self.assertIn(part, text)
         self.assertEqual(len(at.get('deck_gl_json_chart')), 0)
-        self.assertEqual(len(at.get('arrow_vega_lite_chart')), 0)
+        self.assertEqual(len(at.get('vega_lite_chart')), 0)
         self.assertNotIn('class="kpi', self.html(at))
 
     def test_genuine_prediction_file_is_preserved(self):

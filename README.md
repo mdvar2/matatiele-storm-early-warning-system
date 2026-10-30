@@ -11,7 +11,7 @@
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-Random%20Forest-F7931E?logo=scikitlearn&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Scheduled%20Checks-2088FF?logo=githubactions&logoColor=white)
 
-> **Disclaimer:** this is a research prototype, not an official South African Weather Service (SAWS) warning service. Follow SAWS warnings and local disaster-management guidance.
+> **Disclaimer:** academic research prototype, not an official weather warning service. Follow official warnings (South African Weather Service) and local emergency guidance.
 
 ## Overview
 
@@ -51,21 +51,22 @@ Detailed stakeholder, use case, architecture and activity diagrams are in [docs/
 - **Storm label:** an hour is a storm hour when ERA5 shows at least 1 mm of total precipitation **and** at least one supporting sign: CAPE ≥ 200 J/kg, convective precipitation ≥ 0.5 mm, K-index ≥ 26, or total cloud cover ≥ 90% (`03_create_labels.py`). The model estimates the *next* hour's label (`06_prepare_model_data.py`).
 - **Inputs (29):** the current and previous hour of temperature, dew point, sea-level and surface pressure, precipitation, CAPE, convective precipitation, cloud cover, wind components, gusts and wind speed, plus latitude, longitude, hour, month and day of year. The K-index is excluded, because the live forecast feed does not provide it.
 - **Classifier:** `RandomForestClassifier` with 300 trees, balanced class weights and `random_state=42`, trained on the earliest 80% of the chronological record, to 25 August 2025 (`14_train_live_compatible_random_forest.py`).
-- **Evaluation:** the most recent 20% was held out. See [the ML evaluation design](evaluation_reports/RO3_ml_evaluation_design_2026-10-29.md) for the documented method and its limitations.
-- **Warning threshold (35%):** `15_evaluate_live_threshold.py` compared thresholds from 10% to 60% on the held-out period using the F1-score. Thresholds from 30% to 40% scored almost the same (F1 0.599–0.601), and 35% is the setting in use (`outputs/model_live/live_selected_threshold.txt`). It was compared on the same period it is reported on, so it is a **practical working setting, not an independently validated optimum**. Lower thresholds detect more events but raise more false alarms.
+- **Evaluation:** the most recent 20% was held out: 30,455 cell-hours, 860 labelled storm hours. At 35% the deployed model had **precision 51.6%, recall 72.0%, F1 0.601**, compared with persistence at 55.9% / 55.9% / 0.559. A stricter evaluation with a separate validation year gave F1 0.57–0.59 against 0.56 for persistence, which is **not a meaningful improvement**. All figures are against ERA5-derived proxy labels, not observed storms. See [docs/MODEL_EVALUATION.md](docs/MODEL_EVALUATION.md).
+- **Warning threshold (35%):** `15_evaluate_live_threshold.py` compared thresholds from 10% to 60% on the held-out period using the F1-score. Thresholds from 30% to 40% scored almost the same (F1 0.597–0.602), and 35% is the setting in use (`outputs/model_live/live_selected_threshold.txt`). It was compared on the same period it is reported on (selection bias), so it is a **practical working setting, not an independently validated optimum**. Lower thresholds detect more events but raise more false alarms.
+- **Calibration:** the model was not calibrated after training. Its scores run higher than the labelled storm frequency, so a score is a relative risk level, not a guaranteed probability.
 
 ## Dashboard
 
 | Section | Content |
 |---|---|
-| **Home** | Model-estimated storm risk (category, estimate, prediction period, model update time, the 35% threshold with a "Why 35%?" note), the weather forecast for the next hour and the next six hours, recommended actions, SMS registration, warnings, the SAWS link, tap-to-call emergency numbers and the low-data view. |
-| **Forecast** | 36-hour ECMWF temperature and rainfall chart, and the forecast variables the model uses (CAPE, dew point, showers). |
-| **Map** | ECMWF rainfall forecast from a 5 × 5 grid of real forecast points (about 30 km apart), interpolated and smoothed between points. It is not radar. A forecast-hour slider covers the next 35 hours, a ring shows the model-estimated storm risk at Matatiele, and there are Satellite, Streets and Low data basemaps. |
+| **Home** | Four summary cards: **weather forecast** (ECMWF), **model-estimated storm risk** (gauge, prediction period, update time), **warning decision** (35% threshold, whether the estimate reaches it, whether a genuine warning record exists, "Why 35%?") and **warning communication** (dashboard, real SMS mode, registration status, SMS record counts). Below them: the next hours, View warnings, Safety advice, the SMS service (research prototype), tap-to-call emergency numbers and the low-data view. |
+| **Forecast** | 36-hour ECMWF temperature and rainfall chart, the forecast variables the model uses (CAPE, dew point, showers), and which forecast hour the model uses. |
+| **Map** | ECMWF rainfall forecast at 25 real ECMWF 0.25° grid cells (0.25° to 0.5° apart, about 24–48 km), interpolated and smoothed between them. It is not radar. Opens centred on Matatiele and has a forecast-hour slider (next 35 hours), an overlay opacity control, a ring for the model-estimated storm risk at Matatiele (one location only), and Satellite, Streets and Low data basemaps. |
 | **Safety** | Advice for before a storm and when a storm is close. |
 | **☰ Alerts** | Current and past warnings, warning details, an anonymous "I have read this warning" acknowledgement, and SMS registration and management. |
-| **☰ Risk Analysis** | Gauge, risk scale and the threshold explanation. |
-| **☰ Historical Data** | Saved model predictions as a chart and a table. |
-| **☰ About** | The resident warning workflow, how the model and system work, and the low-connectivity design. |
+| **☰ Risk Analysis** | Gauge, risk scale, the threshold explanation, patterns learned (grouped feature importance), why a Random Forest, the threshold comparison (30–50%) with the persistence baseline, the stricter validation-year evaluation, the confusion matrix, and what the percentage means (score, performance, calibration, confidence). |
+| **☰ Historical Data** | Saved model predictions: chart (24 hours / 7 days / all, zoom, 35% line, gaps never filled in) and table. |
+| **☰ About** | The resident warning workflow, development and operation phases, RO3 status (implemented / simulated / future), how the model and system work, the low-connectivity design, and the disclaimer. |
 
 The dashboard has light and dark themes (a header switch, kept across pages and refreshes), uses outline icons, works at desktop, tablet and phone widths, and respects the reduced-motion setting.
 
@@ -78,12 +79,13 @@ The dashboard has light and dark themes (a header switch, kept across pages and 
 | **Low data basemap** | The map without downloaded tiles. |
 | **Scheduled worker** | Warnings are decided hourly on GitHub Actions; no one needs to keep the dashboard open. |
 
-**Not implemented (future research):** offline operation, local weather sensors, edge processing and LoRa links. The system needs an Internet connection to retrieve forecasts.
+**Not implemented (future research):** offline operation, local weather sensors, edge processing, LoRa and MQTT links (no code exists for them). The system needs an Internet connection to retrieve forecasts. When a refresh fails, the last known information is shown labelled as out of date, and no warning is issued from it. See [docs/SMS_AND_LOW_CONNECTIVITY.md](docs/SMS_AND_LOW_CONNECTIVITY.md).
 
 ## SMS and its limitations
 
 - **Hourly worker:** `18_scheduled_sms_worker.py` (GitHub Actions) decides warnings, reserves each warning hour in a public GitHub issue ledger to prevent duplicates, and submits SMS through Twilio.
 - **Resident registration** (Alerts → SMS alerts): South African mobile numbers, explicit consent, a one-time verification code, encrypted storage in a private repository, and unsubscribe at any time. **Off until configured**: registration shows *not open yet*, and subscriber warnings also need `SUBSCRIBER_ALERTS_ENABLED=true`.
+- **Modes:** A, simulation (`outbox`, TEST ONLY messages, nothing sent); B, controlled test (trial account, verified numbers only); C, public (**disabled**). Reproducible simulation: `python 26_sms_simulation_demo.py`.
 - **Limitations:**
   - The Twilio account is a **trial**, which can only message verified numbers.
   - Provider acceptance is not proof of delivery.
@@ -120,9 +122,10 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
 ## Testing evidence
 
-- **Automated tests:** `python -m pytest tests/`. All 344 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+- **Automated tests:** `python -m pytest tests/`. All 353 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
-- **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the final UI evidence](evaluation_reports/final_ui_refinement_evidence_2026-10-31/README.md).
+- **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).
+- **RO3 evidence table:** [docs/RO3_EVIDENCE.md](docs/RO3_EVIDENCE.md).
 - **Earlier verified operation:** genuine ECMWF retrieval and inference; an unattended scheduled live run (run #6, 0.00%, below 35%, so no SMS); a labelled NO WEATHER WARNING connectivity SMS received on a phone (run #4).
 - **Browser walkthroughs and screenshots:** the `evaluation_reports/*_evidence_*` folders.
 
@@ -140,4 +143,7 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 - [Administrator and maintenance manual](docs/ADMINISTRATOR_AND_MAINTENANCE_MANUAL.md)
 - [Deployment and configuration](docs/DEPLOYMENT_AND_CONFIGURATION.md)
 - [System design](docs/SYSTEM_DESIGN.md)
+- [Model evaluation](docs/MODEL_EVALUATION.md)
+- [SMS and low connectivity](docs/SMS_AND_LOW_CONNECTIVITY.md)
+- [RO3 evidence](docs/RO3_EVIDENCE.md)
 - [Storm early warning design notes](docs/STORM_EWS_DESIGN_RESEARCH.md)

@@ -124,7 +124,7 @@ CSS = r"""
 @keyframes pulse {0%{box-shadow:0 0 0 0 #16a34a80}70%{box-shadow:0 0 0 9px #16a34a00}100%{box-shadow:0 0 0 0 #16a34a00}}
 
 /* Cards */
-.st-key-map_card,.st-key-weather_card,.st-key-risk_card,.st-key-six_card,.st-key-sample_card,.st-key-predictions_card,.st-key-live_six_card {
+.st-key-map_card,.st-key-risk_card,.st-key-six_card,.st-key-sample_card,.st-key-predictions_card,.st-key-live_six_card {
   background:var(--card)!important;border:1px solid var(--card-border)!important;border-radius:18px!important;
   box-shadow:var(--card-shadow);backdrop-filter:blur(8px);overflow:hidden}
 .st-key-map_card {padding:0!important}
@@ -203,20 +203,12 @@ CSS = r"""
 .resident-guidance .resident-note {color:var(--muted)}
 .resident-action {font-size:18px;font-weight:800;color:var(--heading)}
 /* Homepage hero: compact status tile and short action chips. */
-.resident-card.hero-risk {box-sizing:border-box;padding:22px 22px 18px 92px;animation:rise .5s ease-out both}
-.resident-card.hero-risk.tone-red {animation:rise .5s ease-out both,alarm 2.6s ease-in-out 1s infinite}
-.hero-estimate {display:inline-block;margin:12px 0 10px;padding:7px 14px;border-radius:999px;background:var(--r-badge);
-  color:var(--heading);font-weight:800;font-size:clamp(15px,1.5vw,19px)}
-.hero-facts {display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13.5px;color:var(--muted)}
-.hero-note {margin-top:12px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.2px}
 .quick-actions {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:12px 16px;box-shadow:var(--card-shadow)}
 .quick-actions .resident-action {font-size:15px;margin-bottom:8px}
 .action-chips {display:flex;flex-wrap:wrap;gap:8px}
 .action-chip {display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--accent-soft);
   color:var(--heading);font-size:13px;font-weight:600;border:1px solid var(--card-border)}
 .action-chip i {font-style:normal}
-.st-key-weather_card {animation:rise .6s ease-out .1s both}
-.st-key-weather_card .temperature {font-size:clamp(34px,3.4vw,46px)}
 /* Menu button: three bars instead of Streamlit's double-arrow icon (open and close the side menu). */
 [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"],[data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"] {font-size:0!important;width:22px;height:16px;display:inline-block;
   background:linear-gradient(currentColor 0 0) 0 0/100% 2.5px no-repeat,linear-gradient(currentColor 0 0) 0 50%/100% 2.5px no-repeat,linear-gradient(currentColor 0 0) 0 100%/100% 2.5px no-repeat}
@@ -246,17 +238,6 @@ CSS = r"""
 .call-chip {background:#dc2626;color:#fff!important;text-decoration:none!important;font-weight:800;border-radius:999px;padding:7px 14px}
 .portal-note {background:var(--accent-soft);border:1px solid var(--card-border);border-radius:12px;padding:9px 14px;font-size:13px;color:var(--text)}
 /* Blue weather card and hourly strip (genuine ECMWF forecast values only). */
-.wx-card {background:linear-gradient(135deg,#1e40af,#2563eb 55%,#3b82f6);color:#fff;border-radius:22px;padding:18px 22px;box-shadow:0 14px 30px #1e3a8a40;animation:rise .6s ease-out both}
-.wx-top {display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;font-size:14px;font-weight:700;color:#e0ecff}
-.wx-main {display:flex;justify-content:space-between;align-items:center;gap:12px}
-.wx-temp {font-size:clamp(44px,5vw,78px);font-weight:300;line-height:1.05;margin-top:6px;white-space:nowrap}
-.wx-cond {font-size:20px;font-weight:700}.wx-sub {font-size:13px;color:#dbe8ff;margin-top:2px}
-.wx-main img {width:clamp(84px,9vw,124px);height:auto;filter:drop-shadow(0 6px 14px #0003)}
-.wx-tiles {display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-top:14px}
-.wx-tile {background:#ffffff1f;border:1px solid #ffffff33;border-radius:14px;padding:9px 11px}
-.wx-tile span {display:block;font-size:11px;font-weight:700;letter-spacing:.6px;color:#dbe8ff;text-transform:uppercase}
-.wx-tile b {display:block;font-size:18px;color:#fff}.wx-tile small {color:#dbe8ff;font-size:11.5px}
-.wx-status {font-size:11px;color:#dbe8ff;margin-top:10px}
 .hourly {display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
 .hour {flex:1 0 84px;background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;text-align:center;box-shadow:var(--card-shadow)}
 .hour .t {font-size:12.5px;font-weight:700;color:var(--muted)}.hour img {width:40px;height:40px}
@@ -271,10 +252,10 @@ CSS = r"""
 .risk-scale .marker b {position:absolute;top:40px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;color:var(--heading)}
 .flow {margin:4px 0 8px}
 .flow .lane-steps {display:flex;align-items:stretch;gap:4px}
-.flow .step {flex:1 1 0;display:flex;align-items:center;gap:9px;min-width:0;background:var(--card);border:1px solid var(--card-border);
+.flow .step {flex:1 1 0;display:flex;align-items:center;gap:9px;min-width:0;overflow-wrap:anywhere;background:var(--card);border:1px solid var(--card-border);
   border-radius:12px;padding:8px 10px;box-shadow:var(--card-shadow)}
 .flow .step.optional {border-style:dashed}
-.flow .step .ico {color:var(--accent)}.flow .step b {display:block;color:var(--heading);font-size:13.5px;line-height:1.25}
+.flow .step .ico {color:var(--accent)}.flow .step>div {min-width:0}.flow .step b {display:block;hyphens:auto;color:var(--heading);font-size:13.5px;line-height:1.25}
 .flow .step small {display:block;color:var(--muted);font-size:12px;line-height:1.3}
 .flow .arrow {display:flex;align-items:center;color:var(--muted)}
 .flow .badge {display:inline-block;margin-top:3px;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
@@ -282,6 +263,20 @@ CSS = r"""
 .explainer {margin:4px 0 0 18px;padding:0;color:var(--text);font-size:14px;line-height:1.5}.explainer li {margin:4px 0}
 .explainer b {color:var(--heading)}
 .lowdata-link {font-size:13px;color:var(--muted);margin-top:2px}.lowdata-link a {color:var(--accent);font-weight:700}
+/* Streamlit's own menu has a separate theme setting that conflicts with the header switch, so it is hidden. */
+[data-testid="stMainMenu"] {display:none!important}
+/* Homepage: four compact summary cards. */
+.summary-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:4px 0 8px}
+.summary-card {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:13px 15px;box-shadow:var(--card-shadow);min-width:0;font-size:13px;color:var(--text)}
+.sc-title {display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.sc-value {font-size:30px;font-weight:700;color:var(--heading);line-height:1.1}.sc-head {font-weight:800;color:var(--heading);margin:2px 0 4px}
+.sc-line {margin:3px 0;line-height:1.4}.sc-foot {margin-top:6px;font-size:11.5px;color:var(--muted);line-height:1.4}
+.wx-summary {background:linear-gradient(135deg,#1e40af,#2563eb 60%,#3b82f6);color:#fff;border:0}.wx-summary .sc-title,.wx-summary .sc-foot {color:#dbe8ff}.wx-summary .sc-value {color:#fff}
+.sc-gauge {display:flex;align-items:flex-end;gap:10px}.sc-gauge b {font-size:26px;color:var(--heading);line-height:1}
+.mini-gauge {width:108px;height:62px}
+.risk-summary {border-left:5px solid #36a46b}.risk-summary.tone-amber {border-left-color:#d98b16}.risk-summary.tone-red {border-left-color:#d93449}.risk-summary.tone-gray {border-left-color:#8a9bb0}
+@media(max-width:1100px) {.summary-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px) {.summary-grid {grid-template-columns:1fr}}
 .threshold-info {margin-top:8px;font-size:13px;color:var(--text)}
 .threshold-info summary {cursor:pointer;font-weight:700;color:var(--heading);display:inline-flex;align-items:center;gap:6px}
 .threshold-info p {margin:6px 0 0;max-width:72ch}
@@ -373,14 +368,14 @@ CSS = r"""
   .resident-card.tone-off {--r-border:#8aa0bb;--r-bg:linear-gradient(120deg,#1c2a3d,#18263a);--r-badge:#2b3d55}
   .alert-banner.green {background:#0f3326;border-color:#2f8f5f;color:#d7f7e5}.alert-banner.red {background:#43121c;border-color:#ff6b80;color:#ffe1e6}
   .alert-banner.amber {background:#3a2a0c;border-color:#e0a03a;color:#fff1c8}
-  .warn-badge.past {background:#2b3d55;color:#dbe7f5}.wx-card {background:linear-gradient(135deg,#0b2a6b,#1e40af 60%,#2457c5)}
+  .warn-badge.past {background:#2b3d55;color:#dbe7f5}
   .resident-head {color:#f4f8fd}.resident-text {color:#dbe7f5}
   .resident-facts span {background:#ffffff12;border-color:#ffffff1f;color:#e3edf9}.resident-facts b,.resident-note {color:#b5c8de}
   .research-notice {background:#3d3216;color:#fff1c8;border-color:#b78e34}
   .clock-card {background:linear-gradient(120deg,#0b3f80,#0d5bb0)}
 }
 @media (prefers-reduced-motion: reduce) {
-  .stApp::before,.chip .dot,.weather-anim *,.resident-card.hero-risk,.st-key-weather_card,.wx-card,.alert-banner.red {animation:none!important}
+  .stApp::before,.chip .dot,.weather-anim *,.alert-banner.red {animation:none!important}
   [data-testid="stSidebar"] [data-testid="stButton"] button {transition:none}
 }
 @media(max-width:1100px) {.hero {align-items:flex-start}.clock-card {padding:10px}.kpi {gap:7px;padding:12px 8px}.kpi-icon {width:34px;height:34px}
@@ -472,17 +467,6 @@ def status_strip(stale, updated, simulated, refresh_minutes=15):
     if simulated:
         chips.insert(0, '<span class="chip sim"><b>SIMULATION ON</b> &middot; on screen only</span>')
     return '<div class="status-strip">' + ''.join(chips) + '</div>'
-
-
-def weather_card_html(icon_img, temperature, condition, subtitle, tiles, status, updated=''):
-    """Blue forecast-weather card. Every value comes from the genuine ECMWF model input."""
-    e = html.escape
-    tile_html = ''.join(f'<div class="wx-tile"><span>{icons.icon(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
-                        for icon, label, value, detail in tiles)
-    return (f'<div class="wx-card"><div class="wx-top"><span>{icons.icon("map-pin")} Matatiele, Eastern Cape</span><span>{e(updated)}</span></div>'
-            f'<div class="wx-main"><div><div class="wx-temp">{e(temperature)}</div><div class="wx-cond">{e(condition)}</div>'
-            f'<div class="wx-sub">{e(subtitle)}</div></div>{icon_img}</div><div class="wx-tiles">{tile_html}</div>'
-            f'<div class="wx-status">{e(status)}</div></div>')
 
 
 def hourly_html(hours):
