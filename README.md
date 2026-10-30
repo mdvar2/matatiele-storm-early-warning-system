@@ -59,7 +59,7 @@ Detailed stakeholder, use case, architecture and activity diagrams are in [docs/
 
 | Section | Content |
 |---|---|
-| **Home** | Four summary cards: **weather forecast** (ECMWF), **model-estimated storm risk** (gauge, prediction period, update time), **warning decision** (35% threshold, whether the estimate reaches it, whether a genuine warning record exists, "Why 35%?") and **warning communication**: dashboard alerts, SMS simulation and public SMS delivery, each derived from the configuration (currently available / available / disabled). Below them: the next hours, View warnings, Safety advice, Emergency contacts (a shortcut to the Safety page), the SMS service (research prototype) and the low-data view. |
+| **Home** | Visual-first. A large **model-estimated storm risk** gauge shows the Random Forest score ("model risk score, not a calibrated probability"), a risk category, a marker at the 35% threshold, the target hour and the update time. Beside it, the **warning decision** badge: NO WARNING TRIGGERED, THRESHOLD REACHED (score at or above 35% but no warning record), WARNING TRIGGERED (a genuine warning record exists), or NO DECISION (data out of date). Then the **weather forecast** (ECMWF: temperature, condition icon, rain, wind, gusts) and **warning communication** (dashboard alerts, SMS simulation, public SMS delivery, derived from configuration). Below: compact actions (View warnings, Safety advice, Emergency contacts, SMS service), the next hours of weather, the short safety actions and the low-data link. During a genuine warning, the act-now advice moves to the top. |
 | **Forecast** | 36-hour ECMWF temperature and rainfall chart, the forecast variables the model uses (CAPE, dew point, showers), and which forecast hour the model uses. |
 | **Map** | ECMWF rainfall forecast at 25 real ECMWF 0.25° grid cells (0.25° to 0.5° apart, about 24–48 km), interpolated and smoothed between them. It is not radar. Opens centred on Matatiele and has a forecast-hour slider (next 35 hours), an overlay opacity control, a ring for the model-estimated storm risk at Matatiele (one location only), and Satellite, Streets and Low data basemaps. |
 | **Safety** | Advice for before a storm and when a storm is close, then tap-to-call emergency numbers (10111, 10177, 112) to support residents' response. |
@@ -122,7 +122,7 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
 ## Testing evidence
 
-- **Automated tests:** `python -m pytest tests/`. All 362 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+- **Automated tests:** `python -m pytest tests/`. All 366 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
 - **Reproducible evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs. See [docs/MODEL_EVALUATION.md §7](docs/MODEL_EVALUATION.md#7-reproducing-the-evidence).
 - **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).

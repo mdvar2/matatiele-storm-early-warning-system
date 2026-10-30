@@ -21,14 +21,13 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 
 | Item | Meaning |
 |---|---|
-| **Status strip** (under the title) | Whether the forecast is live, when it was updated, and where the data comes from. |
-| **Weather forecast (ECMWF)** | Forecast temperature, rainfall, wind and gusts for Matatiele. This is a forecast, not an observation. |
-| **Model-estimated storm risk** | The model's estimate for the next hour (with a small gauge), the prediction period and the time of the last update. |
-| **Warning decision** | The 35% warning threshold, whether the estimate reaches it, and whether a warning record exists. **Why 35%?** explains the threshold. |
+| **Status strip** (under the title) | Whether the forecast is live, and the chain: ECMWF forecast → Random Forest risk score → 35% decision. |
+| **Model-estimated storm risk** (the large gauge) | The model's risk score for the next hour, its category (for example LOW RISK), a red marker at the 35% warning threshold, the hour it is for and when it was updated. It is a model score, not a calibrated probability, and not a guarantee. |
+| **Warning decision** | NO WARNING TRIGGERED (score below 35%); THRESHOLD REACHED (score at or above 35%, but no warning has been recorded yet); WARNING TRIGGERED (a warning record exists for this hour); NO DECISION (the information is out of date). **Why 35%?** explains the threshold. This is the research system's decision, not an official SAWS warning. |
+| **Weather forecast** | The ECMWF forecast temperature, conditions, rain, wind and gusts for Matatiele. It is a forecast, not an observation. |
 | **Warning communication** | Whether dashboard alerts and the SMS simulation are available, and that public SMS delivery is disabled. |
-| **Next hours** | The forecast for the coming hours. |
-| **View warnings · Safety advice · Emergency contacts** | Shortcuts to the Alerts page, the safety advice, and the emergency numbers on the Safety page. |
-| **SMS warning service (research prototype)** | The SMS section of the Alerts page. Registration is not yet available. |
+| **View warnings · Safety advice · Emergency contacts · SMS service** | Shortcuts. Emergency contacts opens the numbers on the Safety page. |
+| **Next hours** | The weather forecast for the coming hours. These are not storm-risk scores. |
 | **Be prepared / Act now** | A few short safety actions that match the current risk. |
 
 The bar under the title has **Home, Forecast, Map** and **Safety**. Tap the **☰** button (top left) for **Alerts, Risk Analysis, Historical Data** and **About**.
@@ -51,7 +50,7 @@ When a storm warning is in effect, a **banner** appears at the top of the homepa
 
 You need a South African mobile number, for example `082 123 4567` or `+27 82 123 4567`. Landlines and toll-free numbers cannot receive warnings.
 
-1. Open **☰ → Alerts**, choose **SMS alerts**, and stay on the **Subscribe** tab. (The **SMS warning service (research prototype)** button on the homepage goes straight there. Registration opens only when the project enables it.)
+1. Open **☰ → Alerts**, choose **SMS alerts**, and stay on the **Subscribe** tab. (The **SMS service** button on the homepage goes straight there. Registration opens only when the project enables it.)
 2. Enter your mobile number.
 3. Check that the warning area is **Matatiele (town and immediate surroundings)**. This is currently the only area.
 4. Read the agreement and tick **I agree to receive SMS storm warnings…**.

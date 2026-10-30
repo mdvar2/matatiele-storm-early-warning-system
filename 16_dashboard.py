@@ -544,21 +544,21 @@ forecast_status='OUTDATED' if stale else 'FIXED HOURLY TARGET'
 model_status='FILE AVAILABLE' if (MODEL/'random_forest_live_model.pkl').exists() else 'MODEL FILE MISSING'
 def weather_summary() -> dict:
     """Forecast weather for Matatiele from the saved model input (ECMWF), never an observation."""
-    forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
+    kind,label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
     return {'temperature':weather_value(number(latest,'temperature_c'),chr(176)+'C'),'rain':weather_value(number(latest,'precipitation_mm'),'mm'),
             'wind':weather_value(number(latest,'wind_speed_ms'),'m/s'),'gust':weather_value(number(latest,'wind_gust_ms'),'m/s'),
-            'status':'OUTDATED SAVED CONDITIONS' if stale else f'ECMWF forecast for {forecast_hour} - not an observation'}
+            'icon':svg_image(dashboard_theme.weather_icon_svg(kind),label),
+            'source':'OUTDATED SAVED FORECAST' if stale else f'ECMWF forecast · {input_time:%H:%M} SAST' if input_time is not None else 'ECMWF forecast'}
 
-def warning_record_text(events: list, error: str | None) -> str:
-    """Whether the public warning record holds a genuine warning for the current prediction period."""
+def warning_record(events: list, error: str | None) -> dict:
+    """What the public warning record holds for the current prediction period: genuine, dev (test only), none or unknown."""
     match=[e for e in events if valid is not None and e['end']==valid.to_pydatetime()]
     genuine=[e for e in match if e['source']==warning_events.GENUINE]
     if genuine:
         issued=genuine[0]['issued_at']
-        return 'Genuine warning record: issued'+(f' {issued:%d %b %H:%M} SAST' if issued else '')+' for this period.'
-    if match:return 'Development test record only for this period (not a real warning).'
-    if error:return 'Warning record could not be checked: the public record is unreachable.'
-    return 'Genuine warning record: none for this period.'
+        return {'state':'genuine','issued':f'{issued:%H:%M}' if issued else None}
+    if match:return {'state':'dev','issued':None}
+    return {'state':'unknown' if error else 'none','issued':None}
 
 def hourly_forecast() -> None:
     """Genuine ECMWF hourly values at the Matatiele grid point (no imputation; missing hours are omitted)."""
@@ -571,7 +571,7 @@ def hourly_forecast() -> None:
         cells.append((f'{row["time"]:%H:%M}',svg_image(dashboard_theme.weather_icon_svg(kind),label),
                       weather_value(number(row,'temperature_2m'),chr(176),0),weather_value(number(row,'precipitation'),'mm'),
                       weather_value(number(row,'wind_speed_10m'),'m/s')))
-    st.html('<div class="section-title">Next hours <small>ECMWF forecast for Matatiele, hour ending (SAST)</small></div>'+dashboard_theme.hourly_html(cells))
+    st.html('<div class="section-title">Next hours <small>ECMWF weather forecast, hour ending (SAST) · not storm-risk scores</small></div>'+dashboard_theme.hourly_html(cells))
 
 def forecast_chart() -> None:
     """Next 36 hours at the Matatiele grid point: rain bars and a temperature line (genuine ECMWF values)."""
@@ -668,18 +668,21 @@ if page=='🏠 Dashboard':
         warning_actions[0].button('Open the warning',key='home_open_warning',on_click=open_warning,args=(active_events[0]['key'],),type='primary',icon=':material/warning:',width='stretch')
         warning_actions[1].button('Safety and emergency contacts',key='home_warning_safety',on_click=open_contacts,icon=':material/health_and_safety:',width='stretch')
     communication=resident_alerts.communication_status(secret,events_error)
-    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record_text(events,events_error),communication))
-    left,right=st.columns([2,1],gap='medium')
-    with left:
-        hourly_forecast()
-        st.button('Threshold details',key='home_threshold',on_click=go_to,args=('📈 Risk Analysis',),icon=':material/info:')
-    with right:
-        st.button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
-        st.button('Safety advice',key='home_safety',on_click=more_safety_advice,icon=':material/health_and_safety:',width='stretch')
-        st.button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
-        st.button('SMS warning service (research prototype)',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch')
-        st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: essential storm-risk information in a simpler format.</div>')
-    st.html(resident_view.quick_actions_html(advice))
+    genuine_active=[e for e in active_events if e['source']==warning_events.GENUINE]
+    if genuine_active:  # a genuine warning is in effect: the act-now advice comes straight after the warning
+        st.html(resident_view.quick_actions_html(resident_view.guidance('WARNING')))
+    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error),communication))
+    with st.container(key='home_actions'):
+        actions=st.columns(4,gap='small')
+        actions[0].button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
+        actions[1].button('Safety advice',key='home_safety',on_click=more_safety_advice,icon=':material/health_and_safety:',width='stretch')
+        actions[2].button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
+        actions[3].button('SMS service',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch',
+                          help='SMS warning service: research prototype. Public SMS delivery is not active.')
+    hourly_forecast()
+    if not genuine_active:
+        st.html(resident_view.quick_actions_html(advice))
+    st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: the same essentials as plain text.</div>')
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
@@ -907,4 +910,4 @@ if page=='ℹ️ About':
         st.caption('ECMWF run issue time is not supplied by this API response; retrieval time is recorded separately.')
 
 st.divider()
-st.caption('Matatiele Smart Resilient Storm Early Warning System · Academic research prototype, not an official warning service · Official warnings: South African Weather Service (weathersa.co.za) · Forecast data: Open-Meteo / ECMWF · Model development: ERA5 · SAST (UTC+2)')
+st.caption('Academic research prototype, not an official warning service · Official warnings: South African Weather Service (weathersa.co.za) · Times in SAST (UTC+2)')

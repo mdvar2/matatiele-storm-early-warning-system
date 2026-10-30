@@ -130,7 +130,6 @@ CSS = r"""
 .st-key-map_card {padding:0!important}
 .panel-heading {display:flex;align-items:center;gap:10px;font-size:16px;font-weight:750;color:var(--heading);margin:0 0 9px;line-height:1.4}
 .panel-heading img {width:22px;height:22px;flex-shrink:0}
-.map-heading {background:linear-gradient(110deg,#0f2f52,#123d68);color:#fff;padding:12px 16px;margin:0;border-radius:17px 17px 0 0}
 .section-title {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:6px 0 0;font-size:18px;font-weight:800;letter-spacing:-.3px;color:var(--heading)}
 .section-title small {font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0}
 .kpi {display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--card-border);border-left:5px solid var(--accent-c,var(--accent));
@@ -141,7 +140,6 @@ CSS = r"""
 .kpi .value {font-weight:800;font-size:24px;color:var(--heading);line-height:1.25;margin:3px 0}
 .kpi .sub {font-size:11.5px;color:var(--muted);line-height:1.4}.kpi.compact .value {font-size:19px}
 [data-testid="stDeckGlJsonChart"] {border-radius:12px;overflow:hidden}
-.map-source {font-size:11px;color:var(--muted);line-height:1.5;margin:5px 0}
 .map-legend {background:var(--card-solid);border:1px solid var(--card-border);border-radius:12px;padding:8px 12px;margin:6px 0 2px}
 .map-legend .title {font-size:12px;font-weight:700;color:var(--heading);margin-bottom:6px}
 .rain-legend {height:11px;border-radius:6px;background:linear-gradient(90deg,#e5edf5 0%,#3c78e6 14.286%,#288cf0 28.571%,#28be6e 42.857%,#78c83c 57.143%,#facd32 71.429%,#f56e28 85.714%,#be1e32 100%)}
@@ -149,14 +147,8 @@ CSS = r"""
 .map-legend .note {font-size:11px;color:var(--muted);margin-top:6px}
 
 /* Forecast weather card */
-.weather-body {display:grid;grid-template-columns:1fr 1.15fr;gap:16px;align-items:center;min-height:130px}
-.weather-primary {border-right:1px solid var(--divider);padding-right:12px}
-.weather-primary img {width:76px;height:76px}
 .temperature {font-size:clamp(28px,2.7vw,42px);font-weight:800;color:var(--heading);letter-spacing:-1px;white-space:nowrap}
 .condition {font-size:13px;font-weight:650;color:var(--text);margin-top:4px}.condition small {display:block;font-weight:400;color:var(--muted)}
-.weather-detail {display:flex;justify-content:space-between;gap:6px;align-items:center;margin:9px 0;font-size:12.5px;color:var(--muted)}
-.weather-detail strong {color:var(--heading);white-space:nowrap}
-.weather-status {font-size:10.5px;color:var(--muted);margin-top:8px}
 
 /* Next-hour gauge (value as HTML text so it follows the theme) */
 .risk-body {display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:8px}
@@ -164,16 +156,9 @@ CSS = r"""
 .gauge-value {position:absolute;left:0;right:0;top:26%;text-align:center;font-size:28px;font-weight:800;line-height:1.1;color:var(--heading)}
 .gauge-label {position:absolute;left:0;right:0;top:47%;text-align:center;font-size:12px;color:var(--muted)}
 .risk-badge {border-radius:8px;padding:7px 10px;display:block;font-size:11px;font-weight:800;background:var(--tint);color:var(--accent)}
-.risk-key {font-size:11.5px;color:var(--text);display:flex;align-items:center;gap:8px;margin:13px 0}
-.risk-key i {width:12px;height:12px;border-radius:4px;display:inline-block;flex-shrink:0}
 .risk-status {font-size:10.5px;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:.3px}
 
 /* Tables and research cards */
-.prediction-table {width:100%;border-collapse:separate;border-spacing:0;font-size:11.5px;color:var(--text)}
-.prediction-table th {background:var(--accent-soft);font-weight:650;padding:10px 7px;text-align:left;border-bottom:1px solid var(--divider);white-space:nowrap}
-.prediction-table td {padding:9px 7px;border-bottom:1px solid var(--divider);white-space:nowrap}
-.table-badge {font-size:9.5px;font-weight:750;border-radius:6px;padding:4px 7px;display:inline-block}
-.table-note {font-size:10.5px;color:var(--muted);margin-top:9px}
 .research-card {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:20px;color:var(--text);margin-bottom:12px;line-height:1.6;box-shadow:var(--card-shadow)}
 .research-card .label {color:var(--muted);font-size:12px;margin-bottom:8px}
 .research-card .value {color:var(--heading);font-size:23px;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
@@ -244,8 +229,8 @@ CSS = r"""
 /* Blue weather card and hourly strip (genuine ECMWF forecast values only). */
 .hourly {display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
 .hour {flex:1 0 84px;background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;text-align:center;box-shadow:var(--card-shadow)}
-.hour .t {font-size:12.5px;font-weight:700;color:var(--muted)}.hour img {width:40px;height:40px}
-.hour b {display:block;font-size:17px;color:var(--heading)}.hour small {display:block;font-size:11px;color:var(--muted)}
+.hour .t {font-size:13px;font-weight:800;color:var(--heading)}.hour img {width:52px;height:52px}
+.hour b {display:block;font-size:21px;color:var(--heading)}.hour small {display:block;font-size:11px;color:var(--muted)}
 /* Visual summaries: risk scale, warning flow, storm ingredients, advice cards. */
 .risk-scale {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:16px 18px 30px;box-shadow:var(--card-shadow);margin-bottom:12px}
 .risk-scale .title {font-weight:800;color:var(--heading);margin-bottom:10px}
@@ -270,19 +255,34 @@ CSS = r"""
 /* Streamlit's own menu has a separate theme setting that conflicts with the header switch, so it is hidden. */
 [data-testid="stMainMenu"] {display:none!important}
 /* Homepage: four compact summary cards. */
-.summary-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:4px 0 8px}
+.summary-grid {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);grid-template-areas:"risk decision weather" "risk comms comms";gap:12px;margin:4px 0 10px}
+.risk-summary {grid-area:risk}.decision-summary {grid-area:decision}.wx-summary {grid-area:weather}.comms-summary {grid-area:comms}
+.risk-dial {position:relative;max-width:330px;margin:4px auto 0}.risk-gauge-img {display:block;width:100%;height:auto}
+.risk-value {position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:clamp(40px,4.4vw,58px);font-weight:800;color:var(--heading);line-height:1;letter-spacing:-1px}
+.risk-badge-row {text-align:center;margin:10px 0 4px}.risk-pill {display:inline-block;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.6px;color:#fff;background:#2f855a}
+.risk-pill.tone-amber {background:#b45309}.risk-pill.tone-red {background:#c81e33}.risk-pill.tone-gray {background:#5b6b80}
+.risk-note {text-align:center;font-size:12.5px;font-weight:600;color:var(--muted)}
+.risk-meta {display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin-top:10px;font-size:12.5px;color:var(--text)}.risk-meta span {display:inline-flex;align-items:center;gap:5px}
+.risk-caveat {text-align:center;margin-top:6px;font-size:11.5px;color:var(--muted)}
+.decision-badge {display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;margin:4px 0 8px;font-size:17px;letter-spacing:.4px;color:#fff;background:#2f855a}
+.decision-badge .ico {width:26px;height:26px;flex-shrink:0}.decision-badge.tone-amber {background:#b45309}.decision-badge.tone-red {background:#c81e33}.decision-badge.tone-gray {background:#5b6b80}
+.decision-foot {display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:8px}.decision-foot .threshold-info {margin-top:0}
+.wx-now {display:flex;align-items:center;justify-content:space-between;gap:8px}.wx-now img {width:64px;height:64px}
+.wx-stats {display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.wx-stats span {background:#ffffff1f;border-radius:10px;padding:6px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.wx-stats .ico {width:21px;height:21px;color:#ffffff}.wx-stats b {font-size:15px;color:#fff}.wx-stats small {font-size:11px;color:#dbe8ff}
+.comm-tiles {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.comm-tile {display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:12px;border:1px solid var(--card-border);font-size:12.5px;color:var(--muted)}
+.comm-tile .ico {width:20px;height:20px;color:var(--accent)}
 .summary-card {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:13px 15px;box-shadow:var(--card-shadow);min-width:0;font-size:13px;color:var(--text)}
 .sc-title {display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
-.sc-value {font-size:30px;font-weight:700;color:var(--heading);line-height:1.1}.sc-head {font-weight:800;color:var(--heading);margin:2px 0 4px}
+.sc-value {font-size:30px;font-weight:700;color:var(--heading);line-height:1.1}
 .sc-line {margin:3px 0;line-height:1.4}.sc-foot {margin-top:6px;font-size:11.5px;color:var(--muted);line-height:1.4}
 .wx-summary {background:linear-gradient(135deg,#1e40af,#2563eb 60%,#3b82f6);color:#fff;border:0}.wx-summary .sc-title,.wx-summary .sc-foot {color:#dbe8ff}.wx-summary .sc-value {color:#fff}
-.sc-gauge {display:flex;align-items:flex-end;gap:10px}.sc-gauge b {font-size:26px;color:var(--heading);line-height:1}
-.mini-gauge {width:108px;height:62px}
-.sc-row {display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:5px 0;line-height:1.4}.sc-state {display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--heading)}
+.sc-state {display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--heading)}
 .sc-state::before {content:"";width:9px;height:9px;border-radius:50%;background:#8a9bb0;flex-shrink:0}.sc-state.ok::before {background:#16a34a}.sc-state.warn::before {background:#d97706}
 .risk-summary {border-left:5px solid #36a46b}.risk-summary.tone-amber {border-left-color:#d98b16}.risk-summary.tone-red {border-left-color:#d93449}.risk-summary.tone-gray {border-left-color:#8a9bb0}
-@media(max-width:1100px) {.summary-grid {grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:640px) {.summary-grid {grid-template-columns:1fr}}
+@media(max-width:1100px) {.summary-grid {grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"risk decision" "risk weather" "comms comms"}}
+@media(max-width:640px) {.summary-grid {grid-template-columns:1fr;grid-template-areas:"risk" "decision" "weather" "comms"}.comm-tiles {grid-template-columns:1fr}
+  .comm-tile {flex-direction:row;align-items:center;justify-content:space-between}.risk-value {font-size:46px}}
 .threshold-info {margin-top:8px;font-size:13px;color:var(--text)}
 .threshold-info summary {cursor:pointer;font-weight:700;color:var(--heading);display:inline-flex;align-items:center;gap:6px}
 .threshold-info p {margin:6px 0 0;max-width:72ch}
@@ -295,7 +295,7 @@ CSS = r"""
   .st-key-map_controls [data-testid="stColumn"]:first-child {flex:1 1 100%!important;width:100%!important}
   .st-key-map_controls [data-testid="stColumn"]:not(:first-child) {flex:1 1 0!important;min-width:0!important}}
 @media (max-width:700px) {.flow .lane-steps {flex-direction:column}.flow .arrow {justify-content:center;transform:rotate(90deg)}
-  .status-strip {flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.status-strip .chip {white-space:nowrap}
+  .status-strip .chip {white-space:normal}
   .st-key-map_controls [data-testid="stHorizontalBlock"] {gap:4px!important}}
 .risk-body.single {grid-template-columns:1fr;justify-items:center}
 .ingredients {display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}
@@ -386,15 +386,15 @@ CSS = r"""
   [data-testid="stSidebar"] [data-testid="stButton"] button {transition:none}
 }
 @media(max-width:1100px) {.hero {align-items:flex-start}.clock-card {padding:10px}.kpi {gap:7px;padding:12px 8px}.kpi-icon {width:34px;height:34px}
-  .kpi .value {font-size:20px}.weather-body {gap:8px}.temperature {font-size:30px}}
+  .kpi .value {font-size:20px}.temperature {font-size:30px}}
 @media(max-width:900px) {[data-testid="stHorizontalBlock"] {flex-wrap:wrap}
   [data-testid="stHorizontalBlock"]>[data-testid="stColumn"] {min-width:min(100%,280px);flex:1 1 280px}
   .hero {flex-wrap:wrap}.clock-card {width:100%;box-sizing:border-box;text-align:left}.clock-card small {display:inline;margin-left:12px}
-  .weather-body,.risk-body {grid-template-columns:1fr 1fr}}
+  .risk-body {grid-template-columns:1fr 1fr}}
 @media(max-width:640px) {[data-testid="stHorizontalBlock"]:has(>[data-testid="stColumn"] .kpi)>[data-testid="stColumn"] {min-width:0;flex:1 1 calc(50% - 12px)}
   [data-testid="stMainBlockContainer"] {padding:3.1rem .85rem 1rem}.hero h1 {font-size:22px}.hero-main>img {width:38px;height:38px}.hero p {font-size:12.5px}
-  .resident-card {padding:84px 16px 16px}.resident-card::before {left:16px;top:16px}.resident-card::after {left:30px;top:30px}.kpi {min-height:90px}.prediction-table {font-size:10.5px}
-  .weather-body,.risk-body {grid-template-columns:1fr}.weather-primary {border-right:0;border-bottom:1px solid var(--divider);padding:0 0 10px}}
+  .resident-card {padding:84px 16px 16px}.resident-card::before {left:16px;top:16px}.resident-card::after {left:30px;top:30px}.kpi {min-height:90px}
+  .risk-body {grid-template-columns:1fr}}
 """.replace('CLOUDS_URI', CLOUDS_URI)
 
 
@@ -468,9 +468,8 @@ def status_strip(stale, updated, simulated, refresh_minutes=15):
     if stale:
         fresh = f'<span class="chip stale"><span class="dot"></span><b>Outdated data</b> &middot; last update {e(updated or "unknown")}</span>'
     else:
-        fresh = f'<span class="chip"><span class="dot"></span><b>Live forecast data</b> &middot; model updated {e(updated or "unknown")}</span>'
-    chips = [fresh, f'<span class="chip">Auto-refresh every {int(refresh_minutes)} min while open</span>',
-             '<span class="chip">Weather forecast: ECMWF via Open-Meteo &middot; storm risk: Random Forest model</span>']
+        fresh = f'<span class="chip" title="Refreshes every {int(refresh_minutes)} minutes while open"><span class="dot"></span><b>Live forecast data</b></span>'
+    chips = [fresh, '<span class="chip">ECMWF forecast &rarr; Random Forest risk score &rarr; 35% decision</span>']
     if simulated:
         chips.insert(0, '<span class="chip sim"><b>SIMULATION ON</b> &middot; on screen only</span>')
     return '<div class="status-strip">' + ''.join(chips) + '</div>'

@@ -123,7 +123,7 @@ class ResidentStatus(unittest.TestCase):
         self.assertEqual((s['level'], s['guidance_level'], s['tone']), ('LOW', 'LOW', 'green'))
         self.assertIn('model estimate', s['headline'])
         self.assertIn('not a guarantee', s['explanation'])
-        self.assertEqual(s['estimate'], 'Model estimate: 4% chance of a storm')
+        self.assertEqual(s['estimate'], 'Model risk score: 4%')  # a score, not a 'chance of a storm'
         self.assertEqual(s['period'], '30 Oct 14:00 - 15:00 (SAST)')
         self.assertEqual(s['updated'], '30 Oct 2026 13:12 SAST')
         self.assertIn('Matatiele', s['coverage'])
@@ -140,7 +140,7 @@ class ResidentStatus(unittest.TestCase):
                 s = self.status(probability, stale=True)
                 self.assertEqual(s['headline'], rv.STALE_HEADLINE)
                 self.assertEqual((s['guidance_level'], s['tone'], s['stale']), ('UNAVAILABLE', 'gray', True))
-                self.assertTrue(s['estimate'].startswith('Last estimate'))
+                self.assertTrue(s['estimate'].startswith('Last risk score'))
                 self.assertIn('Do not rely on it', s['explanation'])
 
     def test_missing_or_invalid_probability(self):
@@ -298,8 +298,10 @@ class DashboardApp(DashboardHarness):
         self.assertFalse(at.exception)
         page = self.html(at)
         self.assertNotIn('class="kpi', page)  # technical status cards live in About, not on Home
-        self.assertIn('Low storm risk (model estimate)', page)
-        self.assertIn('not a guarantee', page)
+        self.assertIn('LOW RISK', page)
+        self.assertIn('Not a guarantee', page)
+        self.assertIn('Model risk score — not a calibrated probability', page)
+        self.assertNotIn('chance of a storm', page)
         self.assertIn('Be prepared', page)
         self.assertIn('not been independently validated', self.html(self.go(at, 'Risk Analysis')))  # full caveat: Risk Analysis
         self.assertNotIn('SIMULATION', page)
@@ -312,8 +314,9 @@ class DashboardApp(DashboardHarness):
         self.write_prediction(.41, fresh=False)
         at = self.app(inference_ok=False).run()
         page = self.html(at)
-        self.assertIn(rv.STALE_HEADLINE, page)
-        self.assertIn('Last estimate: 41%', page)
+        self.assertIn('OUT OF DATE', page)
+        self.assertIn('Last risk score: 41% (out of date)', page)
+        self.assertIn('NO DECISION', page)
         self.assertNotIn('take precautions now', page)
         self.assertIn('If you see signs of a storm', page)
 
@@ -338,7 +341,8 @@ class DashboardApp(DashboardHarness):
         page = self.html(at)
         self.assertIn(rv.SIMULATION_LABEL, page)
         self.assertIn('Simulated model output: 60%', page)
-        self.assertIn('Storm warning (model): take precautions now', page)
+        self.assertIn('SIMULATED WARNING', page)
+        self.assertNotIn('WARNING TRIGGERED', page.replace('SIMULATED WARNING', ''))
         self.assertIn('Act now', page)
         self.assertIn('>5.0%<', self.html(self.go(at, 'Risk Analysis')))  # Risk Analysis keeps the genuine output
         self.go(at, 'Dashboard')
@@ -351,7 +355,7 @@ class DashboardApp(DashboardHarness):
         at.toggle(key='presentation_test_mode').set_value(False).run()
         page = self.html(at)
         self.assertNotIn(rv.SIMULATION_LABEL, page)
-        self.assertIn('Low storm risk (model estimate)', page)
+        self.assertIn('LOW RISK', page)
         self.assertEqual(len(at.code), 0)
         self.assertEqual(self.digest(), before)
 
@@ -475,8 +479,8 @@ class DashboardApp(DashboardHarness):
         self.write_prediction(.27)
         written = (self.model / 'dashboard_forecast_prediction.csv').read_bytes()
         at = self.app().run()
-        self.assertIn('Raised storm risk: stay alert (model estimate)', self.html(at))
-        self.assertIn('Model estimate: 27% chance of a storm', self.html(at))
+        self.assertIn('MODERATE RISK', self.html(at))
+        self.assertIn('<div class="risk-value">27%</div>', self.html(at))
         self.assertEqual((self.model / 'dashboard_forecast_prediction.csv').read_bytes(), written)
         history = pd.read_csv(self.model / 'prediction_history.csv')
         self.assertEqual(history['storm_probability'].tolist(), [.27])  # genuine value, never 0.60

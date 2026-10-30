@@ -133,7 +133,7 @@ def resident_status(probability, period_start, period_end, updated, stale, simul
     if simulated:
         estimate = f'Simulated model output: {SIMULATED_PROBABILITY:.0%}'
     elif usable:
-        estimate = f'{"Last" if stale else "Model"} estimate: {float(probability):.0%} chance of a storm'
+        estimate = f'Last risk score: {score_text(probability)} (out of date)' if stale else f'Model risk score: {score_text(probability)}'
     else:
         estimate = 'No model estimate'
     if simulated:
@@ -225,55 +225,109 @@ THRESHOLD_METHOD = ("How it was set: the project's threshold-evaluation step com
 
 
 GAUGE_COLOURS = {'green': '#36a46b', 'amber': '#d98b16', 'red': '#d93449', 'gray': '#8a9bb0'}
+RISK_BADGES = {'LOW': 'LOW RISK', 'ELEVATED': 'ELEVATED RISK', 'MODERATE': 'MODERATE RISK', 'WARNING': 'HIGH RISK', 'UNAVAILABLE': 'NO SCORE'}
+SCORE_NOTE = 'Model risk score \u2014 not a calibrated probability'
+
+
+def score_text(probability):
+    """The model score as shown to residents: whole percent, with '<1%' for small non-zero scores."""
+    try:
+        p = float(probability)
+    except (TypeError, ValueError):
+        return 'n/a'
+    if not math.isfinite(p) or not 0 <= p <= 1:
+        return 'n/a'
+    return '<1%' if 0 < p < 0.005 else f'{p:.0%}'
 
 
 def gauge_svg(probability, tone):
-    """Small semicircle gauge with a tick at the 35% threshold; the value is also given as alt text."""
+    """Semicircle gauge of the model score with a labelled marker at the 35% threshold; the value is also the alt text."""
     try:
         p = min(max(float(probability), 0.0), 1.0)
         usable = math.isfinite(p)
     except (TypeError, ValueError):
         p, usable = 0.0, False
     angle = math.pi * (1 - THRESHOLD)
-    x1, y1 = 60 + 41 * math.cos(angle), 60 - 41 * math.sin(angle)
-    x2, y2 = 60 + 59 * math.cos(angle), 60 - 59 * math.sin(angle)
-    label = f'Model-estimated storm risk {p:.0%}, warning threshold 35%' if usable else 'No model estimate'
+    cx, cy, r = 110, 112, 88
+    point = lambda radius: (cx + radius * math.cos(angle), cy - radius * math.sin(angle))  # noqa: E731
+    (x1, y1), (x2, y2), (tx, ty) = point(r - 17), point(r + 17), point(r + 27)
+    label = f'Model risk score {score_text(p)}, warning threshold 35%' if usable else 'No model risk score'
     colour = GAUGE_COLOURS.get(tone, GAUGE_COLOURS['gray'])
-    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 68">'
-           '<path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="#c7d2e0" stroke-width="12" stroke-linecap="round"/>'
-           f'<path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="{colour}" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{p * 100 if usable else 0:.1f} 100"/>'
-           f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#64748b" stroke-width="3"/></svg>')
+    arc = f'M{cx - r} {cy} A{r} {r} 0 0 1 {cx + r} {cy}'
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 124" font-family="Segoe UI, Arial, sans-serif">'
+           f'<path d="{arc}" fill="none" stroke="#c7d2e0" stroke-width="20" stroke-linecap="round"/>'
+           # Filled part: exactly the score. Nothing is drawn for 0 (a zero-length dash with round caps would show as dots).
+           + (f'<path d="{arc}" fill="none" stroke="{colour}" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="{p * 100:.1f} 1000"/>'
+              if usable and p > 0 else '') +
+           f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#d93449" stroke-width="4" stroke-linecap="round"/>'
+           f'<text x="{tx:.1f}" y="{ty:.1f}" font-size="13" font-weight="700" fill="#d93449" text-anchor="middle">35%</text></svg>')
     # An image, because the page's HTML sanitiser removes inline SVG; the value is in the alt text.
-    return f'<img class="mini-gauge" src="data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}" alt="{label}">'
+    return f'<img class="risk-gauge-img" src="data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}" alt="{label}">'
+
+
+def warning_state(status, record):
+    """Warning-decision badge (title, tone, icon, detail). A threshold crossing is not reported as a warning until the
+    public warning record holds one. record: {'state': 'genuine'|'dev'|'none'|'unknown', 'issued': 'HH:MM' or None}."""
+    state = record.get('state')
+    if status['simulated']:
+        return 'SIMULATED WARNING', 'amber', 'alert', 'On screen only: no warning record is created.'
+    if state == 'genuine':
+        issued = f' at {record["issued"]} SAST' if record.get('issued') else ''
+        return 'WARNING TRIGGERED', 'red', 'siren', f'Warning record created{issued} for this period.'
+    if status['stale']:
+        return 'NO DECISION', 'gray', 'help-circle', 'Data out of date: warnings are never issued from out-of-date data.'
+    if status['level'] == 'UNAVAILABLE':
+        return 'NO DECISION', 'gray', 'help-circle', 'No current model risk score.'
+    if status['level'] == 'WARNING':
+        detail = {'unknown': 'Threshold reached; the warning record could not be checked.',
+                  'dev': 'Threshold reached; only a development test record exists.'}.get(
+            state, 'Threshold reached; no warning record yet (the hourly checker creates warnings).')
+        return 'THRESHOLD REACHED', 'amber', 'alert', detail
+    detail = 'Score is below the warning threshold.'
+    if state == 'unknown':
+        detail += ' Warning record could not be checked.'
+    return 'NO WARNING TRIGGERED', 'green', 'check-circle', detail
 
 
 def summary_html(status, probability, weather, record, communication):
-    """The four homepage summary cards: forecast weather, model estimate, warning decision, communication status.
+    """Homepage: model storm-risk gauge (largest), warning decision, forecast weather and communication status.
 
-    weather: dict of display strings (temperature, rain, wind, status); record: text on the genuine warning record;
-    communication: (label, state, tone) rows, tone 'ok', 'warn' or 'off'. Nothing here is computed from anything but these inputs.
+    weather: display strings (temperature, rain, wind, gust, source) plus an 'icon' <img>; record: see warning_state;
+    communication: (label, state, tone) rows, tone 'ok', 'warn' or 'off'. Every value comes from these inputs.
     """
     e = lambda value: html.escape(str(value))  # noqa: E731
+    score = SIMULATED_PROBABILITY if status['simulated'] else probability
     sim = f'<div class="resident-sim">{e(status["label"])}</div>' if status['simulated'] else ''
-    estimate = f'{float(SIMULATED_PROBABILITY if status["simulated"] else probability):.0%}' if status['level'] != 'UNAVAILABLE' else 'n/a'
-    weather_card = (f'<div class="summary-card wx-summary"><div class="sc-title">{icons.icon("cloud-rain")} Weather forecast (ECMWF)</div>'
-                    f'<div class="sc-value">{e(weather["temperature"])}</div>'
-                    f'<div class="sc-line">Rain {e(weather["rain"])} · Wind {e(weather["wind"])}</div>'
-                    f'<div class="sc-line">Gusts {e(weather["gust"])}</div><div class="sc-foot">{e(weather["status"])}</div></div>')
-    risk_card = (f'<div class="summary-card risk-summary tone-{e(status["tone"])}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div>'
-                 f'<div class="sc-gauge">{gauge_svg(SIMULATED_PROBABILITY if status["simulated"] else probability, status["tone"])}<b>{e(estimate)}</b></div>'
-                 f'<div class="sc-head">{e(status["headline"])}</div><div class="sc-line">{e(status["estimate"])}</div>'
-                 f'<div class="sc-line">{icons.icon("clock")} Prediction period {e(status["period"])}</div>'
-                 f'<div class="sc-foot">Model updated {e(status["updated"])} · {e(HERO_NOTE)}</div></div>')
+    tone = status['tone']
+    badge = 'OUT OF DATE' if status['stale'] else RISK_BADGES[status['level']]
+    value = score_text(score) if status['level'] != 'UNAVAILABLE' else 'n/a'
+    risk_card = (f'<div class="summary-card risk-summary tone-{e(tone)}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div>'
+                 f'<div class="risk-dial">{gauge_svg(score, tone)}<div class="risk-value">{e(value)}</div></div>'
+                 f'<div class="risk-badge-row"><span class="risk-pill tone-{e(tone)}">{e(badge)}</span></div>'
+                 f'<div class="risk-note">{e(SCORE_NOTE)}</div>'
+                 f'<div class="risk-meta"><span>{icons.icon("clock")} For {e(status["period"])}</span><span>Updated {e(status["updated"])}</span></div>'
+                 f'<div class="risk-caveat">{e(status["estimate"]) + " · " if status["stale"] or status["simulated"] else ""}Not a guarantee: storms can still develop.</div></div>')
+    title, decision_tone, icon, detail = warning_state(status, record)
     decision_card = (f'<div class="summary-card decision-summary"><div class="sc-title">{icons.icon("scale")} Warning decision</div>'
-                     f'<div class="sc-line"><b>Warning threshold: {THRESHOLD:.0%}</b></div>'
-                     f'<div class="sc-line">{e(status["decision"])}</div><div class="sc-line">{e(record)}</div>'
+                     f'<div class="decision-badge tone-{decision_tone}">{icons.icon(icon)}<b>{e(title)}</b></div>'
+                     f'<div class="sc-line">{e(detail)}</div>'
+                     f'<div class="decision-foot"><b>Warning threshold: {THRESHOLD:.0%}</b>'
                      f'<details class="threshold-info"><summary>{icons.icon("info")} Why 35%?</summary><p>{e(THRESHOLD_TEXT)}</p>'
-                     '<p>More detail: menu, then Risk Analysis.</p></details></div>')
-    rows = ''.join(f'<div class="sc-row"><span>{e(label)}</span><span class="sc-state {e(tone)}">{e(value)}</span></div>'
-                   for label, value, tone in communication)
-    comms_card = f'<div class="summary-card comms-summary"><div class="sc-title">{icons.icon("message")} Warning communication</div>{rows}</div>'
-    return f'<div class="summary-grid">{weather_card}{risk_card}{decision_card}{comms_card}</div>'
+                     '<p>More detail: menu, then Risk Analysis.</p></details></div>'
+                     '<div class="sc-foot">Research system decision, not an official SAWS warning.</div></div>')
+    weather_card = (f'<div class="summary-card wx-summary"><div class="sc-title">{icons.icon("cloud")} Weather forecast</div>'
+                    f'<div class="wx-now"><div class="sc-value">{e(weather["temperature"])}</div>{weather["icon"]}</div>'
+                    '<div class="wx-stats">'
+                    f'<span>{icons.icon("cloud-rain", "Rain")}<b>{e(weather["rain"])}</b><small>Rain</small></span>'
+                    f'<span>{icons.icon("wind", "Wind")}<b>{e(weather["wind"])}</b><small>Wind</small></span>'
+                    f'<span>{icons.icon("wind", "Gusts")}<b>{e(weather["gust"])}</b><small>Gusts</small></span></div>'
+                    f'<div class="sc-foot">{e(weather["source"])}</div></div>')
+    comm_icons = {'Dashboard alerts': 'bell', 'SMS simulation': 'message', 'Public SMS delivery': 'smartphone'}
+    tiles = ''.join(f'<div class="comm-tile">{icons.icon(comm_icons.get(label, "info"))}<span>{e(label)}</span>'
+                    f'<span class="sc-state {e(state_tone)}">{e(state)}</span></div>' for label, state, state_tone in communication)
+    comms_card = (f'<div class="summary-card comms-summary"><div class="sc-title">{icons.icon("message")} Warning communication</div>'
+                  f'<div class="comm-tiles">{tiles}</div></div>')
+    return f'<div class="summary-grid">{risk_card}{decision_card}{weather_card}{comms_card}</div>'
 
 
 def details_html(status):

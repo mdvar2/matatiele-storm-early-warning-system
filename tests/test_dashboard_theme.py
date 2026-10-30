@@ -100,10 +100,11 @@ class Assets(unittest.TestCase):
     def test_status_strip(self):
         live = theme.status_strip(False, '30 Oct 10:20 SAST', False)
         self.assertIn('Live forecast', live); self.assertNotIn('Outdated', live); self.assertNotIn('SIMULATION', live)
+        self.assertIn('ECMWF forecast &rarr; Random Forest risk score &rarr; 35% decision', live)  # the chain, stated once
         stale = theme.status_strip(True, None, False)
         self.assertIn('Outdated data', stale); self.assertIn('last update unknown', stale); self.assertNotIn('Live forecast', stale)
         self.assertIn('SIMULATION ON', theme.status_strip(False, 'x', True))
-        self.assertIn('&lt;b&gt;', theme.status_strip(False, '<b>', False))
+        self.assertIn('&lt;b&gt;', theme.status_strip(True, '<b>', False))  # the update time (shown when stale) is escaped
 
 
 class RedesignedDashboard(rd.DashboardHarness):
@@ -119,7 +120,8 @@ class RedesignedDashboard(rd.DashboardHarness):
     def test_weather_card_icon_is_from_forecast_values(self):
         self.write_prediction(.05)  # fixture: 0.0 mm rain, 10 % cloud at 11:00 SAST
         page = self.html(self.app().run())
-        self.assertIn('ECMWF forecast for 11:00 SAST - not an observation', page)
+        self.assertIn('ECMWF forecast · 11:00 SAST', page)
+        self.assertIn('alt="Clear (forecast)"', page)  # condition icon from the forecast values
 
     def test_map_controls_tooltips_and_low_data_basemap(self):
         self.write_prediction(.05)
@@ -173,11 +175,13 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.go(at, 'Dashboard')
         self.assertNotIn('NO WARNING IN EFFECT', self.html(at))  # the redundant status card is gone; the risk card remains
         home = self.html(at)
-        self.assertIn('summary-card risk-summary tone-green', home)  # compact risk card, not the large panel
-        for title in ('Weather forecast (ECMWF)', 'Model-estimated storm risk', 'Warning decision', 'Warning communication'):
+        self.assertIn('summary-card risk-summary tone-green', home)  # the storm-risk card leads the grid
+        self.assertLess(home.index('risk-summary'), home.index('decision-summary'))
+        self.assertLess(home.index('decision-summary'), home.index('wx-summary'))
+        for title in ('Weather forecast', 'Model-estimated storm risk', 'Warning decision', 'Warning communication'):
             self.assertIn(title, home)
-        self.assertIn('Below the 35% warning threshold: no warning.', home)
-        self.assertIn('Warning record could not be checked: the public record is unreachable.', home)  # the harness blocks the network
+        self.assertIn('NO WARNING TRIGGERED', home)
+        self.assertIn('Warning record could not be checked.', home)  # the harness blocks the network
         # Communication status is derived from configuration: SMS_DELIVERY_MODE is unset in tests and the harness blocks the
         # network, so the warning record cannot be read.
         for label, state in (('Dashboard alerts', 'Warning record unreachable'), ('SMS simulation', 'Available'),
@@ -187,7 +191,7 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.assertNotIn('href="tel:', home)  # emergency contacts are on the Safety page
         labels = [b.label for b in at.button]
         self.assertNotIn('Get free SMS storm warnings', labels)
-        self.assertIn('SMS warning service (research prototype)', labels)
+        self.assertIn('SMS service', labels)
         self.assertIn('Emergency contacts', labels)
         self.assertFalse([b for b in at.get('link_button') if 'SAWS' in b.proto.label])  # no prominent SAWS button
         self.assertIn('Warning threshold: 35%', self.html(at))
@@ -249,7 +253,8 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.assertIn('Why 35%?', home); self.assertIn('Warning threshold: 35%', home)
         self.assertIn('href="?view=text"', home)  # low-data view reachable from Home
         self.assertTrue([b for b in at.button if b.key == 'home_alerts'])
-        next(b for b in at.button if b.key == 'home_threshold').click().run()
+        self.assertIn('More detail: menu, then Risk Analysis.', home)
+        self.go(at, 'Risk Analysis')
         self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')
         text = ' '.join(m.value for m in at.markdown) + ' '.join(c.value for c in at.caption)
         self.assertIn(rd.rv.THRESHOLD_TEXT, text)

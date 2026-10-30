@@ -65,29 +65,31 @@ class RiskAnalysisAndHome(DashboardHarness):
     def test_home_gauge_is_an_image_with_its_value_as_text(self):
         self.write_prediction(.05)
         page = self.html(self.app().run())
-        self.assertIn('<img class="mini-gauge" src="data:image/svg+xml;base64,', page)  # inline SVG would be removed by the sanitiser
-        self.assertIn('alt="Model-estimated storm risk 5%, warning threshold 35%"', page)
+        self.assertIn('<img class="risk-gauge-img" src="data:image/svg+xml;base64,', page)  # inline SVG would be removed by the sanitiser
+        self.assertIn('alt="Model risk score 5%, warning threshold 35%"', page)
 
     def test_connectivity_failure_then_recovery(self):
         # 1. Normal: fresh forecast, estimate above the threshold.
         self.write_prediction(.41)
         page = self.html(self.app().run())
-        self.assertIn('At or above the 35% warning threshold: warning condition met.', page)
+        self.assertIn('THRESHOLD REACHED', page)  # crossing the threshold is not reported as a warning record
+        self.assertNotIn('WARNING TRIGGERED', page)
         self.assertIn('Live forecast data', page)
         # 2. The forecast service cannot be reached: the last known estimate is shown, flagged, and makes no decision.
         self.write_prediction(.41, fresh=False)
         at = self.app(inference_ok=False).run()
         page = self.html(at)
         self.assertIn('Outdated data', page)
-        self.assertIn('Last estimate: 41%', page)
-        self.assertIn('No warning decision: the information is out of date', page)
-        self.assertNotIn('warning condition met', page)
+        self.assertIn('Last risk score: 41% (out of date)', page)
+        self.assertIn('NO DECISION', page)
+        self.assertIn('warnings are never issued from out-of-date data', page)
+        self.assertNotIn('THRESHOLD REACHED', page)
         text = ' '.join(m.value for m in self.app(inference_ok=False, view='text').run().markdown)
         self.assertIn('OUT OF DATE: last known information from', text)
         # 3. Connectivity returns: current information and a normal decision again.
         self.write_prediction(.05)
         page = self.html(self.app().run())
-        self.assertIn('Below the 35% warning threshold: no warning.', page)
+        self.assertIn('NO WARNING TRIGGERED', page)
         self.assertNotIn('Outdated data', page)
 
 
@@ -196,9 +198,10 @@ class FinalRefinements(DashboardHarness):
     def test_threshold_and_model_score_are_labelled_apart_on_home(self):
         self.write_prediction(.27)
         home = self.html(self.app().run())
-        self.assertIn('Model estimate: 27% chance of a storm', home)
+        self.assertIn('<div class="risk-value">27%</div>', home)
+        self.assertIn('Model risk score — not a calibrated probability', home)
         self.assertIn('Warning threshold: 35%', home)
-        self.assertIn('Below the 35% warning threshold: no warning.', home)
+        self.assertIn('NO WARNING TRIGGERED', home)
 
 
 def rv_alerts():
@@ -245,3 +248,58 @@ class DisclaimerAndEvidence(unittest.TestCase):
                              capture_output=True, text=True, timeout=300)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertIn('CHECK PASSED', run.stdout)
+
+
+class VisualHomepage(unittest.TestCase):
+    def status(self, probability, stale=False, simulated=False):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        t = datetime(2026, 10, 30, 12, tzinfo=ZoneInfo('Africa/Johannesburg'))
+        return rv.resident_status(probability, t, t, t, stale, simulated)
+
+    def test_warning_decision_states(self):
+        cases = [((.10, {'state': 'none'}), 'NO WARNING TRIGGERED', 'green'),
+                 ((.10, {'state': 'unknown'}), 'NO WARNING TRIGGERED', 'green'),
+                 ((.50, {'state': 'none'}), 'THRESHOLD REACHED', 'amber'),     # crossing alone is not a warning record
+                 ((.50, {'state': 'unknown'}), 'THRESHOLD REACHED', 'amber'),
+                 ((.50, {'state': 'dev'}), 'THRESHOLD REACHED', 'amber'),      # a development test is not a genuine warning
+                 ((.50, {'state': 'genuine', 'issued': '13:05'}), 'WARNING TRIGGERED', 'red'),
+                 ((None, {'state': 'none'}), 'NO DECISION', 'gray')]
+        for (probability, record), title, tone in cases:
+            with self.subTest(probability=probability, record=record):
+                self.assertEqual(rv.warning_state(self.status(probability), record)[:2], (title, tone))
+        self.assertEqual(rv.warning_state(self.status(.50, stale=True), {'state': 'none'})[0], 'NO DECISION')
+        self.assertEqual(rv.warning_state(self.status(.05, simulated=True), {'state': 'none'})[0], 'SIMULATED WARNING')
+        self.assertIn('13:05', rv.warning_state(self.status(.50), {'state': 'genuine', 'issued': '13:05'})[3])
+        self.assertIn('could not be checked', rv.warning_state(self.status(.50), {'state': 'unknown'})[3])
+
+    def test_gauge_draws_the_genuine_score_and_the_threshold_marker(self):
+        import base64
+        import math
+        import re
+        html = rv.gauge_svg(.27, 'amber')
+        svg = base64.b64decode(re.search(r'base64,([^"]+)"', html).group(1)).decode()
+        self.assertIn('stroke-dasharray="27.0 1000"', svg)  # filled to exactly the model score
+        zero = base64.b64decode(re.search(r'base64,([^"]+)"', rv.gauge_svg(0, 'green')).group(1)).decode()
+        self.assertEqual(zero.count('<path'), 1)  # a zero score draws only the empty track
+        self.assertIn('>35%</text>', svg)
+        angle = math.pi * (1 - .35)
+        x1 = 110 + 71 * math.cos(angle)
+        self.assertIn(f'x1="{x1:.1f}"', svg)  # the marker sits at 35% of the arc
+        self.assertIn('alt="Model risk score 27%, warning threshold 35%"', html)
+        self.assertEqual([rv.score_text(v) for v in (0, .003, .006, .27, 1, None, 1.5)], ['0%', '<1%', '1%', '27%', '100%', 'n/a', 'n/a'])
+
+    def test_wording_is_a_score_not_a_chance(self):
+        status = self.status(.27)
+        page = rv.summary_html(status, .27, {'temperature': '18 °C', 'rain': '0.0 mm', 'wind': '1 m/s', 'gust': '3 m/s',
+                                             'source': 'ECMWF forecast · 11:00 SAST', 'icon': ''}, {'state': 'none'}, [])
+        self.assertIn('Model-estimated storm risk', page)  # shown in capitals by the card-title style
+        self.assertIn('Model risk score — not a calibrated probability', page)
+        self.assertNotIn('chance of a storm', page)
+        self.assertIn('Not a guarantee', page)
+
+    def test_mobile_layout_puts_the_risk_score_and_decision_first(self):
+        import dashboard_theme
+        css = dashboard_theme.CSS
+        self.assertIn('grid-template-areas:"risk decision weather" "risk comms comms"', css)
+        self.assertIn('grid-template-areas:"risk" "decision" "weather" "comms"', css)
