@@ -65,6 +65,14 @@ jobs:
           RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
           RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
           RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
+          # Resident subscribers: off unless the repository variable SUBSCRIBER_ALERTS_ENABLED is 'true'.
+          SUBSCRIBER_ALERTS_ENABLED: ${{ vars.SUBSCRIBER_ALERTS_ENABLED || 'false' }}
+          SMS_DELIVERY_MODE: twilio
+          SUBSCRIBER_STORE: github
+          SUBSCRIBER_STORE_REPO: ${{ vars.SUBSCRIBER_STORE_REPO }}
+          SUBSCRIBER_STORE_TOKEN: ${{ secrets.SUBSCRIBER_STORE_TOKEN }}
+          SUBSCRIBER_ENCRYPTION_KEY: ${{ secrets.SUBSCRIBER_ENCRYPTION_KEY }}
+          SUBSCRIBER_HASH_KEY: ${{ secrets.SUBSCRIBER_HASH_KEY }}
         run: python 18_scheduled_sms_worker.py --live
       - name: Manual connectivity test (NO WEATHER WARNING)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}

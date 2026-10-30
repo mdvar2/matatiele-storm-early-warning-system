@@ -34,6 +34,7 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
 from sms_alert import sms_is_configured, send_test_sms
 import resident_view
 import dashboard_theme
+import resident_pages
 
 BASE = Path(__file__).resolve().parent
 MODEL = BASE / 'outputs' / 'model_live'
@@ -404,9 +405,9 @@ sidebar = cast(Any, st.sidebar)
 if 'admin_authenticated' not in st.session_state:st.session_state.admin_authenticated=False
 with sidebar:
     st.html(f'<div class="brand">{ui_icon("cloud")}<div><strong>Matatiele</strong><span>Storm Early Warning</span><small>Eastern Cape · Research Beta</small></div></div>')
-    navigation = ['🏠 Dashboard','🛟 Safety Advice','🌦️ Live Forecast','🗺️ Weather Map','📈 Risk Analysis','🕒 Historical Data','📱 Alerts & Notifications','ℹ️ About']
+    navigation = ['🏠 Dashboard','🛟 Safety Advice','🔔 SMS Alerts','📜 Warning History','🌦️ Live Forecast','🗺️ Weather Map','📈 Risk Analysis','🕒 Historical Data','📱 Alerts & Notifications','ℹ️ About']
     if 'dashboard_page' not in st.session_state:st.session_state.dashboard_page=navigation[0]
-    nav_icons=['home','health_and_safety','partly_cloudy_day','public','monitoring','insert_chart','notifications','info']
+    nav_icons=['home','health_and_safety','sms','history','partly_cloudy_day','public','monitoring','insert_chart','notifications','info']
     for item,nav_icon in zip(navigation,nav_icons):
         if st.button(item.split(' ',1)[1],icon=f':material/{nav_icon}:',key='nav_'+item,width='stretch',
                      type='primary' if st.session_state.dashboard_page==item else 'secondary'):
@@ -441,12 +442,17 @@ with sidebar:
             outcome=send_test_sms()
             (st.success if outcome.get('sent') else st.error)('SMS accepted by provider.' if outcome.get('sent') else 'SMS request failed. Review private server logs.')
     else:test_mode=False
+    if is_admin and st.button('Administration',icon=':material/admin_panel_settings:',key='nav_admin',width='stretch',
+                              type='primary' if page=='🛠️ Administration' else 'secondary'):
+        st.session_state.dashboard_page='🛠️ Administration';st.rerun()
     if not is_admin:st.session_state.presentation_test_mode=False
+    # Administration is never shown to a session that is not signed in (e.g. after logging out).
+    if page=='🛠️ Administration' and not is_admin:page=st.session_state.dashboard_page=navigation[0]
 
 if not text_view:st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Is a storm likely in Matatiele in the next hour, and what should you do?</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
 if not text_view:
     # Small screens hide the sidebar behind a menu, so the same sections are offered here too.
-    st.session_state.mobile_nav_choice=page
+    st.session_state.mobile_nav_choice=page if page in navigation else None
     def _go_to_mobile_section():
         if st.session_state.get('mobile_nav_choice'):st.session_state.dashboard_page=st.session_state.mobile_nav_choice
     with st.container(key='mobile_nav'):
@@ -524,6 +530,9 @@ if page in ('🏠 Dashboard','🛟 Safety Advice'):
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
+if page=='🏠 Dashboard' and not text_view:
+    if st.button('🔔 Get free SMS storm warnings for Matatiele',key='cta_sms_alerts',type='primary'):
+        st.session_state.dashboard_page='🔔 SMS Alerts';st.rerun()
 if page=='🛟 Safety Advice':
     st.caption('The advice above matches the current status. Full advice for when a storm is close:')
     st.html(resident_view.guidance_html(resident_view.guidance('WARNING')))
@@ -694,6 +703,17 @@ if page=='📱 Alerts & Notifications':
             except Exception:st.info('SMS log is currently unavailable.')
         st.info('Automatic storm-warning checks are handled by an independent GitHub Actions scheduled worker. The dashboard does not need to remain open.')
 
+if page=='🔔 SMS Alerts':
+    resident_pages.render_sms_alerts(secret)
+if page=='📜 Warning History':
+    resident_pages.render_warning_history()
+if page=='🛠️ Administration' and is_admin:
+    health={'Prediction data':'Outdated' if stale else 'Fresh',
+            'Last forecast update':updated_label or 'Unknown',
+            'Regional rainfall data':'Outdated' if state.regional_error else 'Fresh',
+            'Last refresh attempt':f'{state.last_attempt:%d %b %H:%M} SAST' if state.last_attempt else 'Not yet',
+            'Random Forest model file':model_status,'Warning threshold':f'{threshold:.0%}'}
+    resident_pages.render_admin(secret,health)
 if page=='ℹ️ About':
     panel_title('About this research system','model')
     information_card('Academic research project','Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele.','Research Beta serving Matatiele, Eastern Cape')

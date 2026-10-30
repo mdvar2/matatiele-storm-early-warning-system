@@ -98,13 +98,22 @@ python 18_scheduled_sms_worker.py --dry-run
 
 Administrator SMS features require private settings in `.streamlit/secrets.toml`, created from `.streamlit/secrets.toml.example`. **Never commit passwords, Twilio credentials or recipient numbers.** See [SMS configuration and safety](README_SMS_SETUP.md).
 
+## Resident SMS Registration and Documentation
+
+Residents can register their own mobile number for SMS storm warnings on the dashboard's **SMS Alerts** page. They verify ownership with a one-time code and can check or cancel the subscription at any time. Numbers are stored encrypted in a private repository. This feature is **off until configured**: registration shows *not open yet*, and subscriber warnings need `SUBSCRIBER_ALERTS_ENABLED=true`.
+
+- [Resident User Manual](docs/RESIDENT_USER_MANUAL.md)
+- [Administrator and System Maintenance Manual](docs/ADMINISTRATOR_AND_MAINTENANCE_MANUAL.md)
+- [Deployment and Configuration](docs/DEPLOYMENT_AND_CONFIGURATION.md), including the Twilio trial restriction and the POPIA notes
+- [End-to-end test evidence](evaluation_reports/integrated_application_evidence_2026-10-30/README.md)
+
 ## Beta Status and Limitations
 
 **Verified:** Genuine ECMWF retrieval and Random Forest inference; unattended scheduled LIVE execution (run #6, **0.00%**, below 35%, so no warning SMS); real phone receipt of the explicitly labelled **NO WEATHER WARNING** connectivity test (run #4); **77 automated tests and 28 subtests** passed.
 
 **Not yet observed:** Automatic storm-warning submission and delivery during a genuine high-risk event. High-risk decisions, duplicate prevention, configuration validation and uncertain outcomes have been tested with mocks. A successful LIVE run below threshold does not demonstrate warning delivery, and API acceptance is not confirmed recipient delivery.
 
-The dashboard does not independently send automatic storm warnings. Its private settings are separate from GitHub Actions secrets. See [SMS configuration and safety](README_SMS_SETUP.md) for the approved LIVE setup and safeguards.
+The dashboard does not send storm warnings itself. It sends only the one-time verification codes for resident registration; warnings come from the hourly worker. Its private settings are separate from GitHub Actions secrets. See [SMS configuration and safety](README_SMS_SETUP.md) for the approved LIVE setup and safeguards.
 
 **Future work:** Local sensors, Raspberry Pi/edge processing, offline resilience, LoRa, field validation and further assessment of forecast accuracy.
 

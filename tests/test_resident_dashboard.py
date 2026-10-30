@@ -205,7 +205,8 @@ class DashboardHarness(unittest.TestCase):
     def setUpClass(cls):
         from streamlit.testing.v1 import AppTest  # noqa: F401  (skip cleanly if unavailable)
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
-        for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py'):
+        for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
+                     'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
         cls.model = cls.tmp / 'outputs' / 'model_live'
@@ -267,7 +268,7 @@ class DashboardHarness(unittest.TestCase):
         return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(self.model.glob('*.csv'))}
 
     def login(self, at):
-        at.text_input[0].input(ADMIN_TEST_PASSWORD)
+        next(t for t in at.text_input if t.label == 'Administrator Password').input(ADMIN_TEST_PASSWORD)
         self.button(at, 'Unlock Admin Controls').click().run()
         self.assertTrue(at.session_state['admin_authenticated'])
 

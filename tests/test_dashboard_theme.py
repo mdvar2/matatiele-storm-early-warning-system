@@ -98,7 +98,7 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.write_prediction(.05)
         at = self.app().run()
         nav = next(g for g in at.button_group if g.key == 'mobile_nav_choice')
-        self.assertEqual(len(nav.options), 8)
+        self.assertEqual(len(nav.options), 10)  # 8 sections plus SMS Alerts and Warning History
         nav.set_value('🛟 Safety Advice').run()
         self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
         self.assertIn('Full advice for when a storm is close', '\n'.join(c.value for c in at.caption))

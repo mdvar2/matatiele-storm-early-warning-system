@@ -1,0 +1,200 @@
+{
+ "production_c2aefb7": {
+  "Dashboard": {
+   "column": 10,
+   "deck_gl_json_chart": 2,
+   "event": 1,
+   "expander": 1,
+   "info": 2,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 3,
+   ".resident-card": 1,
+   ".resident-guidance": 1,
+   ".kpi": 10,
+   ".weather-body": 1,
+   ".risk-body": 1,
+   ".prediction-table": 1
+  },
+  "Safety Advice": {
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".resident-card": 1,
+   ".resident-guidance": 2
+  },
+  "Live Forecast": {
+   "column": 4,
+   "event": 1,
+   "expander": 1,
+   "info": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 2,
+   ".research-card": 4
+  },
+  "Weather Map": {
+   "column": 2,
+   "deck_gl_json_chart": 1,
+   "event": 1,
+   "expander": 1,
+   "info": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 2,
+   ".weather-body": 1,
+   ".risk-body": 1
+  },
+  "Risk Analysis": {
+   "column": 6,
+   "event": 1,
+   "expander": 1,
+   "info": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "vega_lite_chart": 2,
+   "warning": 1,
+   ".research-card": 6
+  },
+  "Historical Data": {
+   "dataframe": 1,
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1
+  },
+  "Alerts & Notifications": {
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".resident-guidance": 1
+  },
+  "About": {
+   "column": 2,
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".research-card": 3,
+   ".research-notice": 1
+  }
+ },
+ "redesign": {
+  "Dashboard": {
+   "column": 12,
+   "deck_gl_json_chart": 2,
+   "event": 1,
+   "expander": 1,
+   "info": 2,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 3,
+   ".resident-card": 1,
+   ".resident-guidance": 1,
+   ".kpi": 10,
+   ".weather-body": 1,
+   ".risk-body": 1,
+   ".prediction-table": 1,
+   ".status-strip": 1,
+   ".section-title": 2
+  },
+  "Safety Advice": {
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".resident-card": 1,
+   ".resident-guidance": 2,
+   ".status-strip": 1
+  },
+  "Live Forecast": {
+   "column": 4,
+   "event": 1,
+   "expander": 1,
+   "info": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 2,
+   ".research-card": 4,
+   ".status-strip": 1
+  },
+  "Weather Map": {
+   "column": 4,
+   "deck_gl_json_chart": 1,
+   "event": 1,
+   "expander": 1,
+   "info": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 2,
+   ".weather-body": 1,
+   ".risk-body": 1,
+   ".status-strip": 1,
+   ".section-title": 1
+  },
+  "Risk Analysis": {
+   "column": 6,
+   "event": 1,
+   "expander": 1,
+   "info": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "vega_lite_chart": 2,
+   "warning": 1,
+   ".research-card": 6,
+   ".status-strip": 1
+  },
+  "Historical Data": {
+   "dataframe": 1,
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".status-strip": 1
+  },
+  "Alerts & Notifications": {
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".resident-guidance": 1,
+   ".status-strip": 1
+  },
+  "About": {
+   "column": 2,
+   "event": 1,
+   "expander": 1,
+   "main": 1,
+   "root": 1,
+   "sidebar": 1,
+   "warning": 1,
+   ".research-card": 3,
+   ".research-notice": 1,
+   ".status-strip": 1
+  }
+ }
+}
