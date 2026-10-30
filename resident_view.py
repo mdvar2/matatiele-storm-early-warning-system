@@ -184,3 +184,41 @@ def guidance_html(advice):
     items = ''.join(f'<li><b>{e(topic)}:</b> {e(text)}</li>' for topic, text in advice['items'])
     return (f'<div class="resident-guidance"><div class="resident-action">{e(advice["action"])}</div>'
             f'<ul>{items}</ul><div class="resident-note">{e(advice["note"])}</div></div>')
+
+
+# Short labels for the homepage action strip; the full advice above stays one tap away.
+SHORT_ACT_NOW = {'Lightning': ('⚡', 'Go indoors'), 'Flooding': ('🌊', 'Keep out of flood water'),
+                 'Roads': ('🚗', 'Turn around at flooded roads'), 'Rivers': ('🏞️', 'Stay away from rivers'),
+                 'Livestock': ('🐄', 'Do not go out for animals')}
+SHORT_PREPARE = {'Lightning': ('⚡', 'Know your shelter'), 'Flooding': ('🌊', 'Know your high ground'),
+                 'Roads': ('🚗', 'Plan travel early'), 'Rivers': ('🏞️', 'Cross rivers early'),
+                 'Livestock': ('🐄', 'Plan animal shelter')}
+HERO_NOTE = 'Research model estimate · not an official SAWS warning'
+
+
+def hero_html(status):
+    """Compact resident status for the homepage: headline, estimate, period and update time."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    banner = f'<div class="resident-sim">{e(status["label"])}</div>' if status['simulated'] else ''
+    return (f'<div class="resident-card tone-{e(status["tone"])} hero-risk">{banner}'
+            f'<div class="resident-head">{e(status["headline"])}</div>'
+            f'<div class="hero-estimate">{e(status["estimate"])}</div>'
+            f'<div class="hero-facts"><span>🕑 {e(status["period"])}</span><span>🔄 Updated {e(status["updated"])}</span></div>'
+            f'<div class="hero-note">{e(HERO_NOTE)}</div></div>')
+
+
+def details_html(status):
+    """The full explanation, coverage and model caveat shown under 'About this estimate'."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    return (f'<div class="resident-guidance"><div class="resident-text">{e(status["explanation"])}</div>'
+            f'<ul><li><b>Area:</b> {e(status["coverage"])}</li><li><b>Last update:</b> {e(status["updated"])}</li></ul>'
+            f'<div class="resident-note">{e(status["model_note"])}</div></div>')
+
+
+def quick_actions_html(advice):
+    """Icon chips with a few words each, matching the level's advice (act now or prepare)."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    short = SHORT_ACT_NOW if advice['level'] in ('WARNING', 'UNAVAILABLE') else SHORT_PREPARE
+    chips = ''.join(f'<span class="action-chip"><i>{icon}</i>{e(text)}</span>'
+                    for icon, text in (short[topic] for topic, _ in advice['items']))
+    return f'<div class="quick-actions"><div class="resident-action">{e(advice["action"])}</div><div class="action-chips">{chips}</div></div>'

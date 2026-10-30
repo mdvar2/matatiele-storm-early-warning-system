@@ -15,6 +15,7 @@ import math
 import base64
 import io
 import threading
+import time
 import tempfile
 import logging
 import json
@@ -134,6 +135,13 @@ class RefreshState:
 @st.cache_resource
 def refresh_state() -> RefreshState:
     return RefreshState()
+
+LOGIN_WINDOW_SECONDS,MAX_FAILED_LOGINS=900,10
+
+@st.cache_resource
+def failed_logins() -> list[float]:
+    # Shared by every session of this server process: a new browser session cannot reset it.
+    return []
 
 def refresh_due(state: RefreshState, now: datetime, force: bool=False) -> bool:
     if state.last_attempt is None:return True
@@ -427,10 +435,14 @@ with sidebar:
                 entered=st.text_input('Administrator Password',type='password')
                 if st.button('Unlock Admin Controls',width='stretch'):
                     password=secret('ADMIN_PASSWORD')
+                    failures=failed_logins()
+                    failures[:]=[t for t in failures if time.monotonic()-t<LOGIN_WINDOW_SECONDS]
                     if not password:st.error('Administrator password is not configured.')
+                    elif len(failures)>=MAX_FAILED_LOGINS:st.error('Too many failed sign-in attempts. Try again in 15 minutes.')
                     elif hmac.compare_digest(entered.encode('utf-8'),password.encode('utf-8')):
                         st.session_state.admin_authenticated=True;st.rerun()
-                    else:st.error('Incorrect password.')
+                    else:
+                        failures.append(time.monotonic());st.error('Incorrect password.')
     is_admin=bool(st.session_state.admin_authenticated) and not text_view  # text view is public-only
     st.html('<div class="sidebar-note">Next-hour storm risk for Matatiele,<br>with safety advice for residents.<br><br>Research prototype: not an official<br>SAWS warning service.<br><br><a href="?view=text" style="color:#7cc0f0">Low-data text version</a></div>')
     if is_admin:
@@ -524,15 +536,40 @@ if is_admin and not test_mode and not stale and threshold<=real_prob<=1:
 # Show real data in every chart. Do not invent a spatial rainfall/radar field.
 forecast_status='OUTDATED' if stale else 'FIXED HOURLY TARGET'
 model_status='FILE AVAILABLE' if (MODEL/'random_forest_live_model.pkl').exists() else 'MODEL FILE MISSING'
-if page in ('🏠 Dashboard','🛟 Safety Advice'):
+def weather_card(key: str) -> None:
+    """Forecast weather for Matatiele from the saved model input (ECMWF), never an observation."""
+    with st.container(border=True,key=key):
+        panel_title('Weather · next hour (forecast)','cloud')
+        condition_kind,condition_label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
+        details=[('Gusts',weather_value(number(latest,'wind_gust_ms'),'m/s')),('Cloud',weather_value(number(latest,'cloud_cover_percent'),'%',0)),('Pressure',weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
+        detail_html=''.join(f'<div class="weather-detail"><span>{label}</span><strong>{value}</strong></div>' for label,value in details)
+        forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
+        st.html(f'<div class="weather-body"><div class="weather-primary">{svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label)}<div class="temperature">{weather_value(number(latest,"temperature_c"),chr(176)+"C")}</div><div class="condition">{html.escape(condition_label)}<small>🌧️ Rainfall {weather_value(number(latest,"precipitation_mm"),"mm")} · 💨 Wind {weather_value(number(latest,"wind_speed_ms"),"m/s")}</small></div></div><div>{detail_html}</div></div><div class="weather-status">{"OUTDATED SAVED CONDITIONS" if stale else f"ECMWF forecast for {forecast_hour} - not an observation"}</div>')
+
+if page=='🏠 Dashboard':
+    hero_risk,hero_weather=st.columns([1.3,1],gap='small')
+    with hero_risk:
+        st.html(resident_view.hero_html(resident))
+    with hero_weather:
+        weather_card('weather_card')
+    actions,cta=st.columns([2.6,1],gap='small',vertical_alignment='center')
+    with actions:
+        st.html(resident_view.quick_actions_html(advice))
+    with cta:
+        if st.button('🔔 Get free SMS storm warnings',key='cta_sms_alerts',type='primary',width='stretch'):
+            st.session_state.dashboard_page='🔔 SMS Alerts';st.rerun()
+    with st.expander('📖 About this estimate and full safety advice'):
+        st.html(resident_view.details_html(resident))
+        st.html(resident_view.guidance_html(advice))
+    if simulated:
+        st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
+        st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
+if page=='🛟 Safety Advice':
     st.html(resident_view.card_html(resident))
     st.html(resident_view.guidance_html(advice))
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
-if page=='🏠 Dashboard' and not text_view:
-    if st.button('🔔 Get free SMS storm warnings for Matatiele',key='cta_sms_alerts',type='primary'):
-        st.session_state.dashboard_page='🔔 SMS Alerts';st.rerun()
 if page=='🛟 Safety Advice':
     st.caption('The advice above matches the current status. Full advice for when a storm is close:')
     st.html(resident_view.guidance_html(resident_view.guidance('WARNING')))
@@ -583,24 +620,20 @@ if page in ('🏠 Dashboard','🗺️ Weather Map'):
             get_alignment_baseline=String('center'),background=True,
             get_background_color=[12,32,54,235],background_padding=[5,3],pickable=True))
         st.pydeck_chart(pdk.Deck(map_style=basemap_url,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=360)
-        st.caption('Drag to pan, scroll or pinch to zoom, hover or tap a point for its forecast value.')
+        st.caption('Drag, zoom, or tap a point for its forecast value.')
         if not regional.empty and not regional_stale:
             st.html('<div class="map-legend"><div class="title">Forecast rainfall in the next hour (mm)</div><div class="rain-legend"></div>'
                     '<div class="legend-labels"><span>0</span><span>0.1</span><span>1</span><span>3</span><span>5</span><span>10</span><span>20</span><span>40+</span></div>'
                     '<div class="note">Interpolated from 25 ECMWF forecast grid points. This is a forecast, not radar or observed rainfall.'
                     +('' if show_overlay else ' Overlay hidden.')+'</div></div>')
-            st.caption(f'ECMWF / Open-Meteo: hour ending {regional_valid:%d %b %Y %H:%M SAST}; retrieved {regional_retrieved:%d %b %Y %H:%M SAST}. Bilinear interpolation of 25 actual grid samples, not radar. Colour intervals are nonlinear.')
-            st.caption(f'Sampled rainfall range: {regional.precipitation_mm.min():.2f} to {regional.precipitation_mm.max():.2f} mm. Dry areas are transparent; trace rainfall is faint.')
-        st.caption('Town labels are geographic references. The Random Forest storm prediction applies only to Matatiele.')
+        with st.expander('Map data and method'):
+            if not regional.empty and not regional_stale:
+                st.caption(f'ECMWF / Open-Meteo: hour ending {regional_valid:%d %b %Y %H:%M SAST}; retrieved {regional_retrieved:%d %b %Y %H:%M SAST}. Bilinear interpolation of 25 actual grid samples, not radar. Colour intervals are nonlinear.')
+                st.caption(f'Sampled rainfall range: {regional.precipitation_mm.min():.2f} to {regional.precipitation_mm.max():.2f} mm. Dry areas are transparent; trace rainfall is faint.')
+            st.caption('Town labels are geographic references. The Random Forest storm prediction applies only to Matatiele.')
         if regional.empty or regional_stale:st.info('Matatiele is shown in red. Refresh to retrieve genuine regional rainfall forecasts.')
     with right:
-        with st.container(border=True,key='weather_card'):
-            panel_title('Forecast weather - Matatiele','cloud')
-            condition_kind,condition_label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
-            details=[('Cloud cover',weather_value(number(latest,'cloud_cover_percent'),'%',0)),('Wind speed',weather_value(number(latest,'wind_speed_ms'),'m/s')),('Wind gust',weather_value(number(latest,'wind_gust_ms'),'m/s')),('Pressure',weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
-            detail_html=''.join(f'<div class="weather-detail"><span>{label}</span><strong>{value}</strong></div>' for label,value in details)
-            forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
-            st.html(f'<div class="weather-body"><div class="weather-primary">{svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label)}<div class="temperature">{weather_value(number(latest,"temperature_c"),chr(176)+"C")}</div><div class="condition">{html.escape(condition_label)}<small>Rainfall {weather_value(number(latest,"precipitation_mm"),"mm")} in the hour</small></div></div><div>{detail_html}</div></div><div class="weather-status">{"OUTDATED SAVED CONDITIONS" if stale else f"ECMWF forecast for {forecast_hour} - not an observation"}</div>')
+        if page!='🏠 Dashboard':weather_card('weather_card')
         with st.container(border=True,key='risk_card'):
             panel_title('Next-hour prediction','risk')
             usable=math.isfinite(prob) and 0<=prob<=1
@@ -634,7 +667,8 @@ if page=='🏠 Dashboard':
     with cards[3]:status_card('Alert threshold',f'{threshold:.0%}','For the next hour','warning','red')
     horizon=f'{input_time:%H:%M} – {valid:%H:%M} SAST' if input_time is not None and valid is not None else 'Target time unavailable'
     with cards[4]:status_card('Forecast horizon','Next 1 hour',horizon,'clock','blue',True)
-    st.caption(f'Target interval: {interval_label(valid)}. Next complete hourly interval, not a rolling 60-minute forecast. Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}.')
+    with st.expander('Prediction timing details'):
+        st.caption(f'Target interval: {interval_label(valid)}. Next complete hourly interval, not a rolling 60-minute forecast. Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}.')
 
 if page=='🕒 Historical Data':
     panel_title('Historical predictions','table')

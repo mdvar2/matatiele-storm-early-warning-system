@@ -108,6 +108,19 @@ def _subscribe(store, gateway):
                 st.rerun()
             except subs.SubscriptionError as exc:
                 st.error(str(exc))
+        # The pending code is kept in the subscriber store, so it still works after a page reload or restart.
+        with st.expander('Already received a code?'):
+            with st.form('subscribe_resume_form'):
+                resume_phone = st.text_input('Mobile number you registered', placeholder='e.g. 082 123 4567', max_chars=20)
+                resume_code = st.text_input('Code from the SMS', max_chars=6, placeholder='123456')
+                resume = st.form_submit_button('Verify and activate')
+            if resume:
+                try:
+                    view = subs.verify_code(store, resume_phone, resume_code, 'subscribe')
+                    state.sub_stage, state.sub_view = 'done', view
+                    st.rerun()
+                except subs.SubscriptionError as exc:
+                    st.error(str(exc))
     elif state.sub_stage == 'code':
         masked = subs.mask_phone(subs.normalise_sa_mobile(state.sub_phone))
         st.info(f'We sent a 6-digit code to {masked}. Enter it below to activate warnings.')
@@ -178,8 +191,10 @@ def _manage(store, gateway):
                 confirm = st.checkbox('I want to stop receiving SMS storm warnings', key='man_confirm')
                 if st.button('Unsubscribe', key='man_unsubscribe', disabled=not confirm):
                     subs.unsubscribe(store, state.man_phone)
-                    st.success('You have been unsubscribed. Your number has been removed from the warning list.')
+                    state.man_flash = 'You have been unsubscribed. Your number has been removed from the warning list.'
                     st.rerun()
+            if state.get('man_flash'):
+                st.success(state.pop('man_flash'))
         if st.button('Finish', key='man_finish'):
             state.man_stage, state.man_phone = 'enter', ''
             st.rerun()

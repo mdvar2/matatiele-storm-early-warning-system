@@ -196,6 +196,24 @@ CSS = r"""
 .resident-guidance ul {margin:8px 0 0 18px;padding:0}.resident-guidance li {margin:6px 0;font-size:14px}
 .resident-guidance .resident-note {color:var(--muted)}
 .resident-action {font-size:18px;font-weight:800;color:var(--heading)}
+/* Homepage hero: compact status tile and short action chips. */
+.resident-card.hero-risk {min-height:208px;box-sizing:border-box;padding:22px 22px 18px 92px;animation:rise .5s ease-out both}
+.resident-card.hero-risk.tone-red {animation:rise .5s ease-out both,alarm 2.6s ease-in-out 1s infinite}
+.hero-estimate {display:inline-block;margin:12px 0 10px;padding:7px 14px;border-radius:999px;background:var(--r-badge);
+  color:var(--heading);font-weight:800;font-size:clamp(15px,1.5vw,19px)}
+.hero-facts {display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13.5px;color:var(--muted)}
+.hero-note {margin-top:12px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.2px}
+.quick-actions {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:12px 16px;box-shadow:var(--card-shadow)}
+.quick-actions .resident-action {font-size:15px;margin-bottom:8px}
+.action-chips {display:flex;flex-wrap:wrap;gap:8px}
+.action-chip {display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--accent-soft);
+  color:var(--heading);font-size:13px;font-weight:600;border:1px solid var(--card-border)}
+.action-chip i {font-style:normal}
+.st-key-weather_card {animation:rise .6s ease-out .1s both}
+.st-key-weather_card .temperature {font-size:clamp(34px,3.4vw,46px)}
+@media (min-width:1100px) {.resident-card.hero-risk {min-height:292px}}
+@keyframes rise {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes alarm {0%,100%{box-shadow:var(--card-shadow)}50%{box-shadow:0 0 0 6px #ed394b33,var(--card-shadow)}}
 
 /* Native Streamlit elements in the main area */
 [data-testid="stMain"] [data-testid="stAlert"] {background:var(--card-solid);border:1px solid var(--card-border);color:var(--text);border-radius:12px}
@@ -222,7 +240,7 @@ CSS = r"""
   .clock-card {background:linear-gradient(120deg,#0b3f80,#0d5bb0)}
 }
 @media (prefers-reduced-motion: reduce) {
-  .stApp::before,.chip .dot,.weather-anim * {animation:none!important}
+  .stApp::before,.chip .dot,.weather-anim *,.resident-card.hero-risk,.st-key-weather_card {animation:none!important}
   [data-testid="stSidebar"] [data-testid="stButton"] button {transition:none}
 }
 @media(max-width:1100px) {.hero {align-items:flex-start}.clock-card {padding:10px}.kpi {gap:7px;padding:12px 8px}.kpi-icon {width:34px;height:34px}

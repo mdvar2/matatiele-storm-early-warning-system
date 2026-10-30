@@ -23,6 +23,15 @@ This guide explains how to switch on resident SMS registration and subscriber wa
 | **Streamlit Community Cloud** | Hosting the dashboard | No persistent disk, so the subscriber store **must** use the GitHub backend. |
 | **Open-Meteo (ECMWF)** | Forecast | Unchanged. |
 
+**Blockers.** See the [deployment security review](../evaluation_reports/RO3_deployment_security_review_2026-10-30.md) for the full list of what must be done before public registration. In short:
+
+- upgrade Twilio;
+- provision the store and keys, with an offline key backup;
+- confirm POPIA and ethics clearance;
+- set a strong admin password;
+- decide on the STOP wording;
+- approve deployment.
+
 **Legal (POPIA).** Storing residents' phone numbers makes the project a *responsible party* under South Africa's Protection of Personal Information Act. Before opening public registration, confirm with the supervisor or institution:
 
 - who the responsible party is;

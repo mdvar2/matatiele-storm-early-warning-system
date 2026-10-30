@@ -111,9 +111,29 @@ class SmsJourney(rd.DashboardHarness):
         self.assertIn('Active', self.text(at))
         next(c for c in at.checkbox if c.label == 'I want to stop receiving SMS storm warnings').check().run()  # enables the button
         self.button(at, 'Unsubscribe').click().run()
+        self.assertIn('You have been unsubscribed', self.text(at))
         self.assertEqual(subs.statistics(store.snapshot())['unsubscribed'], 1)
         sub = next(iter(store.snapshot()['subscribers'].values()))
         self.assertNotIn('phone_encrypted', sub)
+
+    def test_code_still_works_after_reload_or_restart(self):
+        at = self.open_alerts()
+        self.field(at, 'South African mobile number').input(PHONE)
+        next(c for c in at.checkbox if c.label == subs.CONSENT_TEXT).check()
+        self.button(at, 'Send verification code').click().run()
+        code = self.latest_code()
+        import streamlit as st
+        st.cache_resource.clear()
+        restarted = self.open_alerts()  # a new app session: nothing survives except the subscriber store
+        self.assertNotIn('We sent a 6-digit code', self.text(restarted))
+        self.field(restarted, 'Mobile number you registered').input(PHONE)
+        self.field(restarted, 'Code from the SMS').input(f'{(int(code) + 1) % 10**6:06d}')
+        self.button(restarted, 'Verify and activate').click().run()
+        self.assertIn('That code is not correct', self.text(restarted))
+        self.field(restarted, 'Code from the SMS').input(code)
+        self.button(restarted, 'Verify and activate').click().run()
+        self.assertIn('Your subscription is active', self.text(restarted))
+        self.assertEqual(subs.statistics(store_mod.open_store(os.environ.get).snapshot())['active'], 1)
 
     def test_warning_reaches_only_active_verified_subscribers_then_stops_after_unsubscribe(self):
         at = self.subscribe_via_ui(self.open_alerts())

@@ -26,7 +26,7 @@ CONSENT_TEXT = ('I agree to receive SMS storm warnings for Matatiele from this a
 CODE_TTL = timedelta(minutes=10)
 MAX_CODE_ATTEMPTS = 5
 RESEND_AFTER = timedelta(seconds=60)
-MAX_SENDS_PER_HOUR, MAX_SENDS_PER_DAY, GLOBAL_SENDS_PER_HOUR = 3, 6, 60
+MAX_SENDS_PER_HOUR, MAX_SENDS_PER_DAY, GLOBAL_SENDS_PER_HOUR, GLOBAL_SENDS_PER_DAY = 3, 6, 60, 300  # global caps bound SMS cost abuse
 OUTBOX_PATH = BASE / 'outputs' / 'subscribers' / 'dev_outbox.jsonl'
 # South African mobile ranges (national format 0XX): 060-069, 071-074, 076, 078-079, 081-084.
 MOBILE_PREFIXES = {'60', '61', '62', '63', '64', '65', '66', '67', '68', '69', '71', '72', '73', '74', '76', '78', '79', '81', '82', '83', '84'}
@@ -100,6 +100,8 @@ class TwilioGateway:
 
 def delivery_mode(getter=None):
     mode = setting('SMS_DELIVERY_MODE', getter) or 'disabled'
+    if mode == 'outbox' and setting('SUBSCRIBER_STORE', getter) == 'github':
+        return 'disabled'  # the outbox shows codes on screen: never allowed against the real subscriber store
     return mode if mode in ('disabled', 'outbox', 'twilio') else 'disabled'
 
 
@@ -134,8 +136,8 @@ def _rate_limit(doc, phone_hash, now):
         raise SubscriptionError('Please wait a minute before requesting another code.')
     if sum(now - _parse(t) < timedelta(hours=1) for t in recent) >= MAX_SENDS_PER_HOUR or len(recent) >= MAX_SENDS_PER_DAY:
         raise SubscriptionError('Too many codes were requested for this number. Please try again later.')
-    total_hour = sum(now - _parse(t) < timedelta(hours=1) for times in doc['otp_sends'].values() for t in times)
-    if total_hour >= GLOBAL_SENDS_PER_HOUR:
+    every = [now - _parse(t) for times in doc['otp_sends'].values() for t in times]
+    if sum(age < timedelta(hours=1) for age in every) >= GLOBAL_SENDS_PER_HOUR or sum(age < timedelta(days=1) for age in every) >= GLOBAL_SENDS_PER_DAY:
         raise SubscriptionError('The service is receiving too many requests. Please try again later.')
     doc['otp_sends'][phone_hash] = recent + [iso(now)]
 
@@ -230,7 +232,8 @@ def verify_code(store, raw_phone, code, purpose, now=None):
         return 'ok', public_view(sub)
 
     outcome, view = store.mutate(change)
-    messages = {'missing': 'No code is waiting for this number. Request a new code.',
+    # 'missing' and 'wrong' read the same, so the form never reveals whether a number has a pending code.
+    messages = {'missing': 'That code is not correct. Check the SMS and try again.',
                 'expired': 'The code has expired. Request a new code.',
                 'locked': 'Too many wrong attempts. Request a new code.',
                 'wrong': 'That code is not correct. Check the SMS and try again.'}

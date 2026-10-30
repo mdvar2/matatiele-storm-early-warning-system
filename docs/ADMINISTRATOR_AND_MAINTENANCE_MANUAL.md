@@ -36,7 +36,8 @@ A subscriber failure never stops the worker, and never changes the prediction or
 2. **Administrator controls** then appear in the sidebar:
    - **Warning simulation (on screen only):** previews the warning screens. It does **not** send SMS, and does not change predictions, the ledger or subscriber records. While it is active, a banner labels every page as a simulation.
    - **Administration:** opens the monitoring page.
-3. Press **Log Out** when you finish. The Administration page is never available to residents. If a session loses admin access, it returns to the Dashboard.
+3. After **10 wrong passwords in 15 minutes**, sign-in is locked for everyone for the rest of that window, and *Too many failed sign-in attempts* is shown. Wait 15 minutes. Use a long random password (16 characters or more).
+4. Press **Log Out** when you finish. The Administration page is never available to residents. If a session loses admin access, it returns to the Dashboard.
 
 ## 3. The Administration page
 
@@ -86,7 +87,7 @@ Delivery statuses are not pushed to the dashboard; there is no webhook. **Refres
 
 - **"I did not get a code":** check the number, the delivery mode, and the Twilio console. Codes expire after 10 minutes. The limits are 1 code per minute, 3 per hour and 6 per day per number, and 60 codes per hour across the whole system.
 - **"Please remove me":** ask the resident to use **Manage my subscription**, or to reply STOP. Administrators cannot see full numbers, so they cannot look a resident up by number. This is deliberate.
-- **Privacy questions:** the store keeps the encrypted number, a keyed hash for lookup, the masked number, the area, consent version and time, status changes, and delivery outcomes. Unsubscribing deletes the encrypted number.
+- **Privacy questions:** the store keeps the encrypted number, a keyed hash for lookup, the masked number, the area, consent version and time, status changes, and delivery outcomes. Unsubscribing deletes the encrypted number. Retention is automatic: never-verified numbers are deleted after 2 days; cancelled records, delivery records and alert copies after 30 days; rate-limit timestamps after 1 day. With the GitHub store, earlier versions of the file (including encrypted numbers) remain in the private repository's Git history. They are unreadable without the key; for full erasure, see the procedure in `evaluation_reports/RO3_deployment_security_review_2026-10-30.md` §4.
 
 ## 6. Routine maintenance
 
@@ -98,6 +99,10 @@ Delivery statuses are not pushed to the dashboard; there is no webhook. **Refres
 | Rotate the store token | Before it expires | Create a new fine-grained token, then update `SUBSCRIBER_STORE_TOKEN` in **both** Streamlit secrets and GitHub Actions secrets. |
 | Back up the subscriber store | Monthly | The private repository keeps every version in its Git history. Restrict access to that repository. |
 | Run the tests | Before every change | `python -m pytest tests/ -q` (fully mocked; no SMS and no network) |
+
+**Abuse limits:** at most 60 verification codes an hour and 300 a day across the whole system, and 1 a minute, 3 an hour and 6 a day per number. When a limit is reached, residents see *The service is receiving too many requests*.
+
+**Development outbox mode** is refused when `SUBSCRIBER_STORE=github`, because it shows codes on screen.
 
 **Never** change the encryption or hash keys while subscribers exist. With new keys, the stored numbers can no longer be read or looked up. Rotating keys requires a migration script, which is not provided.
 

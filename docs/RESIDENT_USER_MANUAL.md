@@ -22,10 +22,12 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 | Item | Meaning |
 |---|---|
 | **Status strip** (under the title) | Whether the forecast is live, when it was updated, and where the data comes from. |
-| **Status card**, e.g. *Low storm risk (model estimate)* | The model's verdict for the next hour, with the forecast period, the estimate, the last update and the area covered. |
-| **Be prepared / Act now** | Short safety advice that matches the current risk. |
-| **Get free SMS storm warnings for Matatiele** | Opens the SMS registration page. |
-| **Rainfall forecast map** and **Forecast weather** | Forecast rain around Matatiele, and the forecast temperature, cloud, wind and pressure. These are forecasts, not observations. |
+| **Risk card**, e.g. *Low storm risk (model estimate)* | The model's estimate for the next hour, the forecast period and the time of the last update. |
+| **Weather · next hour (forecast)** | Forecast temperature, conditions, rainfall and wind for Matatiele. This is a forecast, not an observation. |
+| **Be prepared / Act now** | A few short safety actions that match the current risk. |
+| **Get free SMS storm warnings** | Opens the SMS registration page. |
+| **About this estimate and full safety advice** | Tap to open the full explanation, the area covered, the model caveat and the complete safety advice. |
+| **Rainfall forecast map** | Forecast rain around Matatiele. **Map data and method** explains how it is made. It is not radar. |
 
 On a phone, the page buttons (Dashboard, Safety Advice, SMS Alerts, …) appear under the title. On a computer, they appear in the left-hand menu.
 
@@ -63,6 +65,7 @@ You will now receive an SMS whenever the model warns of a storm in Matatiele.
 | *Please wait a minute…* | You can ask for a new code once a minute, up to 3 times an hour. |
 | *Too many codes were requested…* | Try again later (the limit is 6 codes per day per number). |
 | No SMS arrives | Check that the number is correct, or press **Use a different number** to change it. |
+| The page reloaded and the code box disappeared | Your code still works. Open **Already received a code?** under the Subscribe form, enter your number and the code, and press **Verify and activate**. |
 
 If your number is **already registered**, you receive an SMS that says so instead of a code. To check or cancel the subscription, use **Manage my subscription**.
 
@@ -94,6 +97,7 @@ The SMS gives the hour of the expected storm and the model's estimate. You recei
 - Your number is stored encrypted. Staff screens show only a partly hidden number.
 - Your number is never published, and never shown on the Warning History page.
 - When you unsubscribe, the encrypted number is deleted.
+- A number that is never verified is deleted after 2 days. Records of cancelled subscriptions and of sent messages are deleted after 30 days.
 
 ## 7. If SMS registration is closed
 

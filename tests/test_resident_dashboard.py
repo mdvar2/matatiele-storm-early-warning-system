@@ -394,6 +394,18 @@ class DashboardApp(DashboardHarness):
         at.run()
         self.assertNotIn(rv.SIMULATION_LABEL, self.html(at))
 
+    def test_repeated_wrong_passwords_lock_sign_in_for_every_session(self):
+        self.write_prediction(.05)
+        at = self.app(admin='1').run()
+        for _ in range(10):
+            next(t for t in at.text_input if t.label == 'Administrator Password').input('wrong-password')
+            self.button(at, 'Unlock Admin Controls').click().run()
+        fresh = self.app(admin='1').run()  # a new browser session shares the server-wide limit
+        next(t for t in fresh.text_input if t.label == 'Administrator Password').input(ADMIN_TEST_PASSWORD)
+        self.button(fresh, 'Unlock Admin Controls').click().run()
+        self.assertFalse(fresh.session_state['admin_authenticated'])
+        self.assertIn('Too many failed sign-in attempts. Try again in 15 minutes.', [e.value for e in fresh.error])
+
     def test_operational_information_is_admin_only(self):
         self.write_prediction(.05)
         at = self.app(admin='1').run()

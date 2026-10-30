@@ -25,7 +25,7 @@ import os
 import secrets
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -36,6 +36,9 @@ BASE = Path(__file__).resolve().parent
 DEFAULT_PATH = BASE / 'outputs' / 'subscribers' / 'subscribers.json'
 DEV_KEYS_PATH = BASE / 'outputs' / 'subscribers' / 'dev_keys.json'
 MAX_EVENTS = 300
+# Retention: never-verified numbers, cancelled records and old delivery logs are deleted, which also
+# keeps the document small. The public ledger, not this store, is the permanent record of warnings.
+PENDING_RETENTION, UNSUBSCRIBED_RETENTION, DELIVERY_RETENTION = timedelta(days=2), timedelta(days=30), timedelta(days=30)
 
 
 class StoreError(RuntimeError):
@@ -52,6 +55,28 @@ def utc_now():
 
 def iso(moment):
     return moment.astimezone(timezone.utc).isoformat(timespec='seconds')
+
+
+def prune(doc, now=None):
+    """Apply the retention rules in place (called on every write)."""
+    now = now or utc_now()
+    older = lambda stamp, age: bool(stamp) and now - datetime.fromisoformat(stamp) > age  # noqa: E731
+    for key, sub in list(doc['subscribers'].items()):
+        if (sub.get('status') == 'pending' and older(sub.get('updated_at') or sub.get('created_at'), PENDING_RETENTION)) or                 (sub.get('status') == 'unsubscribed' and older(sub.get('unsubscribed_at'), UNSUBSCRIBED_RETENTION)):
+            del doc['subscribers'][key]
+    for key, delivery in list(doc['deliveries'].items()):
+        if older(delivery.get('created_at'), DELIVERY_RETENTION):
+            del doc['deliveries'][key]
+    for key, alert in list(doc['alerts'].items()):
+        if older(alert.get('created_at'), DELIVERY_RETENTION):
+            del doc['alerts'][key]
+    for key, times in list(doc['otp_sends'].items()):
+        recent = [t for t in times if not older(t, timedelta(days=1))]
+        if recent:
+            doc['otp_sends'][key] = recent
+        else:
+            del doc['otp_sends'][key]
+    doc['events'] = doc['events'][-MAX_EVENTS:]
 
 
 def empty_document():
@@ -194,7 +219,14 @@ class GitHubContentsBlob:
             raise StoreError(f'GitHub subscriber store returned HTTP {response.status_code}.')
         body = response.json()
         try:
-            doc = json.loads(base64.b64decode(body['content']).decode('utf-8'))
+            if body.get('encoding') == 'none':  # file over 1 MB: content must be fetched as raw
+                raw = self.http.get(self.url, headers=dict(self.headers, Accept='application/vnd.github.raw+json'),
+                                    params={'ref': self.branch}, timeout=30)
+                if raw.status_code != 200:
+                    raise StoreError(f'GitHub subscriber store returned HTTP {raw.status_code}.')
+                doc = json.loads(raw.content.decode('utf-8'))
+            else:
+                doc = json.loads(base64.b64decode(body['content']).decode('utf-8'))
         except (KeyError, ValueError) as exc:
             raise StoreError('GitHub subscriber store content is unreadable.') from exc
         return doc, body['sha']
@@ -237,7 +269,7 @@ class SubscriberStore:
                 for key, value in empty_document().items():
                     doc.setdefault(key, value)
                 result = change(doc)
-                doc['events'] = doc['events'][-MAX_EVENTS:]
+                prune(doc)
                 self.blob.write(doc, version, locked=True)
                 return result
         for attempt in range(attempts):
@@ -245,7 +277,7 @@ class SubscriberStore:
             for key, value in empty_document().items():
                 doc.setdefault(key, value)
             result = change(doc)
-            doc['events'] = doc['events'][-MAX_EVENTS:]
+            prune(doc)
             try:
                 self.blob.write(doc, version)
                 return result

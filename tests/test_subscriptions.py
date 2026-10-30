@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 from datetime import timedelta
 from pathlib import Path
@@ -211,6 +212,20 @@ class Lifecycle(Base):
             subs.request_code(self.store, self.gw, PHONE, 'subscribe', consent=True, now=now + timedelta(minutes=6))
         self.assertEqual(len(self.gw.sent), 3)
 
+    def test_development_outbox_can_never_use_the_real_store(self):
+        config = {'SMS_DELIVERY_MODE': 'outbox', 'SUBSCRIBER_STORE': 'github'}
+        self.assertEqual(subs.delivery_mode(config.get), 'disabled')
+        self.assertIsNone(subs.gateway_from_config(config.get))
+        self.assertEqual(subs.delivery_mode({'SMS_DELIVERY_MODE': 'outbox'}.get), 'outbox')
+
+    def test_global_daily_cap_bounds_sms_cost(self):
+        now = store_mod.utc_now()
+        stamps = [store_mod.iso(now - timedelta(hours=2 + i % 20)) for i in range(subs.GLOBAL_SENDS_PER_DAY)]
+        self.store.mutate(lambda doc: doc['otp_sends'].update({f'other{i}': [t] for i, t in enumerate(stamps)}))
+        with self.assertRaisesRegex(subs.SubscriptionError, 'too many requests'):
+            subs.request_code(self.store, self.gw, PHONE, 'subscribe', consent=True, now=now)
+        self.assertEqual(self.gw.sent, [])
+
     def test_manage_does_not_reveal_unregistered_numbers(self):
         message = subs.request_code(self.store, self.gw, OTHER, 'manage')
         self.assertEqual(self.gw.sent, [])
@@ -359,6 +374,119 @@ class LedgerHistory(unittest.TestCase):
         session = Mock(); session.get.return_value = Mock(json=lambda: issues, raise_for_status=lambda: None)
         result = alerts.ledger_warnings('owner/repo', session=session)
         self.assertEqual(result, [{'forecast_hour_utc': '2026-11-02T15:00:00+00:00', 'issued_at_utc': '2026-11-02T14:05:40Z', 'record': 'https://github.com/x/1'}])
+
+
+
+class ThreadSafeContentsServer:
+    """In-memory stand-in for the GitHub contents API (compare-and-swap on SHA), with request latency."""
+
+    def __init__(self, delay=0.01, limit=None):
+        self.lock, self.content, self.sha, self.puts, self.conflicts = threading.Lock(), None, None, 0, 0
+        self.delay, self.limit = delay, limit
+
+    def get(self, url, headers, params, timeout):
+        time.sleep(self.delay)
+        with self.lock:
+            if self.content is None:
+                return Mock(status_code=404)
+            if headers.get('Accept') == 'application/vnd.github.raw+json':
+                return Mock(status_code=200, content=base64.b64decode(self.content))
+            if self.limit and len(base64.b64decode(self.content)) > self.limit:  # GitHub omits content over 1 MB
+                return Mock(status_code=200, json=lambda sha=self.sha: {'sha': sha, 'content': '', 'encoding': 'none'})
+            return Mock(status_code=200, json=lambda sha=self.sha, c=self.content: {'sha': sha, 'content': c, 'encoding': 'base64'})
+
+    def put(self, url, headers, json, timeout):
+        time.sleep(self.delay)
+        with self.lock:
+            if json.get('sha') != self.sha:
+                self.conflicts += 1
+                return Mock(status_code=409)
+            self.puts += 1
+            self.content, self.sha = json['content'], f'sha{self.puts}'
+            return Mock(status_code=200)
+
+
+class RestartAndConcurrency(Base):
+    """Every action reads and writes the persistent store, so a fresh app instance (a restart) sees the same state."""
+
+    def restarted(self):
+        return store_mod.SubscriberStore(store_mod.LocalFileBlob(Path(self.tmp) / 'subscribers.json'), self.store.crypto)
+
+    def test_full_lifecycle_survives_restarts_between_every_step(self):
+        subs.request_code(self.store, self.gw, PHONE, 'subscribe', consent=True)
+        view = subs.verify_code(self.restarted(), PHONE, self.gw.code_for('+27821234567'), 'subscribe')
+        self.assertEqual(view['status'], 'active')
+        self.assertEqual(alerts.deliver_warning(self.restarted(), self.gw, 'REAL-SHORT-V1-A', 'body', 'p', .5)['submitted'], 1)
+        later = store_mod.utc_now() + timedelta(minutes=2)
+        subs.request_code(self.restarted(), self.gw, PHONE, 'manage', now=later)
+        view = subs.verify_code(self.restarted(), PHONE, self.gw.code_for('+27821234567'), 'manage', now=later)
+        self.assertEqual(view['status'], 'active')
+        self.assertEqual(subs.unsubscribe(self.restarted(), PHONE)['status'], 'unsubscribed')
+        self.assertEqual(alerts.deliver_warning(self.restarted(), self.gw, 'REAL-SHORT-V1-B', 'body', 'p', .5)['recipients'], 0)
+        self.assertEqual(subs.subscription_status(self.restarted(), PHONE)['status'], 'unsubscribed')
+
+    def run_concurrently(self, actions):
+        errors = []
+
+        def run(action):
+            try:
+                action()
+            except Exception as exc:  # surfaced below instead of dying silently in a thread
+                errors.append(exc)
+        threads = [threading.Thread(target=run, args=(a,)) for a in actions]
+        [t.start() for t in threads]; [t.join() for t in threads]
+        self.assertEqual(errors, [])
+
+    def numbers(self, count):
+        return [f'082 555 {i:04d}' for i in range(count)]
+
+    def lifecycle_under_concurrency(self, open_store):
+        phones = self.numbers(10)
+        self.run_concurrently([lambda p=p: subs.request_code(open_store(), self.gw, p, 'subscribe', consent=True) for p in phones])
+        self.assertEqual(subs.statistics(open_store().snapshot()), {'active': 0, 'pending': 10, 'unsubscribed': 0})
+        codes = {p: self.gw.code_for(subs.normalise_sa_mobile(p)) for p in phones}
+        self.run_concurrently([lambda p=p: subs.verify_code(open_store(), p, codes[p], 'subscribe') for p in phones])
+        self.assertEqual(subs.statistics(open_store().snapshot()), {'active': 10, 'pending': 0, 'unsubscribed': 0})
+        # Five residents unsubscribe while two worker runs race to deliver the same warning.
+        self.run_concurrently([lambda p=p: subs.unsubscribe(open_store(), p) for p in phones[:5]] +
+                              [lambda: alerts.deliver_warning(open_store(), self.gw, 'REAL-SHORT-V1-X', 'body', 'p', .5)] * 2)
+        doc = open_store().snapshot()
+        self.assertEqual(subs.statistics(doc), {'active': 5, 'pending': 0, 'unsubscribed': 5})
+        warned = [to for to, body, kind in self.gw.sent if kind == 'warning']
+        self.assertEqual(len(warned), len(set(warned)))  # never twice for one warning
+        self.assertTrue(set(map(subs.normalise_sa_mobile, phones[5:])) <= set(warned))  # still-active residents all warned
+        self.assertEqual(len(doc['deliveries']), len(warned))
+        alerts.deliver_warning(open_store(), self.gw, 'REAL-SHORT-V1-Y', 'body', 'p', .5)
+        later = sorted(to for to, body, kind in self.gw.sent[-5:] if kind == 'warning')
+        self.assertEqual(later, sorted(map(subs.normalise_sa_mobile, phones[5:])))  # unsubscribed never receive again
+
+    def test_concurrent_requests_local_file_store(self):
+        self.lifecycle_under_concurrency(self.restarted)  # a separate store instance per request
+
+    def test_concurrent_requests_github_store(self):
+        server, crypto = ThreadSafeContentsServer(), self.store.crypto
+        self.lifecycle_under_concurrency(
+            lambda: store_mod.SubscriberStore(store_mod.GitHubContentsBlob('owner/private', 'test-token', session=server), crypto))
+        self.assertGreater(server.conflicts, 0)  # races really happened and were resolved by compare-and-swap
+
+    def test_github_store_reads_files_over_one_megabyte(self):
+        server = ThreadSafeContentsServer(delay=0, limit=1000)
+        store = store_mod.SubscriberStore(store_mod.GitHubContentsBlob('owner/private', 'test-token', session=server), self.store.crypto)
+        for phone in self.numbers(12):
+            subs.request_code(store, self.gw, phone, 'subscribe', consent=True)
+        self.assertEqual(subs.statistics(store.snapshot())['pending'], 12)
+
+    def test_retention_deletes_unverified_cancelled_and_old_records(self):
+        self.subscribe(OTHER)
+        subs.request_code(self.store, self.gw, PHONE, 'subscribe', consent=True)  # never verified
+        alerts.deliver_warning(self.store, self.gw, 'REAL-SHORT-V1-OLD', 'body', 'p', .5)
+        subs.unsubscribe(self.store, OTHER)
+        doc = self.store.snapshot()
+        store_mod.prune(doc, now=store_mod.utc_now() + timedelta(days=3))
+        self.assertEqual([s['status'] for s in doc['subscribers'].values()], ['unsubscribed'])  # pending number deleted
+        self.assertNotIn('phone_encrypted', json.dumps(doc))
+        store_mod.prune(doc, now=store_mod.utc_now() + timedelta(days=31))
+        self.assertEqual((doc['subscribers'], doc['deliveries'], doc['alerts'], doc['otp_sends']), ({}, {}, {}, {}))
 
 
 if __name__ == '__main__':
