@@ -237,6 +237,8 @@ CSS = r"""
 .call-icon {display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#dc2626;flex-shrink:0}
 .call-row b {display:block;font-size:19px;color:var(--heading)}.call-row small {color:var(--muted);font-size:12.5px}
 .contacts-note {font-size:11.5px;color:var(--muted);margin-top:8px}
+.call-chips {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}.call-chips span {font-weight:700;color:var(--heading)}
+.call-chip {background:#dc2626;color:#fff!important;text-decoration:none!important;font-weight:800;border-radius:999px;padding:7px 14px}
 .portal-note {background:var(--accent-soft);border:1px solid var(--card-border);border-radius:12px;padding:9px 14px;font-size:13px;color:var(--text)}
 /* Blue weather card and hourly strip (genuine ECMWF forecast values only). */
 .wx-card {background:linear-gradient(135deg,#1e40af,#2563eb 55%,#3b82f6);color:#fff;border-radius:22px;padding:18px 22px;box-shadow:0 14px 30px #1e3a8a40;animation:rise .6s ease-out both}
@@ -254,6 +256,28 @@ CSS = r"""
 .hour {flex:1 0 84px;background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;text-align:center;box-shadow:var(--card-shadow)}
 .hour .t {font-size:12.5px;font-weight:700;color:var(--muted)}.hour img {width:40px;height:40px}
 .hour b {display:block;font-size:17px;color:var(--heading)}.hour small {display:block;font-size:11px;color:var(--muted)}
+/* Visual summaries: risk scale, warning flow, storm ingredients, advice cards. */
+.risk-scale {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:16px 18px 30px;box-shadow:var(--card-shadow);margin-bottom:12px}
+.risk-scale .title {font-weight:800;color:var(--heading);margin-bottom:10px}
+.risk-scale .bar {position:relative;display:flex;height:22px;border-radius:11px;overflow:visible}
+.risk-scale .band {display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff}
+.risk-scale .band:first-child {border-radius:11px 0 0 11px}.risk-scale .band:last-child {border-radius:0 11px 11px 0}
+.risk-scale .marker {position:absolute;top:-8px;width:4px;height:38px;background:var(--heading);border-radius:2px;transform:translateX(-2px)}
+.risk-scale .marker b {position:absolute;top:40px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12.5px;color:var(--heading)}
+.flow {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 14px}
+.flow .step {flex:1 1 140px;background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px;text-align:center;box-shadow:var(--card-shadow)}
+.flow .step i {display:block;font-style:normal;font-size:28px}.flow .step b {display:block;color:var(--heading);font-size:14px;margin-top:4px}
+.flow .step small {color:var(--muted);font-size:12px}.flow .arrow {font-size:22px;color:var(--muted)}
+.flow .step.decision {border:2px dashed #ed394b}
+.risk-body.single {grid-template-columns:1fr;justify-items:center}
+.ingredients {display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}
+.ingredient {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px 14px;box-shadow:var(--card-shadow)}
+.ingredient span {font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.ingredient b {display:block;font-size:22px;color:var(--heading);margin:4px 0}.ingredient small {color:var(--muted);font-size:12px}
+.advice-block {margin:4px 0 8px}.advice-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:8px}
+.advice-card {background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:12px 14px;box-shadow:var(--card-shadow)}
+.advice-card b {color:var(--heading)}.advice-card p {font-size:13.5px;margin:4px 0 0;color:var(--text)}
+.advice-icon {font-size:26px}
 @keyframes rise {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes alarm {0%,100%{box-shadow:var(--card-shadow)}50%{box-shadow:0 0 0 6px #ed394b33,var(--card-shadow)}}
 
@@ -396,3 +420,35 @@ def hourly_html(hours):
     cells = ''.join(f'<div class="hour"><div class="t">{e(label)}</div>{icon}<b>{e(temp)}</b><small>🌧️ {e(rain)}</small><small>💨 {e(wind)}</small></div>'
                     for label, icon, temp, rain, wind in hours)
     return f'<div class="hourly">{cells}</div>'
+
+
+def risk_scale_html(probability, threshold=0.35):
+    """The four risk bands on one bar, with a marker at the current estimate (None: no marker)."""
+    bands = [(0, 10, '#30b262', 'Low'), (10, 20, '#e0a800', 'Elevated'), (20, round(threshold * 100), '#fa782b', 'Moderate'),
+             (round(threshold * 100), 100, '#ed394b', 'Warning')]
+    segments = ''.join(f'<div class="band" style="flex:{high - low};background:{color}">{name}</div>' for low, high, color, name in bands)
+    marker = ''
+    if probability is not None and 0 <= probability <= 1:
+        side = 'left:0;transform:none' if probability < .08 else ('right:0;left:auto;transform:none' if probability > .92 else '')
+        marker = f'<div class="marker" style="left:{probability * 100:.1f}%"><b style="{side}">Now {probability:.0%}</b></div>'
+    return (f'<div class="risk-scale"><div class="title">Risk scale · warning at {threshold:.0%}</div>'
+            f'<div class="bar">{segments}{marker}</div></div>')
+
+
+def flow_html():
+    """How a storm warning is produced and reaches people (one picture instead of a paragraph)."""
+    steps = [('🛰️', 'Forecast', 'ECMWF, every hour', ''), ('🧠', 'Storm model', 'Random Forest, next hour', ''),
+             ('⚖️', '35% or more?', 'No: check again next hour', ' decision'), ('🚨', 'Warning', 'Alerts page', ''),
+             ('📲', 'SMS', 'Registered phones', ''), ('🗂️', 'Officials', 'Review and record', '')]
+    parts = []
+    for icon, title, detail, extra in steps:
+        parts.append(f'<div class="step{extra}"><i>{icon}</i><b>{html.escape(title)}</b><small>{html.escape(detail)}</small></div>')
+    return '<div class="flow">' + '<span class="arrow">→</span>'.join(parts) + '</div>'
+
+
+def ingredient_tiles_html(tiles):
+    """tiles: (icon, label, value, detail)."""
+    e = html.escape
+    return '<div class="ingredients">' + ''.join(
+        f'<div class="ingredient"><span>{e(icon)} {e(label)}</span><b>{e(value)}</b><small>{e(detail)}</small></div>'
+        for icon, label, value, detail in tiles) + '</div>'

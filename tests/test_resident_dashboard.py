@@ -199,7 +199,8 @@ class SmsPreviewNeverSends(unittest.TestCase):
 
 
 SECTIONS = ('🏠 Dashboard', '🚨 Alerts', '🌦️ Live Forecast', '🗺️ Weather Map', '🛟 Safety Advice', '📈 Risk Analysis',
-            '🕒 Historical Data', 'ℹ️ About')  # internal page keys behind the top navigation labels
+            '🕒 Historical Data', 'ℹ️ About')  # internal page keys behind the navigation labels
+TOP_SECTIONS = ('🏠 Dashboard', '🌦️ Live Forecast', '🗺️ Weather Map', '🛟 Safety Advice')  # top bar; the rest are in the ☰ menu
 
 
 class DashboardHarness(unittest.TestCase):
@@ -272,8 +273,11 @@ class DashboardHarness(unittest.TestCase):
 
     def go(self, at, section):
         """Navigate with the top navigation bar (sections keep their internal names, e.g. 'Safety Advice')."""
-        nav = next(g for g in at.button_group if g.key == 'top_nav')
-        nav.set_value(next(o for o in SECTIONS if o.endswith(section))).run()
+        target = next(o for o in SECTIONS if o.endswith(section))
+        if target in TOP_SECTIONS:
+            next(g for g in at.button_group if g.key == 'top_nav').set_value(target).run()
+        else:  # Alerts and the research sections are in the side (☰) menu
+            next(b for b in at.button if b.key == 'menu_' + target.split(' ', 1)[1]).click().run()
         return at
 
     def digest(self):
@@ -291,11 +295,11 @@ class DashboardApp(DashboardHarness):
         at = self.app().run()
         self.assertFalse(at.exception)
         page = self.html(at)
-        self.assertLess(page.index('resident-card tone-green'), page.index('class="kpi'))
+        self.assertNotIn('class="kpi', page)  # technical status cards live in About, not on Home
         self.assertIn('Low storm risk (model estimate)', page)
         self.assertIn('not a guarantee', page)
         self.assertIn('Be prepared', page)
-        self.assertIn('not been independently validated', page)
+        self.assertIn('not been independently validated', self.html(self.go(at, 'Risk Analysis')))  # full caveat: Risk Analysis
         self.assertNotIn('SIMULATION', page)
         self.assertFalse([e for e in at.expander if 'Administrator Access' in e.label])
         self.assertFalse([b for b in at.button if 'Test SMS' in b.label or 'Unlock' in b.label])
@@ -334,7 +338,8 @@ class DashboardApp(DashboardHarness):
         self.assertIn('Simulated model output: 60%', page)
         self.assertIn('Storm warning (model): take precautions now', page)
         self.assertIn('Act now', page)
-        self.assertIn('5.0% probability', page)  # technical cards keep the genuine output
+        self.assertIn('>5.0%<', self.html(self.go(at, 'Risk Analysis')))  # Risk Analysis keeps the genuine output
+        self.go(at, 'Dashboard')
         self.assertEqual(len(at.code), 1)
         self.assertIn('Storm risk 60%', at.code[0].value)
         self.assertFalse([b for b in at.button if 'Test SMS' in b.label])
@@ -423,7 +428,10 @@ class DashboardApp(DashboardHarness):
         at = self.app(admin='1').run()
         self.navigate(at, 'Alerts')
         public = self.html(at)
-        self.assertIn('How storm warnings reach you', [e.label for e in at.expander])
+        about = self.html(self.go(at, 'About'))  # how warnings reach people: one diagram, on About
+        for step in ('Forecast', 'Storm model', '35% or more?', 'SMS', 'Officials'):
+            self.assertIn(f'<b>{step}</b>', about)
+        self.navigate(at, 'Alerts')
         for operational in ('MANAGED BY GITHUB ACTIONS', 'ACTIONS ONLY'):
             self.assertNotIn(operational, public)
         self.assertNotIn('Operational status (administrators)', '\n'.join(m.value for m in at.markdown))

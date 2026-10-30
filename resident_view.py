@@ -193,7 +193,7 @@ SHORT_ACT_NOW = {'Lightning': ('⚡', 'Go indoors'), 'Flooding': ('🌊', 'Keep 
 SHORT_PREPARE = {'Lightning': ('⚡', 'Know your shelter'), 'Flooding': ('🌊', 'Know your high ground'),
                  'Roads': ('🚗', 'Plan travel early'), 'Rivers': ('🏞️', 'Cross rivers early'),
                  'Livestock': ('🐄', 'Plan animal shelter')}
-HERO_NOTE = 'Research model estimate · not an official SAWS warning'
+HERO_NOTE = 'Research model estimate · not a guarantee · not an official SAWS warning'
 
 
 def hero_html(status):
@@ -222,3 +222,12 @@ def quick_actions_html(advice):
     chips = ''.join(f'<span class="action-chip"><i>{icon}</i>{e(text)}</span>'
                     for icon, text in (short[topic] for topic, _ in advice['items']))
     return f'<div class="quick-actions"><div class="resident-action">{e(advice["action"])}</div><div class="action-chips">{chips}</div></div>'
+
+
+def advice_cards_html(advice, title):
+    """Safety advice as icon cards (one per topic) under a short heading."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    icons = {topic: icon for topic, (icon, _) in SHORT_ACT_NOW.items()}
+    cards = ''.join(f'<div class="advice-card"><div class="advice-icon">{icons[topic]}</div><b>{e(topic)}</b><p>{e(text)}</p></div>'
+                    for topic, text in advice['items'])
+    return f'<div class="advice-block"><div class="resident-action">{e(title)}</div><div class="advice-grid">{cards}</div></div>'

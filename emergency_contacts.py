@@ -19,3 +19,10 @@ def contacts_html(title='Emergency contacts'):
                    for number, label, detail in CONTACTS)
     return (f'<div class="contacts-card"><div class="contacts-head">{html.escape(title)}<small>Tap to call</small></div>{rows}'
             f'<div class="contacts-note">{html.escape(NOTE)} {html.escape(SOURCE)}</div></div>')
+
+
+def call_row_html():
+    """Compact tap-to-call buttons shown inside an open warning."""
+    buttons = ''.join(f'<a class="call-chip" href="tel:{number}" aria-label="Call {html.escape(label)} on {number}">📞 {number}</a>'
+                      for number, label, _ in CONTACTS)
+    return f'<div class="call-chips"><span>Need help?</span>{buttons}</div>'

@@ -51,7 +51,7 @@ class Assets(unittest.TestCase):
         # Same for the main area: phones position it absolutely under the sliding sidebar.
         self.assertNotRegex(theme.CSS, r'(stMain|stAppViewContainer)"\][^{]*\{[^}]*position')
         source = (rd.ROOT / '16_dashboard.py').read_text(encoding='utf-8')
-        self.assertIn("initial_sidebar_state='collapsed' if text_view else 'auto'", source)
+        self.assertIn("initial_sidebar_state='collapsed')", source)  # the ☰ menu holds Alerts and the research sections
 
     def test_menu_button_is_a_hamburger(self):
         for control in ('stSidebarCollapseButton', 'stExpandSidebarButton'):
@@ -86,6 +86,8 @@ class RedesignedDashboard(rd.DashboardHarness):
     def test_map_controls_tooltips_and_low_data_basemap(self):
         self.write_prediction(.05)
         at = self.app().run()
+        self.assertEqual(at.get('deck_gl_json_chart'), [])  # the map is only on the Map page, not repeated on Home
+        self.go(at, 'Weather Map')
         group = next(g for g in at.button_group if g.key == 'map_basemap')
         self.assertEqual(list(group.options), ['Satellite', 'Streets', 'Low data'])
         self.assertTrue([t for t in at.toggle if t.key == 'map_overlay'])
@@ -104,13 +106,33 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.write_prediction(.05)
         at = self.app().run()
         nav = next(g for g in at.button_group if g.key == 'top_nav')
-        self.assertEqual(len(nav.options), 8)  # Home, Alerts, Forecast, Map, Safety and three research sections
-        self.assertFalse([b for b in at.button if (b.key or '').startswith('nav_🏠')])  # one navigation, not two
+        self.assertEqual(len(nav.options), 4)  # Home, Forecast, Map, Safety
+        self.assertEqual(sorted(b.key for b in at.button if (b.key or '').startswith('menu_')),
+                         ['menu_About', 'menu_Alerts', 'menu_Historical Data', 'menu_Risk Analysis'])  # in the ☰ menu
         nav.set_value('🛟 Safety Advice').run()
         self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
         self.assertIn('Full advice for when a storm is close', '\n'.join(c.value for c in at.caption))
-        self.go(at, 'Historical Data')
-        self.assertEqual(at.session_state['top_nav'], '🕒 Historical Data')
+        self.go(at, 'Historical Data')  # from the ☰ menu
+        self.assertEqual(at.session_state['dashboard_page'], '🕒 Historical Data')
+        self.assertIsNone(at.session_state['top_nav'])  # no top-bar section is highlighted
+
+    def test_each_component_appears_on_exactly_one_page(self):
+        self.write_prediction(.05)
+        at = self.app().run()
+        markers = {'class="wx-card"': 'Dashboard', 'class="contacts-card"': 'Dashboard', 'class="alert-banner': 'Dashboard',
+                   'class="risk-gauge"': 'Risk Analysis', 'class="risk-scale"': 'Risk Analysis',
+                   'class="advice-grid"': 'Safety Advice', 'class="flow"': 'About', 'class="kpi': 'About'}
+        found = {marker: [] for marker in markers}
+        maps = []
+        for section in ('Dashboard', 'Live Forecast', 'Weather Map', 'Safety Advice', 'Alerts', 'Risk Analysis', 'Historical Data', 'About'):
+            page = self.html(self.go(at, section))
+            for marker in markers:
+                if marker in page:
+                    found[marker].append(section)
+            if at.get('deck_gl_json_chart'):
+                maps.append(section)
+        self.assertEqual(found, {marker: [section] for marker, section in markers.items()})
+        self.assertEqual(maps, ['Weather Map'])
 
     def test_text_view_loads_no_theme_or_animation(self):
         self.write_prediction(.05)

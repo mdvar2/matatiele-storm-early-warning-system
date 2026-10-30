@@ -87,54 +87,43 @@ def status_banner_html(active_events, status):
         return (f'<div class="alert-banner red"><div class="ab-kicker">STORM WARNING IN EFFECT</div>'
                 f'<div class="ab-title">Storm warning for Matatiele, {html.escape(we.period_text(latest))}</div>'
                 '<div class="ab-text">Take precautions now. Open the warning for what to do.</div></div>')
-    return (f'<div class="alert-banner green"><div class="ab-kicker">NO WARNING IN EFFECT</div>'
-            f'<div class="ab-title">No storm warning issued for Matatiele right now</div>'
-            f'<div class="ab-text">{html.escape(status["estimate"])} for {html.escape(status["period"])}. '
-            'Conditions can change: watch the sky and follow official SAWS warnings.</div></div>')
+    return ('<div class="alert-banner green"><div class="ab-kicker">NO WARNING IN EFFECT</div>'
+            '<div class="ab-title">No storm warning issued for Matatiele right now</div></div>')
 
 
 def render_alerts(getter, status):
-    st.html('<div class="section-title">Alerts <small>Storm warnings for Matatiele, what to do, and SMS alerts</small></div>')
+    """Warnings (list and details) and SMS alerts. The current status, contacts and SAWS link are on Home only."""
+    st.html('<div class="section-title">Alerts <small>Storm warnings for Matatiele and SMS alerts</small></div>')
     st.session_state.setdefault('alerts_view', VIEWS[0])
-    main, side = st.columns([2.1, 1], gap='medium')
-    with side:
-        st.html(emergency_contacts.contacts_html())
-        st.link_button('Official weather warnings (SAWS)', SAWS_URL, icon=':material/campaign:', width='stretch')
-        with st.expander('How storm warnings reach you'):
-            st.html('<div class="resident-guidance"><ul>'
-                    '<li><b>Every hour</b> the system checks the next-hour storm risk for Matatiele automatically, even when nobody has this page open.</li>'
-                    '<li><b>If the model estimate reaches the warning level</b>, a warning is recorded here and a short SMS is sent to registered numbers. An SMS needs only mobile signal: no data or smartphone.</li>'
-                    '<li><b>This is a research prototype.</b> Always follow official warnings from the South African Weather Service (SAWS).</li></ul></div>')
-    with main:
-        view = st.segmented_control('Alerts section', VIEWS, key='alerts_view', label_visibility='collapsed')
-        if view == VIEWS[1]:
-            resident_pages.render_sms_alerts(getter)
-            return
-        events, error = load_events(getter)
-        selected = st.session_state.get('alert_selected')
-        chosen = next((e for e in events if e['key'] == selected), None)
-        if chosen:
-            _detail(getter, chosen)
-            return
-        now = utc_now()
-        active = [e for e in events if we.is_active(e, now)]
-        st.html(status_banner_html(active, status))
-        if any(e['source'] == we.DEV_TEST for e in events):
-            resident_pages.dev_banner()
-        if error:
-            st.info(error)
-        if active:
-            st.markdown('**Current warnings**')
-            for event in active:
-                _event_row(event, True)
-        past = [e for e in events if not we.is_active(e, now)]
-        st.markdown('**Past warnings**')
-        if past:
-            for event in past:
-                _event_row(event, False)
-        elif not error:
-            st.info('No storm warnings have been issued by this system yet. Hours below the 35% warning level do not create warnings.')
-        st.caption('Warnings come from the automatic hourly checks and are recorded publicly. Who received an SMS is never published.')
+    view = st.segmented_control('Alerts section', VIEWS, key='alerts_view', label_visibility='collapsed')
+    if view == VIEWS[1]:
+        resident_pages.render_sms_alerts(getter)
+        return
+    events, error = load_events(getter)
+    selected = st.session_state.get('alert_selected')
+    chosen = next((e for e in events if e['key'] == selected), None)
+    if chosen:
+        _detail(getter, chosen)
+        return
+    now = utc_now()
+    active = [e for e in events if we.is_active(e, now)]
+    if any(e['source'] == we.DEV_TEST for e in events):
+        resident_pages.dev_banner()
+    if error:
+        st.info(error)
+    st.markdown('**Current warnings**')
+    if active:
+        for event in active:
+            _event_row(event, True)
+    else:
+        st.html('<div class="warn-card"><div class="warn-top"><b>✅ No warning in effect</b></div></div>')
+    past = [e for e in events if not we.is_active(e, now)]
+    st.markdown('**Past warnings**')
+    if past:
+        for event in past:
+            _event_row(event, False)
+    elif not error:
+        st.info('No storm warnings have been issued by this system yet.')
 
 
 def _event_row(event, active):
@@ -161,10 +150,8 @@ def _detail(getter, event):
             f'<span><b>Model estimate</b>{html.escape(we.probability_text(event))}</span>'
             f'<span><b>Issued</b>{html.escape(_sast(event["issued_at"]))}</span></div>'
             f'<div class="resident-note">{html.escape(resident_view.MODEL_NOTE)}</div></div>')
-    advice = resident_view.guidance('WARNING')
-    st.html(resident_view.quick_actions_html(advice))
-    with st.expander('Full safety advice'):
-        st.html(resident_view.guidance_html(advice))
+    st.html(resident_view.quick_actions_html(resident_view.guidance('WARNING')))
+    st.html(emergency_contacts.call_row_html())  # kept with the warning on purpose: help must be one tap away
     if event.get('record'):
         st.link_button('Public record of this warning', event['record'], icon=':material/open_in_new:')
     _acknowledge(getter, event)

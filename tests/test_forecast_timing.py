@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import altair as alt
 import numpy as np
@@ -118,23 +118,21 @@ class ForecastTimingTests(unittest.TestCase):
         self.assertEqual(timestamp_labels({'prediction_for':'2026-10-10T19:00Z'})[GENERATED_LABEL],
                          'Unknown (legacy record)')
 
-    def test_recent_table_labels_target_and_generation(self):
+    def test_history_table_labels_target_and_generation(self):
         tree = ast.parse((ROOT/'16_dashboard.py').read_text(encoding='utf-8'))
-        names = {'number','weather_value','risk','render_recent_table'}
+        names = {'numeric_series','risk','render_history'}
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
         st = Mock()
-        namespace = dict(pd=pd, math=math, html=html, st=st, panel_title=Mock(),
-                         local_time=local_time, timestamp_labels=timestamp_labels,
-                         GENERATED_LABEL=GENERATED_LABEL, threshold=.35)
-        exec(compile(ast.Module(body=functions,type_ignores=[]), '<recent table>', 'exec'), namespace)
-        namespace['render_recent_table'](pd.DataFrame([{
+        namespace = dict(pd=pd, math=math, st=st, SAST=SAST, timestamp_labels=timestamp_labels,
+                         TARGET_LABEL=TARGET_LABEL, GENERATED_LABEL=GENERATED_LABEL, threshold=.35)
+        exec(compile(ast.Module(body=functions,type_ignores=[]), '<history table>', 'exec'), namespace)
+        namespace['render_history'](pd.DataFrame([{
             'prediction_for':'2026-10-10T19:00Z', 'prediction_generated_at':'2026-10-10T18:29Z',
             'storm_probability':.0533, 'precipitation_mm':0.1}]))
-        rendered = st.html.call_args.args[0]
-        self.assertIn('<th>Forecast target (SAST)</th>', rendered)
-        self.assertIn('>10 Oct 21:00</td>', rendered)
-        self.assertIn('Prediction generated (SAST): 10 Oct 2026 20:29:00', rendered)
-        self.assertIn('not execution time', rendered)
+        frame = st.dataframe.call_args.args[0]
+        self.assertEqual(frame[TARGET_LABEL].tolist(), ['10 Oct 21:00'])  # target (hour ending), SAST
+        self.assertIn('20:29:00', frame[GENERATED_LABEL].iloc[0])        # generation time shown separately
+        self.assertEqual(frame['Risk'].tolist(), ['LOW'])
 
     def test_regional_map_does_not_fall_forward_to_later_hour(self):
         tree = ast.parse((ROOT/'16_dashboard.py').read_text(encoding='utf-8'))
@@ -153,27 +151,23 @@ class ForecastTimingTests(unittest.TestCase):
         self.assertEqual(len(result), 25)
         self.assertEqual(endpoint.hour, 22)
 
-    def test_dashboard_chart_spec_preserves_midnight_order(self):
-        # Run the real renderer without importing the dashboard's refresh/SMS code.
+    def test_forecast_chart_keeps_time_order_across_midnight(self):
+        # Run the real chart function without importing the dashboard's refresh/SMS code.
         tree = ast.parse((ROOT/'16_dashboard.py').read_text(encoding='utf-8'))
-        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
-                     and node.name in {'numeric_series','render_forecast_chart'}]
-        st = Mock()
-        now = pd.Timestamp.now(tz=SAST)
-        frame = self.frame()
-        frame['forecast_retrieved_at'] = now.isoformat()
-        six = six_hour_forecast(frame, pd.Timestamp('2026-10-10T20:29:00+02:00'))
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'forecast_chart')
+        st = MagicMock()
+        frame = self.frame().assign(temperature_2m=12.0)
         clock = SimpleNamespace(now=lambda tz: pd.Timestamp('2026-10-10T20:29:00+02:00'))
-        namespace = dict(pd=pd, np=np, alt=alt, st=st, SAST=SAST,
-                         datetime=clock, RefreshState=object, panel_title=Mock(),
-                         fetch_six_hour_weather=lambda: six, local_time=local_time,
-                         forecast_axis_order=forecast_axis_order, interval_label=interval_label)
-        exec(compile(ast.Module(body=functions, type_ignores=[]), '<dashboard render>', 'exec'), namespace)
-        namespace['render_forecast_chart'](SimpleNamespace(regional=frame, regional_error=''))
+        namespace = dict(pd=pd, alt=alt, st=st, SAST=SAST, UTC=UTC, datetime=clock,
+                         state=SimpleNamespace(regional=frame, regional_error=''))
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<forecast chart>', 'exec'), namespace)
+        namespace['forecast_chart']()
         chart = st.altair_chart.call_args.args[0].to_dict()
-        self.assertEqual(chart['encoding']['x']['sort'], ['21:00','22:00','23:00','00:00','01:00','02:00'])
-        self.assertEqual(chart['encoding']['x']['title'], 'Hour ending (SAST)')
-
+        x = chart['layer'][0]['encoding']['x']
+        self.assertEqual(x['type'], 'temporal')  # a time axis: midnight cannot be reordered alphabetically
+        hours = [row['Hour (SAST)'] for row in next(iter(chart['datasets'].values()))]
+        self.assertEqual(hours, sorted(hours))
+        self.assertEqual(len(hours), 8)  # only future hours: 21:00 SAST onwards
 
 if __name__ == '__main__':
     unittest.main()
