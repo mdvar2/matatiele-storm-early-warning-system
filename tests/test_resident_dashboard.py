@@ -198,14 +198,14 @@ class SmsPreviewNeverSends(unittest.TestCase):
         self.assertFalse({c for c in called if c.startswith('send') or c in {'open', 'write_text', 'to_csv', 'create'}})
 
 
-class DashboardApp(unittest.TestCase):
-    """The real 16_dashboard.py, run hermetically with Streamlit's AppTest."""
+class DashboardHarness(unittest.TestCase):
+    """The real 16_dashboard.py, run hermetically with Streamlit's AppTest. Defines no tests."""
 
     @classmethod
     def setUpClass(cls):
         from streamlit.testing.v1 import AppTest  # noqa: F401  (skip cleanly if unavailable)
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
-        for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py'):
+        for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
         cls.model = cls.tmp / 'outputs' / 'model_live'
@@ -271,6 +271,8 @@ class DashboardApp(unittest.TestCase):
         self.button(at, 'Unlock Admin Controls').click().run()
         self.assertTrue(at.session_state['admin_authenticated'])
 
+
+class DashboardApp(DashboardHarness):
     def test_public_view_is_resident_first_without_admin_controls(self):
         self.write_prediction(.05)
         at = self.app().run()
@@ -284,7 +286,7 @@ class DashboardApp(unittest.TestCase):
         self.assertNotIn('SIMULATION', page)
         self.assertFalse([e for e in at.expander if 'Administrator Access' in e.label])
         self.assertFalse([b for b in at.button if 'Test SMS' in b.label or 'Unlock' in b.label])
-        self.assertEqual(len(at.toggle), 0)
+        self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         self.assertEqual(len(at.code), 0)
 
     def test_stale_prediction_is_flagged_for_residents(self):
@@ -304,9 +306,9 @@ class DashboardApp(unittest.TestCase):
         self.button(at, 'Unlock Admin Controls').click().run()
         self.assertFalse(at.session_state['admin_authenticated'])
         self.assertIn('Incorrect password.', [e.value for e in at.error])
-        self.assertEqual(len(at.toggle), 0)
+        self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         self.login(at)
-        self.assertEqual([t.label for t in at.toggle], ['🧪 Warning simulation (on screen only)'])
+        self.assertEqual([t.label for t in at.toggle if t.key == 'presentation_test_mode'], ['🧪 Warning simulation (on screen only)'])
 
     def test_simulation_is_on_screen_only_and_reverts(self):
         self.write_prediction(.05)
@@ -355,7 +357,7 @@ class DashboardApp(unittest.TestCase):
             with self.subTest(query=query):
                 at = self.app(**query).run()
                 self.assertFalse(at.session_state['admin_authenticated'])
-                self.assertEqual(len(at.toggle), 0)
+                self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
                 page = self.html(at) + '\n'.join(m.value for m in at.markdown)
                 self.assertNotIn(rv.SIMULATION_LABEL, page)
                 self.assertFalse([b for b in at.button if 'Test SMS' in b.label])
@@ -374,7 +376,7 @@ class DashboardApp(unittest.TestCase):
         signed_in.toggle(key='presentation_test_mode').set_value(True).run()
         signed_in.query_params['view'] = 'text'
         signed_in.run()
-        self.assertEqual(len(signed_in.toggle), 0)
+        self.assertEqual([t for t in signed_in.toggle if t.key == 'presentation_test_mode'], [])
         self.assertFalse([e for e in signed_in.expander if 'Administrator Access' in e.label])
         self.assertNotIn(rv.SIMULATION_LABEL, '\n'.join(m.value for m in signed_in.markdown))
 
@@ -386,7 +388,7 @@ class DashboardApp(unittest.TestCase):
                 at.text_input[0].input(attempt)
                 self.button(at, 'Unlock Admin Controls').click().run()
                 self.assertFalse(at.session_state['admin_authenticated'])
-                self.assertEqual(len(at.toggle), 0)
+                self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         at.session_state['presentation_test_mode'] = True
         at.run()
         self.assertNotIn(rv.SIMULATION_LABEL, self.html(at))

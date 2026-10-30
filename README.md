@@ -20,7 +20,8 @@ A machine-learning research prototype designed to support earlier awareness of p
 
 - **Next-hour storm prediction:** Random Forest model using 29 live-compatible features and a **35% warning threshold**.
 - **Live weather inputs:** ECMWF forecasts retrieved through Open-Meteo.
-- **Interactive dashboard:** Eight Streamlit pages covering forecasts, risk, maps, history and alerts.
+- **Interactive dashboard:** Eight Streamlit pages covering forecasts, risk, maps, history and alerts, with a weather-themed interface that follows the system's light or dark setting (respects reduced-motion preferences).
+- **Rainfall map:** Satellite, street or low-data basemap; the overlay can be switched off; points show their forecast values on hover or tap.
 - **Resident view:** A plain-language status card (modelled risk, forecast period, last update, coverage area) and safety advice on lightning, flooding, roads, rivers and livestock. A low-data text version is available at `?view=text`.
 - **Warning simulation:** Administrators (login shown via `?admin=1`, password required) can show a clearly labelled 60% simulated warning with an SMS preview. It is on screen only: nothing is sent or saved.
 - **Rainfall visualisation:** Genuine ECMWF forecast-grid samples interpolated over a satellite basemap; **not live radar**.

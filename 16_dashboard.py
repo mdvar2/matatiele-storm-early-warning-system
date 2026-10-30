@@ -33,6 +33,7 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
                              TARGET_LABEL, GENERATED_LABEL)
 from sms_alert import sms_is_configured, send_test_sms
 import resident_view
+import dashboard_theme
 
 BASE = Path(__file__).resolve().parent
 MODEL = BASE / 'outputs' / 'model_live'
@@ -69,94 +70,22 @@ SATELLITE_STYLE={
     'layers':[{'id':'satellite','type':'raster','source':'imagery'},
               {'id':'geographic-reference','type':'raster','source':'place_reference'}]}
 SATELLITE_STYLE_URL='data:application/json;base64,'+base64.b64encode(json.dumps(SATELLITE_STYLE).encode()).decode()
+STREETS_STYLE={'version':8,'sources':{'streets':{'type':'raster','tiles':['https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'],
+    'tileSize':256,'attribution':'Tiles © Esri, HERE, Garmin, OpenStreetMap contributors'}},'layers':[{'id':'streets','type':'raster','source':'streets'}]}
+# Low-data basemap: no tiles are downloaded; only the forecast overlay and labels are drawn.
+LOW_DATA_STYLE={'version':8,'sources':{},'layers':[{'id':'background','type':'background','paint':{'background-color':'#d9e6f2'}}]}
+BASEMAPS={name:'data:application/json;base64,'+base64.b64encode(json.dumps(style).encode()).decode()
+          for name,style in (('Satellite',SATELLITE_STYLE),('Streets',STREETS_STYLE),('Low data',LOW_DATA_STYLE))}
 # Inline so it is identical in both themes and in the text view (which loads no stylesheet).
 SIM_BANNER_STYLE='background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;border-radius:10px;padding:12px 16px;font-weight:700;font-size:14px;line-height:1.5'
 # ?view=text: minimal low-data page. ?admin=1: show the administrator login (password still required).
 text_view=st.query_params.get('view','')=='text'
 show_admin_login=st.query_params.get('admin','')=='1'
 st.set_page_config(page_title='Matatiele | Storm Early Warning Research', page_icon='⛈️', layout='centered' if text_view else 'wide',
-                   initial_sidebar_state='collapsed' if text_view else 'expanded')
+                   initial_sidebar_state='collapsed' if text_view else 'auto')
 
-if not text_view:st.html("""<style>
-:root {color-scheme:light}
-.stApp {background:linear-gradient(135deg,#f7fbfe,#edf8fe);color:#102544;font-family:Arial,sans-serif}
-/* Keep Streamlit's native header/toolbar and sidebar header at their natural
-   sizes: they own the responsive sidebar open/close controls. Never hide them. */
-[data-testid="stHeader"] {background:#f7fbfe;color:#102544}
-[data-testid="stSidebarHeader"] {color:#dce8f7}
-/* Colour only: retain native visibility, hit areas, hover and touch behaviour. */
-[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"] {color:#dce8f7}
-[data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"] {color:#102544}
-.kpi-icon img {filter:brightness(0) invert(1)}
-/* Native toolbar is 3.75rem tall and fixed above the scrolling content.
-   Reserve its height plus a compact 0.75rem gap on every viewport. */
-[data-testid="stMainBlockContainer"] {max-width:1720px;padding:4.5rem 1.25rem 1rem}
-[data-testid="stSidebar"] {background:linear-gradient(150deg,#1b2e45,#112439);min-width:255px;max-width:270px}
-[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {padding:0}
-[data-testid="stSidebar"] p,[data-testid="stSidebar"] label {color:#dce8f7!important}
-[data-testid="stSidebar"] input {background:white;color:#102544}
-[data-testid="stSidebar"] [data-testid="stButton"] button {background:transparent;border:0;color:#dce8f7;min-height:48px;justify-content:flex-start;text-align:left;border-radius:9px;padding:10px 12px}
-[data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] {background:linear-gradient(110deg,#0972dc,#1284e9);box-shadow:0 4px 14px #06162630}
-[data-testid="stSidebar"] [data-testid="stButton"] button p{font-size:14px;font-weight:400}
-[data-testid="stSidebar"] [data-testid="stButton"] button:hover {background:#29435f}
-[data-testid="stSidebar"] [data-testid="stExpander"] {background:#ffffff0b;border:1px solid #ffffff20;border-radius:10px;margin-top:18px}
-[data-testid="stSidebar"] [data-testid="stAlert"] p {color:#173452!important}
-/* Light alert backgrounds in the sidebar and light expander headers in both themes, so
-   the dark text set above always has contrast (dark theme otherwise darkens them). */
-[data-testid="stSidebar"] [data-testid="stAlert"] {background:#eef6ff!important;border-radius:8px}
-[data-testid="stMain"] [data-testid="stExpander"] details,[data-testid="stMain"] [data-testid="stExpander"] summary {background:#ffffff!important;color:#203d60!important}
-.brand {display:flex;gap:10px;align-items:center;margin:4px 0 20px}.brand img{width:48px;height:48px;color:#1694ee}.brand strong {display:block;font-size:27px;color:white;letter-spacing:-1px}.brand span {display:block;color:#e0eaf8;font-size:14px;margin-top:4px}.brand small {color:#7cc0f0;font-size:11px}
-.sidebar-note {color:#a9bfd7;font-size:13px;line-height:1.8;border-top:1px solid #29445e;padding:20px 4px;margin-top:48px}
-.hero {display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 18px}.hero-main {display:flex;gap:12px;align-items:center;min-width:0}.hero-main>div{min-width:0}.hero h1{overflow-wrap:break-word}.hero-main>img{width:46px;height:46px;flex-shrink:0;color:#0877da}.hero h1 {font-size:clamp(21px,1.9vw,29px);font-weight:800;letter-spacing:-.85px;color:#071b37;line-height:1.2;margin:0}.hero p {font-size:14px;color:#34557d;margin:6px 0 0}.clock-card {flex-shrink:0;background:linear-gradient(115deg,#0456b9,#086bd0);color:white;border-radius:11px;padding:12px 17px;text-align:center;font-size:12px;box-shadow:0 4px 10px #0967cd16}.clock-card small{display:block;color:#c1dbf7;margin-top:6px}
-.kpi {display:flex;align-items:center;gap:12px;background:var(--tint);border:1px solid var(--border);border-radius:10px;padding:14px 12px;min-height:101px}.kpi-icon {background:var(--accent);color:white;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}.kpi-icon img{width:27px;height:27px}.kpi .label{font-size:12px;color:#365577;line-height:1.4}.kpi .value{font-weight:800;font-size:25px;color:var(--accent);line-height:1.25;margin:3px 0}.kpi .sub{font-size:11px;color:#365577;line-height:1.4}.kpi.compact .value{font-size:20px}
-[data-testid="stVerticalBlock"] {gap:.75rem}
-.st-key-map_card,.st-key-weather_card,.st-key-risk_card,.st-key-six_card,.st-key-sample_card,.st-key-predictions_card {background:#fff;border-radius:12px;border:1px solid #d8e9fa;overflow:hidden}
-.panel-heading {display:flex;align-items:center;gap:10px;font-size:16px;font-weight:750;color:#063a78;margin:0 0 9px;line-height:1.4}.panel-heading img{width:22px;height:22px;flex-shrink:0;color:#0865c5}
-.st-key-map_card {padding:0!important}.map-heading{background:#122b44;color:white;padding:12px 15px;margin:0;border-radius:10px 10px 0 0}.map-heading img{color:white}
-[data-testid="stDeckGlJsonChart"] {border-radius:8px;overflow:hidden}
-.map-source {font-size:10px;color:#48637f;line-height:1.5;margin:5px 0}
-.rain-legend {height:9px;border-radius:3px;background:linear-gradient(90deg,#e5edf5,#378cee,#1978ea,#1eb4b6,#32be5a,#f9d732,#fa7320,#cd2a3e)}
-.legend-labels {display:flex;justify-content:space-between;color:#254870;font-size:10px;margin-top:4px}
-.weather-body {display:grid;grid-template-columns:1fr 1.15fr;gap:16px;align-items:center;min-height:130px}.weather-primary{border-right:1px solid #e1ecf8;padding-right:12px}.weather-primary img{width:64px;height:64px;color:#3f94ed}.temperature{font-size:clamp(26px,2.6vw,38px);font-weight:800;color:#102b4b;letter-spacing:-1px;white-space:nowrap}.condition{font-size:12px;color:#375b82;margin-top:5px}.weather-detail {display:flex;justify-content:space-between;gap:6px;align-items:center;margin:9px 0;font-size:12px;color:#31567d}.weather-detail strong{color:#0d427b;white-space:nowrap}.weather-status {font-size:10px;color:#6c8199;margin-top:6px}
-.risk-body{display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:8px}.risk-gauge img{width:100%;height:auto;max-width:240px}.risk-gauge{text-align:center}.risk-badge {border-radius:6px;padding:7px 10px;display:block;font-size:11px;font-weight:800;background:var(--tint);color:var(--accent)}.risk-key{font-size:11px;color:#31557c;display:flex;align-items:center;gap:8px;margin:15px 0}.risk-key i{width:12px;height:12px;border-radius:4px;display:inline-block;flex-shrink:0}.risk-status {font-size:10px;font-weight:700;color:#697d93;margin-bottom:6px}
-.prediction-table{width:100%;border-collapse:collapse;font-size:11px;color:#153b64}.prediction-table th{background:#eff6ff;font-weight:600;padding:10px 7px;text-align:left;border:1px solid #e2edf9;white-space:nowrap}.prediction-table td{padding:9px 7px;border:1px solid #e2edf9;white-space:nowrap}.prediction-table tr:nth-child(even){background:#f8fbff}.table-badge{font-size:9px;font-weight:750;border-radius:4px;padding:4px 7px;display:inline-block}.table-note{font-size:10px;color:#647b95;margin-top:9px}
-[data-testid="stAlert"] {border-radius:9px;font-size:13px}
-[data-testid="stDataFrame"] {border:1px solid #d8e9fa;border-radius:10px}
-.st-key-six_card [data-testid="stCaptionContainer"] p,.st-key-sample_card [data-testid="stCaptionContainer"] p{font-size:10px;line-height:1.4}
-@media(max-width:1100px){.hero{align-items:flex-start}.clock-card{padding:10px}.kpi{gap:7px;padding:12px 8px}.kpi-icon{width:34px;height:34px}.kpi .value{font-size:21px}.kpi .label,.kpi .sub{font-size:10px}.weather-body{gap:8px}.temperature{font-size:28px}.weather-detail{font-size:11px}.risk-key{font-size:10px}}
-@media(max-width:900px){[data-testid="stHorizontalBlock"]{flex-wrap:wrap}[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{min-width:min(100%,280px);flex:1 1 280px}.hero{flex-wrap:wrap}.clock-card{width:100%;max-width:100%;box-sizing:border-box;text-align:left}.clock-card small{display:inline;margin-left:12px}.weather-body{grid-template-columns:1fr 1fr}.risk-body{grid-template-columns:1fr 1fr}}
-@media(max-width:640px){[data-testid="stHorizontalBlock"]:has(>[data-testid="stColumn"] .kpi)>[data-testid="stColumn"]{min-width:0;flex:1 1 calc(50% - 12px)}[data-testid="stMainBlockContainer"]{padding:4.5rem 1rem 1rem}.hero h1{font-size:22px}.hero-main>img{width:34px}.hero p{font-size:12px}.kpi{min-height:90px}.prediction-table{font-size:10px}}
-/* Main content must remain readable with either native Streamlit theme. */
-[data-testid="stMain"] [data-testid="stMarkdownContainer"],
-[data-testid="stMain"] [data-testid="stCaptionContainer"] p,
-[data-testid="stMain"] [data-testid="stWidgetLabel"] p,
-[data-testid="stMain"] [data-testid="stExpander"] summary {color:#203d60}
-[data-testid="stMain"] [data-testid="stAlert"] {background:#edf5ff;border:1px solid #bdd6f2;color:#173452}
-[data-testid="stMain"] [data-testid="stAlert"] p {color:#173452!important}
-[data-testid="stMain"] [data-testid="stExpander"] {background:#fff;border:1px solid #d8e9fa}
-[data-testid="stMain"] [data-testid="stMetric"] {background:#fff;border:1px solid #d8e9fa;border-radius:12px;padding:18px}
-[data-testid="stMain"] [data-testid="stMetric"] * {color:#173452}
-[data-testid="stMain"] [data-testid="stCaptionContainer"] * {color:#46617e!important}
-.st-key-live_six_card {background:#fff;border:1px solid #d8e9fa;border-radius:12px}
-.research-card {background:#fff;border:1px solid #d8e9fa;border-radius:12px;padding:20px;color:#173452;margin-bottom:12px;line-height:1.6}
-.research-card .label {color:#46617e;font-size:12px;margin-bottom:8px}
-.research-card .value {color:#102b4b;font-size:23px;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
-.research-card .detail {color:#46617e;font-size:12px;margin-top:8px}
-.research-notice {background:#fff5dc;border:1px solid #e5ca83;border-left:5px solid #a46605;border-radius:10px;padding:18px;color:#65430c;line-height:1.6}
-.rain-legend {background:linear-gradient(90deg,#e5edf5 0%,#378cee 14.286%,#1978ea 28.571%,#1eb4b6 42.857%,#32be5a 57.143%,#f9d732 71.429%,#fa7320 85.714%,#cd2a3e 100%)}
-.resident-card {border-radius:14px;padding:20px 22px;border:2px solid var(--r-border);background:var(--r-bg);color:#102544;line-height:1.55}
-.resident-card.tone-green {--r-border:#36a46b;--r-bg:#eefaf3}.resident-card.tone-amber {--r-border:#d98b16;--r-bg:#fff7e8}
-.resident-card.tone-red {--r-border:#d93449;--r-bg:#fff0f1}.resident-card.tone-gray {--r-border:#8a9bb0;--r-bg:#f3f6f9}
-.resident-head {font-size:clamp(20px,2.2vw,28px);font-weight:800;letter-spacing:-.5px;color:#0b2747}
-.resident-text {font-size:16px;margin:8px 0 14px;color:#1d3a5c}
-.resident-facts {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
-.resident-facts span {background:#ffffffb0;border-radius:9px;padding:9px 11px;font-size:13px;color:#1d3a5c}.resident-facts b {display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#4b6584}
-.resident-note {font-size:12px;color:#4b6584;margin-top:12px}
-.resident-sim {background:#7a1fa2;color:white;font-weight:800;letter-spacing:.6px;border-radius:7px;padding:7px 11px;margin-bottom:12px;display:inline-block}
-.resident-guidance {background:#fff;border:1px solid #d8e9fa;border-radius:12px;padding:16px 20px;color:#173452;line-height:1.55}
-.resident-guidance ul {margin:8px 0 0 18px;padding:0}.resident-guidance li {margin:6px 0;font-size:14px}
-.resident-action {font-size:18px;font-weight:800;color:#063a78}
-</style>""")
+# Theme: sky background, cards, light/dark palettes (dashboard_theme.py). Not loaded in the text view.
+if not text_view:st.html('<style>'+dashboard_theme.CSS+'</style>')
 
 def secret(name):
     return get_setting(name)
@@ -410,10 +339,10 @@ def render_forecast_chart(state: RefreshState) -> None:
             if len(plot)<6:st.warning('Incomplete six-hour forecast: missing or invalid hourly samples; gaps are not filled.')
             chart=alt.Chart(plot).mark_bar(color='#277de0',cornerRadiusTopLeft=4,cornerRadiusTopRight=4).encode(
                 x=alt.X('Hour (SAST):O',title='Hour ending (SAST)',sort=forecast_axis_order(pd.Series(plot['time'])),axis=alt.Axis(labelAngle=0,labelFontSize=10)),
-                y=alt.Y('precipitation:Q',title='Forecast rainfall (mm)'),
+                y=alt.Y('precipitation:Q',title='Forecast rainfall (mm)',axis=alt.Axis(format='.1f')),
                 tooltip=[alt.Tooltip('Interval:N',title='Rainfall interval (SAST)'),alt.Tooltip('precipitation:Q',title='Rainfall (mm)',format='.2f'),
                          alt.Tooltip('cloud_cover:Q',title='Cloud cover (%)',format='.0f')]).properties(height=225)
-            st.altair_chart(chart.configure_axis(labelColor='#365577',titleColor='#203d60'),width='stretch')
+            st.altair_chart(chart,width='stretch')
             st.caption(f'ECMWF IFS 0.25{chr(176)} via Open-Meteo | Hourly endpoints {plot["time"].min():%d %b %Y %H:%M} to {plot["time"].max():%d %b %Y %H:%M} SAST. Rainfall sums cover the preceding hour; selection starts with the next complete hourly interval. {len(plot)} genuine samples, not model probabilities.')
         else:st.info('No future hourly precipitation forecast available.')
     except Exception as exc:
@@ -515,6 +444,13 @@ with sidebar:
     if not is_admin:st.session_state.presentation_test_mode=False
 
 if not text_view:st.html(f'<div class="hero"><div class="hero-main">{ui_icon("cloud")}<div><h1>Matatiele Smart Resilient Storm Early Warning System</h1><p>Is a storm likely in Matatiele in the next hour, and what should you do?</p></div></div><div class="clock-card">{datetime.now(SAST):%d %B %Y &nbsp; %H:%M} SAST<small>Dashboard time · Research Beta</small></div></div>')
+if not text_view:
+    # Small screens hide the sidebar behind a menu, so the same sections are offered here too.
+    st.session_state.mobile_nav_choice=page
+    def _go_to_mobile_section():
+        if st.session_state.get('mobile_nav_choice'):st.session_state.dashboard_page=st.session_state.mobile_nav_choice
+    with st.container(key='mobile_nav'):
+        st.segmented_control('Dashboard section',navigation,key='mobile_nav_choice',on_change=_go_to_mobile_section,label_visibility='collapsed')
 
 st.session_state.refresh_clock_count=0
 refresh_clock()
@@ -569,6 +505,8 @@ if text_view:
     st.markdown(resident_view.text_only_page(resident,advice))
     st.caption('Low-data text version. [Open the full dashboard](?)')
     st.stop()
+updated_label=(generated_time or retrieved_time).strftime('%d %b %H:%M SAST') if (generated_time or retrieved_time) is not None else None
+st.html(dashboard_theme.status_strip(stale,updated_label,simulated))
 
 if stale:
     st.warning('⚠️ **Saved forecast / outdated prediction.** The latest retrieval failed, is too old, lacks a retrieval timestamp, or no longer matches the next complete hourly interval. This is NOT a current storm-risk assessment. Refresh is required.')
@@ -589,8 +527,96 @@ if page in ('🏠 Dashboard','🛟 Safety Advice'):
 if page=='🛟 Safety Advice':
     st.caption('The advice above matches the current status. Full advice for when a storm is close:')
     st.html(resident_view.guidance_html(resident_view.guidance('WARNING')))
+layers: list[Any]=[]
+TOOLTIP_STYLE={'backgroundColor':'#0f2440','color':'white','fontFamily':'Segoe UI, Arial, sans-serif','fontSize':'12px','borderRadius':'8px','padding':'8px 10px'}
+map_tooltip=cast(Any, {'html':'<b>{name}</b><br/>{detail}', 'style':TOOLTIP_STYLE})
+basemap_url=SATELLITE_STYLE_URL
+if page in ('🏠 Dashboard','🗺️ Weather Map'):
+    st.html('<div class="section-title">Next-hour forecast for Matatiele <small>ECMWF forecast data and the research model, not observations</small></div>')
+    left,right=st.columns([2.15,1],gap='small')
+    with left,st.container(border=True,key='map_card'):
+        panel_title('Rainfall forecast map (next hour)','cloud','map-heading')
+        control_basemap,control_overlay=st.columns([1.6,1],gap='small')
+        with control_basemap:
+            basemap=st.segmented_control('Basemap',list(BASEMAPS),default='Satellite',key='map_basemap',
+                                         help='Low data draws no map tiles: only the forecast overlay and labels.')
+        with control_overlay:
+            show_overlay=st.toggle('Rainfall overlay',value=True,key='map_overlay',help='Interpolated ECMWF forecast rainfall for the next hour.')
+        basemap_url=BASEMAPS.get(basemap or 'Satellite',SATELLITE_STYLE_URL)
+        regional,regional_valid=upcoming_regional(state.regional)
+        regional_retrieved=local_time(state.regional.iloc[0].get('forecast_retrieved_at')) if not state.regional.empty else None
+        regional_stale=bool(state.regional_error) or regional_retrieved is None or (datetime.now(SAST)-regional_retrieved.to_pydatetime()).total_seconds()>1800
+        layers=[]
+        if regional_stale:st.warning('OUTDATED / UNVERIFIED regional forecast. Rainfall overlay withheld until a fresh retrieval succeeds.')
+        if not regional.empty and not regional_stale:
+            regional=regional.assign(detail=f'Forecast rainfall for the hour ending {regional_valid:%H:%M} SAST (ECMWF grid point). Not radar.')
+            try:
+                overlay_image,bounds=make_rainfall_overlay(regional)
+                if show_overlay:layers.append(pdk.Layer('BitmapLayer',image=String(overlay_image),bounds=bounds,opacity=.78))
+                layers.append(pdk.Layer('ScatterplotLayer',regional,get_position='[lon, lat]',get_radius=700,get_fill_color=[25,45,65,150],pickable=True))
+            except (ValueError,KeyError):st.warning('Incomplete rainfall grid: overlay unavailable. No artificial values substituted.')
+        matatiele=pd.DataFrame([{'lat':MATATIELE_LAT,'lon':MATATIELE_LON,'name':'Matatiele','detail':'Location of the next-hour storm-risk model'}])
+        layers.append(pdk.Layer('ScatterplotLayer',matatiele,get_position='[lon, lat]',get_radius=3000,get_fill_color=[221,45,67,240],get_line_color=[255,255,255,255],line_width_min_pixels=3,stroked=True,pickable=True))
+        nearby=pd.DataFrame(NEARBY_PLACES)
+        nearby['reference']='Geographic reference only; no town-specific storm prediction'
+        nearby['detail']=nearby['reference']
+        layers.append(pdk.Layer('ScatterplotLayer',nearby,get_position='[lon, lat]',
+            radius_units=String('pixels'),get_radius=4,get_fill_color=[235,245,255,255],
+            get_line_color=[12,32,54,255],line_width_min_pixels=1.5,stroked=True,pickable=True))
+        # Both map views share these layers. Text stays anchored to longitude/
+        # latitude while its pixel-sized background remains readable at any zoom.
+        labels=pd.concat([nearby,pd.DataFrame([{'name':'Matatiele','lat':MATATIELE_LAT,
+            'lon':MATATIELE_LON,'offset':[12,12],'anchor':'start',
+            'reference':'Primary next-hour model location','detail':'Location of the next-hour storm-risk model'}])],ignore_index=True)
+        layers.append(pdk.Layer('TextLayer',labels,get_position='[lon, lat]',get_text='name',
+            get_size=12,size_units=String('pixels'),get_color=[255,255,255],font_family=String('Arial, sans-serif'),
+            font_weight=600,get_pixel_offset='offset',get_text_anchor='anchor',
+            get_alignment_baseline=String('center'),background=True,
+            get_background_color=[12,32,54,235],background_padding=[5,3],pickable=True))
+        st.pydeck_chart(pdk.Deck(map_style=basemap_url,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=360)
+        st.caption('Drag to pan, scroll or pinch to zoom, hover or tap a point for its forecast value.')
+        if not regional.empty and not regional_stale:
+            st.html('<div class="map-legend"><div class="title">Forecast rainfall in the next hour (mm)</div><div class="rain-legend"></div>'
+                    '<div class="legend-labels"><span>0</span><span>0.1</span><span>1</span><span>3</span><span>5</span><span>10</span><span>20</span><span>40+</span></div>'
+                    '<div class="note">Interpolated from 25 ECMWF forecast grid points. This is a forecast, not radar or observed rainfall.'
+                    +('' if show_overlay else ' Overlay hidden.')+'</div></div>')
+            st.caption(f'ECMWF / Open-Meteo: hour ending {regional_valid:%d %b %Y %H:%M SAST}; retrieved {regional_retrieved:%d %b %Y %H:%M SAST}. Bilinear interpolation of 25 actual grid samples, not radar. Colour intervals are nonlinear.')
+            st.caption(f'Sampled rainfall range: {regional.precipitation_mm.min():.2f} to {regional.precipitation_mm.max():.2f} mm. Dry areas are transparent; trace rainfall is faint.')
+        st.caption('Town labels are geographic references. The Random Forest storm prediction applies only to Matatiele.')
+        if regional.empty or regional_stale:st.info('Matatiele is shown in red. Refresh to retrieve genuine regional rainfall forecasts.')
+    with right:
+        with st.container(border=True,key='weather_card'):
+            panel_title('Forecast weather - Matatiele','cloud')
+            condition_kind,condition_label=dashboard_theme.weather_condition(number(latest,'precipitation_mm'),number(latest,'cloud_cover_percent'),input_time.hour if input_time is not None else None)
+            details=[('Cloud cover',weather_value(number(latest,'cloud_cover_percent'),'%',0)),('Wind speed',weather_value(number(latest,'wind_speed_ms'),'m/s')),('Wind gust',weather_value(number(latest,'wind_gust_ms'),'m/s')),('Pressure',weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
+            detail_html=''.join(f'<div class="weather-detail"><span>{label}</span><strong>{value}</strong></div>' for label,value in details)
+            forecast_hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'unknown hour'
+            st.html(f'<div class="weather-body"><div class="weather-primary">{svg_image(dashboard_theme.weather_icon_svg(condition_kind),condition_label)}<div class="temperature">{weather_value(number(latest,"temperature_c"),chr(176)+"C")}</div><div class="condition">{html.escape(condition_label)}<small>Rainfall {weather_value(number(latest,"precipitation_mm"),"mm")} in the hour</small></div></div><div>{detail_html}</div></div><div class="weather-status">{"OUTDATED SAVED CONDITIONS" if stale else f"ECMWF forecast for {forecast_hour} - not an observation"}</div>')
+        with st.container(border=True,key='risk_card'):
+            panel_title('Next-hour prediction','risk')
+            usable=math.isfinite(prob) and 0<=prob<=1
+            gauge_value=prob if usable else 0.0
+            value_text=f'{prob:.1%}' if usable else 'Unavailable'
+            gauge=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 165" font-family="Arial, sans-serif"><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="#d4dce7" stroke-width="20" stroke-linecap="round"/><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="{level_color}" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="{gauge_value*100} 100"/></svg>'
+            keys=''.join(f'<div class="risk-key"><i style="background:{color}"></i>{label}</div>' for color,label in [('#30b262','Low (below 10%)'),('#ffc32d','Elevated (10-19%)'),('#fa782b','Moderate (20-34%)'),('#ed394b','Warning (35%+)')])
+            st.html(f'<div class="risk-status">{"OUTDATED / UNVERIFIED SAVED RESULT" if stale else "RANDOM FOREST - FIXED HOURLY TARGET"}</div><div class="risk-body"><div class="risk-gauge">{svg_image(gauge,"Storm probability "+value_text)}<div class="gauge-value">{value_text}</div><div class="gauge-label">Storm probability</div><span class="risk-badge" style="--accent:{level_color};--tint:{level_color}25">{level} RISK</span></div><div>{keys}</div></div>')
+
+
 if page=='🏠 Dashboard':
-    st.markdown('#### Forecast details (technical)')
+    chart_column,sample_column,table_column=st.columns([1.15,.9,1.1],gap='small')
+    with chart_column,st.container(border=True,key='six_card'):
+        render_forecast_chart(state)
+    with sample_column,st.container(border=True,key='sample_card'):
+        panel_title('Regional forecast detail','map')
+        st.pydeck_chart(pdk.Deck(map_style=basemap_url,
+            initial_view_state=pdk.ViewState(latitude=-30.39,longitude=MATATIELE_LON,zoom=7.4,pitch=0),
+            layers=layers,tooltip=map_tooltip),width='stretch',height=215)
+        st.caption('Same genuine ECMWF precipitation forecast. Spatial interpolation, not radar.')
+    with table_column,st.container(border=True,key='predictions_card'):
+        render_recent_table(hist)
+
+if page=='🏠 Dashboard':
+    st.html('<div class="section-title">System and model status <small>Technical details for researchers and administrators</small></div>')
     cards=st.columns(5,gap='small')
     verified=not stale and not state.regional_error
     with cards[0]:status_card('System status','ONLINE' if verified else 'SAVED DATA','Latest retrieval verified' if verified else 'Outdated / unverified','wifi','green' if verified else 'amber')
@@ -600,77 +626,6 @@ if page=='🏠 Dashboard':
     horizon=f'{input_time:%H:%M} – {valid:%H:%M} SAST' if input_time is not None and valid is not None else 'Target time unavailable'
     with cards[4]:status_card('Forecast horizon','Next 1 hour',horizon,'clock','blue',True)
     st.caption(f'Target interval: {interval_label(valid)}. Next complete hourly interval, not a rolling 60-minute forecast. Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}.')
-
-layers: list[Any]=[]
-map_tooltip=cast(Any, {'text':'{name}', 'style':{'backgroundColor':'#13263f','color':'white'}})
-if page in ('🏠 Dashboard','🗺️ Weather Map'):
-    left,right=st.columns([2.15,1],gap='small')
-    with left,st.container(border=True,key='map_card'):
-        panel_title('Precipitation forecast (next hour)','cloud','map-heading')
-        regional,regional_valid=upcoming_regional(state.regional)
-        regional_retrieved=local_time(state.regional.iloc[0].get('forecast_retrieved_at')) if not state.regional.empty else None
-        regional_stale=bool(state.regional_error) or regional_retrieved is None or (datetime.now(SAST)-regional_retrieved.to_pydatetime()).total_seconds()>1800
-        layers=[]
-        if regional_stale:st.warning('OUTDATED / UNVERIFIED regional forecast. Rainfall overlay withheld until a fresh retrieval succeeds.')
-        if not regional.empty and not regional_stale:
-            try:
-                overlay_image,bounds=make_rainfall_overlay(regional)
-                layers.append(pdk.Layer('BitmapLayer',image=String(overlay_image),bounds=bounds,opacity=.78))
-                layers.append(pdk.Layer('ScatterplotLayer',regional,get_position='[lon, lat]',get_radius=700,get_fill_color=[25,45,65,150],pickable=True))
-            except (ValueError,KeyError):st.warning('Incomplete rainfall grid: overlay unavailable. No artificial values substituted.')
-        matatiele=pd.DataFrame([{'lat':MATATIELE_LAT,'lon':MATATIELE_LON,'name':'Matatiele'}])
-        layers.append(pdk.Layer('ScatterplotLayer',matatiele,get_position='[lon, lat]',get_radius=3000,get_fill_color=[221,45,67,240],get_line_color=[255,255,255,255],line_width_min_pixels=3,stroked=True,pickable=True))
-        nearby=pd.DataFrame(NEARBY_PLACES)
-        nearby['reference']='Geographic reference only; no town-specific storm prediction'
-        layers.append(pdk.Layer('ScatterplotLayer',nearby,get_position='[lon, lat]',
-            radius_units=String('pixels'),get_radius=4,get_fill_color=[235,245,255,255],
-            get_line_color=[12,32,54,255],line_width_min_pixels=1.5,stroked=True,pickable=True))
-        # Both map views share these layers. Text stays anchored to longitude/
-        # latitude while its pixel-sized background remains readable at any zoom.
-        labels=pd.concat([nearby,pd.DataFrame([{'name':'Matatiele','lat':MATATIELE_LAT,
-            'lon':MATATIELE_LON,'offset':[12,12],'anchor':'start',
-            'reference':'Primary next-hour model location'}])],ignore_index=True)
-        layers.append(pdk.Layer('TextLayer',labels,get_position='[lon, lat]',get_text='name',
-            get_size=12,size_units=String('pixels'),get_color=[255,255,255],font_family=String('Arial, sans-serif'),
-            font_weight=600,get_pixel_offset='offset',get_text_anchor='anchor',
-            get_alignment_baseline=String('center'),background=True,
-            get_background_color=[12,32,54,235],background_padding=[5,3],pickable=True))
-        map_tooltip=cast(Any,{'text':'{name}','style':{'backgroundColor':'#13263f','color':'white'}})
-        st.pydeck_chart(pdk.Deck(map_style=SATELLITE_STYLE_URL,initial_view_state=pdk.ViewState(latitude=MATATIELE_LAT,longitude=MATATIELE_LON,zoom=7.4,pitch=0),layers=layers,tooltip=map_tooltip),width='stretch',height=340)
-        if not regional.empty and not regional_stale:
-            st.html('<div class="rain-legend"></div><div class="legend-labels"><span>0</span><span>0.1</span><span>1</span><span>3</span><span>5</span><span>10</span><span>20</span><span>40+ mm</span></div>')
-            st.caption(f'ECMWF / Open-Meteo: hour ending {regional_valid:%d %b %Y %H:%M SAST}; retrieved {regional_retrieved:%d %b %Y %H:%M SAST}. Bilinear interpolation of 25 actual grid samples, not radar. Colour intervals are nonlinear.')
-            st.caption(f'Sampled rainfall range: {regional.precipitation_mm.min():.2f} to {regional.precipitation_mm.max():.2f} mm. Dry areas are transparent; trace rainfall is faint.')
-        st.caption('Town labels are geographic references. The Random Forest storm prediction applies only to Matatiele.')
-        if regional.empty or regional_stale:st.info('Matatiele is shown in red. Refresh to retrieve genuine regional rainfall forecasts.')
-    with right:
-        with st.container(border=True,key='weather_card'):
-            panel_title('Forecast weather - Matatiele','cloud')
-            details=[('Cloud cover',weather_value(number(latest,'cloud_cover_percent'),'%',0)),('Wind speed',weather_value(number(latest,'wind_speed_ms'),'m/s')),('Wind gust',weather_value(number(latest,'wind_gust_ms'),'m/s')),('Pressure',weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
-            detail_html=''.join(f'<div class="weather-detail"><span>{label}</span><strong>{value}</strong></div>' for label,value in details)
-            st.html(f'<div class="weather-body"><div class="weather-primary">{ui_icon("weather")}<div class="temperature">{weather_value(number(latest,"temperature_c"),chr(176)+"C")}</div><div class="condition">Rainfall {weather_value(number(latest,"precipitation_mm"),"mm")}</div></div><div>{detail_html}</div></div><div class="weather-status">{"OUTDATED SAVED CONDITIONS" if stale else "ECMWF forecast inputs - Not observations"}</div>')
-        with st.container(border=True,key='risk_card'):
-            panel_title('Next-hour prediction','risk')
-            usable=math.isfinite(prob) and 0<=prob<=1
-            gauge_value=prob if usable else 0.0
-            value_text=f'{prob:.1%}' if usable else 'Unavailable'
-            gauge=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 165" font-family="Arial, sans-serif"><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="#d4dce7" stroke-width="20" stroke-linecap="round"/><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="{level_color}" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="{gauge_value*100} 100"/><text x="130" y="102" text-anchor="middle" fill="#102b4b" font-size="34" font-weight="800">{value_text}</text><text x="130" y="135" text-anchor="middle" fill="#214573" font-size="14">Storm probability</text></svg>'
-            keys=''.join(f'<div class="risk-key"><i style="background:{color}"></i>{label}</div>' for color,label in [('#30b262','Low (below 10%)'),('#ffc32d','Elevated (10-19%)'),('#fa782b','Moderate (20-34%)'),('#ed394b','Warning (35%+)')])
-            st.html(f'<div class="risk-status">{"OUTDATED / UNVERIFIED SAVED RESULT" if stale else "RANDOM FOREST - FIXED HOURLY TARGET"}</div><div class="risk-body"><div class="risk-gauge">{svg_image(gauge,"Storm probability "+value_text)}<span class="risk-badge" style="--accent:{level_color};--tint:{level_color}25">{level} RISK</span></div><div>{keys}</div></div>')
-
-
-if page=='🏠 Dashboard':
-    chart_column,sample_column,table_column=st.columns([1.15,.9,1.1],gap='small')
-    with chart_column,st.container(border=True,key='six_card'):
-        render_forecast_chart(state)
-    with sample_column,st.container(border=True,key='sample_card'):
-        panel_title('Regional forecast detail','map')
-        st.pydeck_chart(pdk.Deck(map_style=SATELLITE_STYLE_URL,
-            initial_view_state=pdk.ViewState(latitude=-30.39,longitude=MATATIELE_LON,zoom=7.4,pitch=0),
-            layers=layers,tooltip=map_tooltip),width='stretch',height=215)
-        st.caption('Same genuine ECMWF precipitation forecast. Spatial interpolation, not radar.')
-    with table_column,st.container(border=True,key='predictions_card'):
-        render_recent_table(hist)
 
 if page=='🕒 Historical Data':
     panel_title('Historical predictions','table')
@@ -695,7 +650,7 @@ if page in ('🌦️ Live Forecast','📈 Risk Analysis'):
                 comparison=pd.DataFrame({'Output':['Next-hour storm probability'],'Probability (%)':[prob*100]})
                 bars=alt.Chart(comparison).mark_bar(color=level_color,size=35).encode(x=alt.X('Probability (%):Q',scale=alt.Scale(domain=[0,100])),y=alt.Y('Output:N',title=None),tooltip=[alt.Tooltip('Probability (%):Q',format='.2f')])
                 rule=alt.Chart(pd.DataFrame({'Warning threshold (%)':[35]})).mark_rule(color='#d93449',strokeDash=[6,4]).encode(x='Warning threshold (%):Q',tooltip=['Warning threshold (%):Q'])
-                st.altair_chart((bars+rule).properties(height=100).configure_axis(labelColor='#365577',titleColor='#203d60'),width='stretch')
+                st.altair_chart((bars+rule).properties(height=100),width='stretch')
                 st.caption(f'{abs(prob*100-35):.1f} percentage points {"above" if prob>=threshold else "below"} the warning threshold. Dashed line: 35%.')
         with b:
             information_card('Forecast conditions at the input hour',weather_value(number(latest,'precipitation_mm'),'mm')+' rainfall',f'Temperature {weather_value(number(latest,"temperature_c"),chr(176)+"C")} / Gust {weather_value(number(latest,"wind_gust_ms"),"m/s")} / Cloud {weather_value(number(latest,"cloud_cover_percent"),"%",0)}')
@@ -712,7 +667,7 @@ if page in ('🌦️ Live Forecast','📈 Risk Analysis'):
             if not series.empty:
                 points=alt.Chart(series).mark_line(point=True,color='#1268c4').encode(x=alt.X('Forecast target (SAST):O',title='Recorded prediction target (SAST)',sort=None,axis=alt.Axis(labelAngle=-35)),y=alt.Y('Probability (%):Q',scale=alt.Scale(domain=[0,100])),tooltip=['Forecast target (SAST):O',alt.Tooltip('Probability (%):Q',format='.2f')]).properties(height=230)
                 line=alt.Chart(pd.DataFrame({'threshold':[35]})).mark_rule(color='#d93449',strokeDash=[6,4]).encode(y='threshold:Q')
-                st.altair_chart((points+line).configure_axis(labelColor='#365577',titleColor='#203d60'),width='stretch')
+                st.altair_chart(points+line,width='stretch')
             else:st.info('No valid recorded probabilities available.')
         else:st.info('Recorded predictions will appear after successful forecast updates.')
         st.caption('Low <10%; Elevated 10% to <20%; Moderate 20% to <35%; Warning >=35%. History contains saved predictions, not a six-hour model forecast.')
