@@ -20,6 +20,8 @@ from subscriber_store import BASE, StoreError, iso, mask_phone, setting, utc_now
 AREA = 'matatiele'
 AREAS = {AREA: 'Matatiele (town and immediate surroundings)'}
 CONSENT_VERSION = '2026-10-30'
+RELAY_TEXT = ('I am a community relay (for example a ward councillor, community leader or volunteer) and agree to pass '
+              'storm warnings on to people nearby, for example in person or by loudhailer.')
 CONSENT_TEXT = ('I agree to receive SMS storm warnings for Matatiele from this academic research prototype '
                 '(at most a few messages per storm hour, plus verification codes). It is not an official SAWS '
                 'warning service. I can unsubscribe at any time on this page or by replying STOP.')
@@ -148,8 +150,11 @@ def _parse(text):
 
 
 # ------------------------------------------------------------------ resident actions
-def request_code(store, gateway, raw_phone, purpose, consent=False, area=AREA, now=None):
-    """Create/refresh a one-time code and send it. purpose: 'subscribe' or 'manage'. Returns a safe message."""
+def request_code(store, gateway, raw_phone, purpose, consent=False, area=AREA, now=None, relay=None):
+    """Create/refresh a one-time code and send it. purpose: 'subscribe' or 'manage'. Returns a safe message.
+
+    relay: True or False sets the community-relay role on subscription; None keeps the current role (resident by default).
+    """
     if gateway is None:
         raise SubscriptionError('SMS alerts registration is not available yet: the SMS service has not been configured.')
     phone = normalise_sa_mobile(raw_phone)
@@ -180,6 +185,7 @@ def request_code(store, gateway, raw_phone, purpose, consent=False, area=AREA, n
         if purpose == 'subscribe':
             sub.update(status='pending', area=area, phone_encrypted=store.crypto.encrypt_phone(phone), phone_masked=mask_phone(phone),
                        consent={'version': CONSENT_VERSION, 'at': iso(now)}, unsubscribed_at=None, unsubscribe_reason=None)
+            sub['role'] = ('relay' if relay else 'resident') if relay is not None else sub.get('role', 'resident')
         sub['code'] = {'hash': store.crypto.secret_hash(purpose + sub['id'], code), 'purpose': purpose,
                        'expires_at': iso(now + CODE_TTL), 'attempts': 0}
         sub['updated_at'] = iso(now)
@@ -276,3 +282,8 @@ def statistics(doc):
     for sub in doc['subscribers'].values():
         counts[sub['status']] = counts.get(sub['status'], 0) + 1
     return counts
+
+
+def relay_count(doc):
+    """Active community relays (a count only)."""
+    return sum(1 for sub in doc['subscribers'].values() if sub['status'] == 'active' and sub.get('role') == 'relay')

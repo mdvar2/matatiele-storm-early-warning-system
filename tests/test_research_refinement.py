@@ -118,7 +118,7 @@ class SmsSimulation(unittest.TestCase):
         bodies = []
         with patch('subscriptions.gateway_from_config', return_value=RealGateway()), \
                 patch('subscriber_store.open_store', return_value=object()), \
-                patch.object(subscriber_alerts, 'deliver_warning', side_effect=lambda store, gw, key, body, *a: bodies.append(body) or
+                patch.object(subscriber_alerts, 'deliver_warning', side_effect=lambda store, gw, key, body, *a, **k: bodies.append(body) or
                              {'recipients': 0, 'submitted': 0, 'failed': 0, 'uncertain': 0}):
             subscriber_alerts.run_for_worker('2026-10-30T12:00:00+00:00', .5, .35, env)
         self.assertTrue(bodies[0].startswith('MATATIELE MODEL ALERT'))

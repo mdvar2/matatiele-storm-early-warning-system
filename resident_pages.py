@@ -101,10 +101,12 @@ def _subscribe(store, gateway):
             phone = st.text_input('South African mobile number', placeholder='e.g. 082 123 4567', max_chars=20)
             st.selectbox('Warning area', list(subs.AREAS.values()), help='Warnings are currently produced for Matatiele only.')
             consent = st.checkbox(subs.CONSENT_TEXT)
+            relay = st.checkbox(subs.RELAY_TEXT, key='sub_relay',
+                                help='Relays receive the same warnings, with a request to pass them on to people who may not get them.')
             sent = st.form_submit_button('Send verification code', type='primary')
         if sent:
             try:
-                st.success(subs.request_code(store, gateway, phone, 'subscribe', consent=consent))
+                st.success(subs.request_code(store, gateway, phone, 'subscribe', consent=consent, relay=relay))
                 state.sub_phone, state.sub_stage = phone, 'code'
                 st.rerun()
             except subs.SubscriptionError as exc:

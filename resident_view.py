@@ -330,6 +330,22 @@ def summary_html(status, probability, weather, record):
     return f'<div class="summary-grid">{risk_card}{decision_card}{period_card}{weather_card}</div>'
 
 
+OUTLOOK_NOTE = ('Hours 2 to 12 ahead: the same model applied to the ECMWF forecast for those hours. It was evaluated one hour '
+                'ahead only, so these scores are unvalidated and less certain further ahead. Model risk scores, not calibrated '
+                'probabilities. Hour 1 is the estimate above.')
+
+
+def outlook_badge_html(state, first_hour=None, score=None):
+    """state: 'alert' (an hour 2-12 ahead at or above 35%), 'clear', or 'unavailable'."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    if state == 'alert':
+        return (f'<div class="decision-badge tone-amber">{icons.icon("alert")}<b>EARLY ALERT: raised storm risk from about '
+                f'{e(first_hour)} SAST ({e(score)})</b></div>')
+    if state == 'clear':
+        return f'<div class="decision-badge tone-green">{icons.icon("check-circle")}<b>No raised storm risk in the next 12 hours</b></div>'
+    return (f'<div class="decision-badge tone-gray">{icons.icon("help-circle")}<b>Outlook unavailable: no current forecast</b></div>')
+
+
 def communication_html(communication):
     """Warning-communication tiles: (label, state, tone) rows derived from configuration."""
     e = lambda value: html.escape(str(value))  # noqa: E731

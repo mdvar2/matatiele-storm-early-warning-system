@@ -212,7 +212,7 @@ class DashboardHarness(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
         for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
                      'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
-                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py', 'prediction_log.py', 'system_log.py'):
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py', 'prediction_log.py', 'system_log.py', 'outlook.py', 'offline_page.py', 'cape_normalisation.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
         (cls.tmp / 'docs').mkdir()
         shutil.copy(ROOT / 'docs' / 'model_evidence.json', cls.tmp / 'docs' / 'model_evidence.json')
@@ -221,6 +221,7 @@ class DashboardHarness(unittest.TestCase):
         cls.model = cls.tmp / 'outputs' / 'model_live'
         cls.model.mkdir(parents=True)
         (cls.model / 'live_selected_threshold.txt').write_text('0.35\n')
+        shutil.copy(ROOT / 'outputs' / 'model_live' / 'live_model_features.txt', cls.model / 'live_model_features.txt')
 
     @classmethod
     def tearDownClass(cls):
@@ -229,6 +230,7 @@ class DashboardHarness(unittest.TestCase):
     def setUp(self):
         import streamlit as st
         st.cache_resource.clear()
+        st.cache_data.clear()  # e.g. the outlook and ledger caches start empty in every test
         for name in ('dashboard_forecast_prediction.csv', 'prediction_history.csv', 'regional_ecmwf_forecast.csv'):
             (self.model / name).unlink(missing_ok=True)
         (self.tmp / 'outputs' / 'system_log.sqlite').unlink(missing_ok=True)  # each test starts with an empty system log

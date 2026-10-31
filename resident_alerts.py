@@ -5,6 +5,7 @@ import html
 import uuid
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -176,7 +177,7 @@ def status_banner_html(active_events, status):
     return ''  # no warning in effect: the risk card already shows the current estimate
 
 
-def render_alerts(getter, status, log_rows=None):
+def render_alerts(getter, status, log_rows=None, early=None):
     """Warnings (list and details), SMS alerts and the system log. The current status, contacts and SAWS link are on Home only."""
     st.html('<div class="section-title">Alerts <small>Storm warnings for Matatiele and SMS alerts</small></div>')
     st.session_state.setdefault('alerts_view', VIEWS[0])
@@ -217,6 +218,15 @@ def render_alerts(getter, status, log_rows=None):
             _event_row(event, False)
     elif not error:
         st.info('No storm warnings have been issued by this system yet.')
+    st.markdown('**Early alerts (12-hour model outlook)**')
+    if early:
+        for alert in early:
+            start = pd.Timestamp(alert['first_target_end_utc']).tz_convert('Africa/Johannesburg') - pd.Timedelta(hours=1)
+            st.html(f'<div class="warn-card"><div class="warn-top"><b>{icons.icon("alert")} Early storm alert: raised risk from about '
+                    f'{start:%d %b %H:%M} SAST</b></div><div class="resident-note">Model outlook score {alert["score"]:.0%}; '
+                    'unvalidated beyond one hour ahead and not certain. Not an official warning.</div></div>')
+    else:
+        st.caption('No early alerts recorded. Early alerts are made when the model outlook reaches 35% two to twelve hours ahead.')
 
 
 def _event_row(event, active):
@@ -247,6 +257,10 @@ def _detail(getter, event):
     st.html(emergency_contacts.call_row_html())  # kept with the warning on purpose: help must be one tap away
     if event.get('record'):
         st.link_button('Public record of this warning', event['record'], icon=':material/open_in_new:')
+    with st.expander('Announcement for community relays and radio'):
+        st.caption('A short message relays can read out (in person, by loudhailer) and community radio can broadcast.')
+        st.code(('TEST, NOT A REAL WARNING. ' if test else '') +
+                alerts.announcement_script('warning', we.period_text(event), we.probability_text(event)), language=None, wrap_lines=True)
     _acknowledge(getter, event)
     st.button('Get warnings like this by SMS', key='alert_to_sms', on_click=show_sms_alerts, icon=':material/sms:')
 

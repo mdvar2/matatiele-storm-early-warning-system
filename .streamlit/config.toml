@@ -3,3 +3,7 @@
 [theme]
 base = "light"
 primaryColor = "#1d4ed8"
+
+# Serves ./static at /app/static: the offline page (offline.html, its service worker and the last status).
+[server]
+enableStaticServing = true

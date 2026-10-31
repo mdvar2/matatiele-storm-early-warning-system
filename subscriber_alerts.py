@@ -32,8 +32,8 @@ def _delivery_key(alert_key, subscriber_id):
     return f'{alert_key}|{subscriber_id}'
 
 
-def deliver_warning(store, gateway, alert_key, body, forecast_period, probability, now=None):
-    """Send `body` once to every eligible subscriber. Returns counts only (no personal data)."""
+def deliver_warning(store, gateway, alert_key, body, forecast_period, probability, now=None, relay_body=None):
+    """Send `body` once to every eligible subscriber (`relay_body` to community relays, if given). Returns counts only."""
     now = now or utc_now()
 
     def reserve(doc):
@@ -48,11 +48,11 @@ def deliver_warning(store, gateway, alert_key, body, forecast_period, probabilit
                 continue
             doc['deliveries'][key] = {'alert': alert_key, 'subscriber': sub['id'], 'masked': sub['phone_masked'], 'status': 'pending',
                                       'attempts': 1, 'created_at': iso(now), 'updated_at': iso(now)}
-            targets.append((key, sub['phone_encrypted']))
+            targets.append((key, sub['phone_encrypted'], relay_body if relay_body and sub.get('role') == 'relay' else body))
         return targets
 
     targets = store.mutate(reserve)
-    outcomes = {key: _send(store, gateway, encrypted, body) for key, encrypted in targets}
+    outcomes = {key: _send(store, gateway, encrypted, text) for key, encrypted, text in targets}
     if outcomes:
         store.mutate(lambda doc: _record(doc, outcomes, now))
     counts = {'recipients': len(targets), 'submitted': 0, 'failed': 0, 'uncertain': 0}
@@ -158,12 +158,31 @@ def run_for_worker(prediction_for, probability, threshold, environ=None):
         body = _build_warning_message('Matatiele', prediction_for, probability, threshold, 0.0, 0.0, 0.0, 0.0)
         if not gateway.real:
             body = TEST_PREFIX + body  # simulation (outbox) messages are labelled; live wording is unchanged
-        counts = deliver_warning(store, gateway, 'REAL-SHORT-V1-' + hour, body, str(prediction_for), probability)
+        counts = deliver_warning(store, gateway, 'REAL-SHORT-V1-' + hour, body, str(prediction_for), probability,
+                                 relay_body=relay_message(body))
         state = 'no_active_subscribers' if not counts['recipients'] else 'sent' if counts['submitted'] == counts['recipients'] else 'partial'
         return {'subscriber_alerts': state, 'subscriber_recipients': counts['recipients'], 'subscriber_submitted': counts['submitted'],
                 'subscriber_failed': counts['failed'], 'subscriber_uncertain': counts['uncertain']}
     except Exception as exc:
         return {'subscriber_alerts': 'failed', 'subscriber_error': type(exc).__name__}
+
+
+RELAY_SUFFIX = ' COMMUNITY RELAY: please warn people near you (in person, loudhailer, bell).'
+
+
+def relay_message(body):
+    """The warning text for community relays: the same warning, plus the request to pass it on."""
+    return body + RELAY_SUFFIX
+
+
+def announcement_script(kind, period, score_text):
+    """A short announcement relays and community radio can read out. kind: 'warning' or 'early'."""
+    opening = ('Storm warning for Matatiele' if kind == 'warning' else 'Early storm alert for Matatiele')
+    return (f'{opening} from the Matatiele Storm Early Warning research system. A storm is possible {period} '
+            f'(model risk score {score_text}; this is not certain). Go indoors when you hear thunder. Keep away from rivers, '
+            'streams and flooded roads, and do not cross them. Move animals to safety early, before lightning starts. '
+            'This is not an official South African Weather Service warning: follow official warnings. '
+            'In an emergency call 10111, 10177, or 112 from a cellphone.')
 
 
 def _hour_key(prediction_for):

@@ -79,6 +79,11 @@ The dashboard has light and dark themes (a header switch, kept across pages and 
 | **Low data basemap** | The map without downloaded tiles. |
 | **Scheduled worker** | Warnings are decided hourly on GitHub Actions; no one needs to keep the dashboard open. |
 
+**Resilient dissemination** ([docs/RESILIENT_DISSEMINATION.md](docs/RESILIENT_DISSEMINATION.md)):
+- **Early storm alerts:** a 12-hour model outlook (the unchanged model, the same 29 inputs) alerts residents and relays hours ahead, while networks still work. Scores beyond one hour are unvalidated, and alerts are switched off by default.
+- **Offline page:** saved once while there is signal, it keeps the last warning, safety advice and emergency numbers on the phone.
+- **Community relays:** relays receive warnings with a request to pass them on, and each warning has a script for radio and loudhailers.
+
 **Not implemented (future research):** offline operation, local weather sensors, edge processing, LoRa and MQTT links (no code exists for them). The system needs an Internet connection to retrieve forecasts. When a refresh fails, the last known information is shown labelled as out of date, and no warning is issued from it. See [docs/SMS_AND_LOW_CONNECTIVITY.md](docs/SMS_AND_LOW_CONNECTIVITY.md).
 
 ## SMS and its limitations
@@ -122,7 +127,7 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
 ## Testing evidence
 
-- **Automated tests:** `python -m pytest tests/`. All 377 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+- **Automated tests:** `python -m pytest tests/`. All 388 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
 - **Reproducible evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs. See [docs/MODEL_EVALUATION.md §7](docs/MODEL_EVALUATION.md#7-reproducing-the-evidence).
 - **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).
@@ -147,4 +152,5 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 - [Model evaluation](docs/MODEL_EVALUATION.md)
 - [SMS and low connectivity](docs/SMS_AND_LOW_CONNECTIVITY.md)
 - [RO3 evidence](docs/RO3_EVIDENCE.md)
+- [Resilient dissemination](docs/RESILIENT_DISSEMINATION.md)
 - [Storm early warning design notes](docs/STORM_EWS_DESIGN_RESEARCH.md)

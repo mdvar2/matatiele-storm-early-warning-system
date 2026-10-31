@@ -1,0 +1,23 @@
+IDENTICAL       dry-run below threshold            exit=0 sends=0 record=none/below_threshold/not_applicable
+IDENTICAL       dry-run above threshold            exit=0 sends=0 record=none/warning_eligible/not_attempted
+IDENTICAL       live below threshold               exit=0 sends=0 record=none/below_threshold/not_applicable
+IDENTICAL       live 0.3499 (just below)           exit=0 sends=0 record=none/below_threshold/not_applicable
+IDENTICAL       live 0.35 (boundary)               exit=0 sends=1 record=none/warning_eligible/sent
+IDENTICAL       live above, sent                   exit=0 sends=1 record=none/warning_eligible/sent
+IDENTICAL       live above, provider failed        exit=1 sends=1 record=sms_provider_failure/warning_eligible/failed
+IDENTICAL       live above, partial                exit=1 sends=1 record=sms_provider_failure/warning_eligible/partial
+IDENTICAL       live above, send raises            exit=1 sends=1 record=sms_provider_failure/warning_eligible/exception
+IDENTICAL       live above, already reserved       exit=0 sends=0 record=none/warning_eligible/not_attempted
+IDENTICAL       live above, ledger unavailable     exit=1 sends=0 record=duplicate_prevention_failure/warning_eligible/not_attempted
+IDENTICAL       live above, SMS not configured     exit=1 sends=0 record=configuration_failure/warning_eligible/not_attempted
+IDENTICAL       live above, status comment fails   exit=1 sends=1 record=ledger_report_failure/warning_eligible/sent
+IDENTICAL       forecast subprocess fails          exit=1 sends=0 record=forecast_retrieval_failure/not_evaluated/not_attempted
+IDENTICAL       stale forecast                     exit=1 sends=0 record=stale_forecast/not_evaluated/not_attempted
+IDENTICAL       non-finite probability             exit=1 sends=0 record=invalid_model_output/not_evaluated/not_attempted
+IDENTICAL       live not enabled                   exit=1 sends=0 record=configuration_failure/not_evaluated/not_attempted
+IDENTICAL       live outside Actions               exit=1 sends=0 record=configuration_failure/not_evaluated/not_attempted
+IDENTICAL       live above, external trigger       exit=1 sends=0 record=stale_forecast/not_evaluated/not_attempted
+IDENTICAL       connectivity test ok               exit=0 sends=0 record=none/not_applicable/test_sent
+IDENTICAL       connectivity test fails            exit=1 sends=0 record=sms_provider_failure/not_applicable/failed_or_uncertain
+
+21/21 scenarios identical; unexpected differences: none

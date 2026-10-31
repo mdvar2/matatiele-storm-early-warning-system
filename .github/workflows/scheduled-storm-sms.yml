@@ -81,6 +81,23 @@ jobs:
           RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
           RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
         run: python 18_scheduled_sms_worker.py --test-sms
+      # Early storm alert from the 12-hour model outlook (27_outlook_alert.py). Separate from the worker: it never
+      # changes the next-hour warning and cannot fail the job. Off unless the repository variable
+      # OUTLOOK_ALERTS_ENABLED is 'true'; SMS additionally needs SUBSCRIBER_ALERTS_ENABLED.
+      - name: Early storm alert (12-hour outlook)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          OUTLOOK_ALERTS_ENABLED: ${{ vars.OUTLOOK_ALERTS_ENABLED || 'false' }}
+          SUBSCRIBER_ALERTS_ENABLED: ${{ vars.SUBSCRIBER_ALERTS_ENABLED || 'false' }}
+          SMS_DELIVERY_MODE: twilio
+          SUBSCRIBER_STORE: github
+          SUBSCRIBER_STORE_REPO: ${{ vars.SUBSCRIBER_STORE_REPO }}
+          SUBSCRIBER_STORE_TOKEN: ${{ secrets.SUBSCRIBER_STORE_TOKEN }}
+          SUBSCRIBER_ENCRYPTION_KEY: ${{ secrets.SUBSCRIBER_ENCRYPTION_KEY }}
+          SUBSCRIBER_HASH_KEY: ${{ secrets.SUBSCRIBER_HASH_KEY }}
+        run: python 27_outlook_alert.py
       # Monitoring only: confirms the token can create/delete lock labels and read run status.
       # Uses a throwaway "sms-probe:" label, never an SMS lock or ledger issue; cannot fail the job.
       - name: Probe duplicate-lock permissions (monitoring only)

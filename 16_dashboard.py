@@ -37,6 +37,8 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
 from sms_alert import sms_is_configured, send_test_sms
 from subscriptions import delivery_mode
 import model_evidence
+import offline_page
+import outlook as storm_outlook
 import system_log
 import prediction_log as run_log
 import resident_view
@@ -357,6 +359,26 @@ def model_runs() -> tuple[pd.DataFrame, bool]:
         runs=runs.merge(saved.drop_duplicates('prediction_for',keep='last'),on='prediction_for',how='left')
     return runs,reachable
 
+@st.cache_resource(show_spinner=False)
+def outlook_model() -> tuple[Any, list]:
+    """The deployed model, loaded once for the outlook (the next-hour estimate itself still runs in the live script)."""
+    import joblib
+    return joblib.load(MODEL/'random_forest_live_model.pkl'),(MODEL/'live_model_features.txt').read_text(encoding='utf-8').split()
+
+@st.cache_data(ttl=900,show_spinner=False)
+def outlook_scores(hour: str) -> tuple[list, bool]:
+    """Model risk scores for the next 12 forecast hours (refreshed each hour). Returns (rows, available)."""
+    try:
+        model,features=outlook_model()
+        return storm_outlook.score(storm_outlook.fetch(),model,features,now=datetime.now(UTC)),True
+    except Exception:
+        return [],False
+
+@st.cache_data(ttl=600,show_spinner=False)
+def early_alerts(repo: str) -> tuple[list, bool]:
+    try:return storm_outlook.early_alert_records(repo),True
+    except Exception:return [],False
+
 def ui_icon(kind: str) -> str:
     paths={
         'cloud':'<path d="M6 17a4 4 0 1 1 1-8 6 6 0 0 1 11-1 4.5 4.5 0 0 1 0 9H6"/><path d="m12 14-3 6h4l-1 4 5-7h-4l2-3"/>',
@@ -581,6 +603,31 @@ def weather_summary() -> dict:
             'icon':svg_image(dashboard_theme.weather_icon_svg(kind),label),
             'source':'OUTDATED SAVED FORECAST' if stale else f'ECMWF forecast · {input_time:%H:%M} SAST' if input_time is not None else 'ECMWF forecast'}
 
+def outlook_card() -> None:
+    """Hours 2-12 ahead from the outlook, with an early-alert badge. Never shown from out-of-date data."""
+    rows,available=outlook_scores(f'{datetime.now(UTC):%Y-%m-%dT%H}') if not stale else ([],False)
+    later=[r for r in rows if r['lead_hours']>=2]
+    hit=storm_outlook.first_exceedance(rows)
+    with st.container(border=True,key='outlook_card'):
+        st.html('<div class="section-title">Storm-risk outlook <small>Next 12 hours · model outlook, unvalidated beyond one hour</small></div>')
+        if not (available and later):
+            st.html(resident_view.outlook_badge_html('unavailable'));return
+        if hit:
+            start=pd.Timestamp(hit['target_end_utc']).tz_convert(SAST)-pd.Timedelta(hours=1)
+            st.html(resident_view.outlook_badge_html('alert',f'{start:%H:%M}',resident_view.score_text(hit['score'])))
+        else:st.html(resident_view.outlook_badge_html('clear'))
+        data=pd.DataFrame({'Hour starting (SAST)':[f"{pd.Timestamp(r['target_end_utc']).tz_convert(SAST)-pd.Timedelta(hours=1):%H:%M}" for r in later],
+                           'Risk score (%)':[round(100*r['score'],1) for r in later],
+                           'Level':['At or above 35%' if r['score']>=threshold else 'Below 35%' for r in later]})
+        bars=alt.Chart(data).mark_bar(cornerRadiusTopLeft=3,cornerRadiusTopRight=3,size=22).encode(
+            x=alt.X('Hour starting (SAST):O',title=None,sort=None,axis=alt.Axis(labelAngle=0)),
+            y=alt.Y('Risk score (%):Q',scale=alt.Scale(domain=[0,100]),title='Model risk score (%)'),
+            color=alt.Color('Level:N',scale=alt.Scale(domain=['Below 35%','At or above 35%'],range=['#2563eb','#d93449']),legend=alt.Legend(title=None,orient='top')),
+            tooltip=['Hour starting (SAST)','Risk score (%)'])
+        rule=alt.Chart(pd.DataFrame({'t':[35]})).mark_rule(color='#d93449',strokeDash=[6,4]).encode(y='t:Q')
+        st.altair_chart(dashboard_theme.style_chart((bars+rule).properties(height=200),theme_mode),width='stretch',theme=None)
+        st.caption(resident_view.OUTLOOK_NOTE)
+
 def warning_record(events: list, error: str | None) -> dict:
     """What the public warning record holds for the current prediction period: genuine, dev (test only), none or unknown."""
     match=[e for e in events if valid is not None and e['end']==valid.to_pydatetime()]
@@ -690,6 +737,11 @@ def record_system_events() -> None:
         log.record('HIGH','Dashboard + public warning record' if genuine else 'Dashboard (development test)',
                    ('' if genuine else 'DEVELOPMENT TEST, not a real warning: ')+f'Storm warning for Matatiele: model risk score '
                    f'{warning_events.probability_text(event)}, {warning_events.period_text(event)}.',key='warning:'+event['key'],at=event['issued_at'])
+    for alert in early_alerts(resident_pages.LEDGER_REPO)[0]:
+        start=pd.Timestamp(alert['first_target_end_utc']).tz_convert(SAST)-pd.Timedelta(hours=1)
+        log.record('HIGH','Early alert record (model outlook)',f'Early storm alert for Matatiele: raised risk from about {start:%d %b %H:%M} SAST '
+                   f'(outlook score {alert["score"]:.0%}; unvalidated beyond one hour).',key='early:'+alert['key'],
+                   at=pd.Timestamp(alert['created_at']).to_pydatetime() if alert.get('created_at') else None)
     for delivery in resident_alerts.sms_deliveries(secret):
         status=delivery['status']
         log.record('WARNING' if status in ('failed','uncertain') else 'INFO','SMS (simulation outbox)' if status=='outbox' else 'SMS',
@@ -709,6 +761,20 @@ except Exception:logging.exception('System log could not be updated.')  # loggin
 
 # The banner and officials always use the genuine estimate; only the resident card shows the simulation.
 genuine_status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,stale,False)
+
+def write_offline_status() -> None:
+    """The offline page's status file, from the genuine output and the real data state (never a demonstration)."""
+    status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,data_stale,False)
+    events,error=resident_alerts.load_events(secret)
+    active=[e for e in events if e['source']==warning_events.GENUINE and warning_events.is_active(e)]
+    early=None
+    if not data_stale:
+        hit=storm_outlook.first_exceedance(outlook_scores(f'{datetime.now(UTC):%Y-%m-%dT%H}')[0])
+        if hit:early=f"Raised storm risk from about {pd.Timestamp(hit['target_end_utc']).tz_convert(SAST)-pd.Timedelta(hours=1):%H:%M} SAST"
+    offline_page.write(BASE/'static'/'status.json',offline_page.build(status,real_prob,warning_record(events,error),active,early))
+
+try:write_offline_status()
+except Exception:logging.exception('Offline status could not be written.')  # never interrupts the dashboard
 if portal_mode:
     official=official_portal.sign_in(secret,failed_official_logins(),LOGIN_WINDOW_SECONDS,MAX_FAILED_LOGINS)
     if official:
@@ -776,6 +842,7 @@ if page=='🏠 Dashboard':
     if genuine_active:  # a genuine warning is in effect: the act-now advice comes straight after the warning
         st.html(resident_view.quick_actions_html(resident_view.guidance('WARNING')))
     st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error)))
+    outlook_card()
     with st.container(key='home_actions'):
         actions=st.columns(4,gap='small')
         actions[0].button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
@@ -791,7 +858,9 @@ if page=='🏠 Dashboard':
     with comms_column:st.html(resident_view.communication_html(communication))
     if not genuine_active:
         st.html(resident_view.quick_actions_html(advice))
-    st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: the same essentials as plain text.</div>')
+    st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: the same essentials as plain text. · '
+            '<a href="app/static/offline.html" target="_blank" rel="noopener">Offline page</a>: open it once while you have signal; '
+            'your phone keeps the last warning, safety advice and emergency numbers for when the network is down.</div>')
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
@@ -974,7 +1043,7 @@ if page=='🕒 Historical Data':
 
 if page=='🚨 Alerts':
     log_rows=[(f'{pd.Timestamp(at).tz_convert(SAST):%Y-%m-%d %H:%M:%S}',severity,delivery,status) for at,severity,delivery,status in SYSTEM_LOG.recent(100)]
-    resident_alerts.render_alerts(secret,genuine_status,log_rows)
+    resident_alerts.render_alerts(secret,genuine_status,log_rows,early_alerts(resident_pages.LEDGER_REPO)[0])
     if is_admin:
         st.markdown('**Operational status (administrators)**')
         a,b,c=st.columns(3)
