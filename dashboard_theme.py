@@ -226,11 +226,7 @@ CSS = r"""
 .call-chips {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}.call-chips span {font-weight:700;color:var(--heading)}
 .call-chip {background:#dc2626;color:#fff!important;text-decoration:none!important;font-weight:800;border-radius:999px;padding:7px 14px}
 .portal-note {background:var(--accent-soft);border:1px solid var(--card-border);border-radius:12px;padding:9px 14px;font-size:13px;color:var(--text)}
-/* Blue weather card and hourly strip (genuine ECMWF forecast values only). */
-.hourly {display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
-.hour {flex:1 0 84px;background:var(--card);border:1px solid var(--card-border);border-radius:14px;padding:8px;text-align:center;box-shadow:var(--card-shadow)}
-.hour .t {font-size:13px;font-weight:800;color:var(--heading)}.hour img {width:52px;height:52px}
-.hour b {display:block;font-size:21px;color:var(--heading)}.hour small {display:block;font-size:11px;color:var(--muted)}
+/* Blue weather card (genuine ECMWF forecast values only). */
 /* Visual summaries: risk scale, warning flow, storm ingredients, advice cards. */
 .risk-scale {background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:16px 18px 30px;box-shadow:var(--card-shadow);margin-bottom:12px}
 .risk-scale .title {font-weight:800;color:var(--heading);margin-bottom:10px}
@@ -255,8 +251,16 @@ CSS = r"""
 /* Streamlit's own menu has a separate theme setting that conflicts with the header switch, so it is hidden. */
 [data-testid="stMainMenu"] {display:none!important}
 /* Homepage: four compact summary cards. */
-.summary-grid {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);grid-template-areas:"risk decision weather" "risk comms comms";gap:12px;margin:4px 0 10px}
-.risk-summary {grid-area:risk}.decision-summary {grid-area:decision}.wx-summary {grid-area:weather}.comms-summary {grid-area:comms}
+.summary-grid {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,.95fr) minmax(0,1fr);grid-template-areas:"weather risk period decision";gap:12px;margin:4px 0 10px}
+.risk-summary {grid-area:risk}.decision-summary {grid-area:decision}.wx-summary {grid-area:weather}.period-summary {grid-area:period}
+.period-row {display:flex;gap:10px;align-items:flex-start;margin:8px 0}.period-row>.ico {width:22px;height:22px;color:var(--accent);margin-top:2px}
+.period-row small {display:block;font-size:11.5px;color:var(--muted)}.period-row b {font-size:14px;color:var(--heading)}
+.fresh-badge {display:inline-block;margin-top:8px;padding:6px 12px;border-radius:10px;font-weight:700;font-size:13px;background:#dcfce7;color:#14532d}.fresh-badge.stale {background:#fef3c7;color:#713f12}
+.var-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}.var-tile {display:flex;gap:10px;align-items:center}
+.var-tile>.ico {width:26px;height:26px;color:var(--accent);flex-shrink:0}.var-tile small {display:block;font-size:11.5px;color:var(--muted)}.var-tile b {font-size:19px;color:var(--heading)}
+.log-wrap {overflow-x:auto}.pred-log {width:100%;border-collapse:collapse;font-size:13px;color:var(--text)}
+.pred-log th {text-align:left;font-size:12px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--divider)}.pred-log td {padding:7px 8px;border-bottom:1px solid var(--divider)}
+.log-decision {font-weight:700;white-space:nowrap}.log-decision.tone-red {color:#c81e33}.log-decision.tone-amber {color:#b45309}.log-decision.tone-green {color:var(--good)}
 .risk-dial {position:relative;max-width:330px;margin:4px auto 0}.risk-gauge-img {display:block;width:100%;height:auto}
 .risk-value {position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:clamp(40px,4.4vw,58px);font-weight:800;color:var(--heading);line-height:1;letter-spacing:-1px}
 .risk-badge-row {text-align:center;margin:10px 0 4px}.risk-pill {display:inline-block;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.6px;color:#fff;background:#2f855a}
@@ -280,8 +284,8 @@ CSS = r"""
 .sc-state {display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--heading)}
 .sc-state::before {content:"";width:9px;height:9px;border-radius:50%;background:#8a9bb0;flex-shrink:0}.sc-state.ok::before {background:#16a34a}.sc-state.warn::before {background:#d97706}
 .risk-summary {border-left:5px solid #36a46b}.risk-summary.tone-amber {border-left-color:#d98b16}.risk-summary.tone-red {border-left-color:#d93449}.risk-summary.tone-gray {border-left-color:#8a9bb0}
-@media(max-width:1100px) {.summary-grid {grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"risk decision" "risk weather" "comms comms"}}
-@media(max-width:640px) {.summary-grid {grid-template-columns:1fr;grid-template-areas:"risk" "decision" "weather" "comms"}.comm-tiles {grid-template-columns:1fr}
+@media(max-width:1100px) {.summary-grid {grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"risk decision" "weather period"}}
+@media(max-width:640px) {.summary-grid {grid-template-columns:1fr;grid-template-areas:"risk" "decision" "period" "weather"}.comm-tiles {grid-template-columns:1fr}
   .comm-tile {flex-direction:row;align-items:center;justify-content:space-between}.risk-value {font-size:46px}}
 .threshold-info {margin-top:8px;font-size:13px;color:var(--text)}
 .threshold-info summary {cursor:pointer;font-weight:700;color:var(--heading);display:inline-flex;align-items:center;gap:6px}
@@ -473,14 +477,6 @@ def status_strip(stale, updated, simulated, refresh_minutes=15):
     if simulated:
         chips.insert(0, '<span class="chip sim"><b>SIMULATION ON</b> &middot; on screen only</span>')
     return '<div class="status-strip">' + ''.join(chips) + '</div>'
-
-
-def hourly_html(hours):
-    """hours: (label, icon_img, temperature, rain, wind) per forecast hour."""
-    e = html.escape
-    cells = ''.join(f'<div class="hour"><div class="t">{e(label)}</div>{icon}<b>{e(temp)}</b><small>{icons.icon("cloud-rain", "Rain")} {e(rain)}</small><small>{icons.icon("wind", "Wind")} {e(wind)}</small></div>'
-                    for label, icon, temp, rain, wind in hours)
-    return f'<div class="hourly">{cells}</div>'
 
 
 def risk_scale_html(probability, threshold=0.35):

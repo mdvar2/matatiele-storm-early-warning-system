@@ -86,18 +86,19 @@ def sms_counts_text(counts):
 SIMULATION_SCRIPT = Path(__file__).resolve().parent / '26_sms_simulation_demo.py'
 
 
-def communication_status(getter, events_error=None):
+def communication_status(getter, events_error=None, root=None):
     """Homepage status rows (label, state, tone), derived from configuration and the code present; nothing is assumed.
 
     Dashboard alerts depend on the public warning record being readable. SMS simulation needs the outbox gateway and
     the demonstration script. Public SMS delivery has no enabled mode in this system: the 'twilio' setting is the
-    controlled trial test, so it is reported as such, never as public delivery.
+    controlled trial test, so it is reported as such, never as public delivery. root: the app folder holding the
+    demonstration script (defaults to this module's folder).
     """
     mode = subs.delivery_mode(getter)
     dashboard = ('Available', 'ok') if not events_error else ('Warning record unreachable', 'warn')
     if mode == 'outbox':
         simulation = ('Active on this deployment', 'ok')
-    elif hasattr(subs, 'OutboxGateway') and SIMULATION_SCRIPT.exists():
+    elif hasattr(subs, 'OutboxGateway') and (Path(root) / SIMULATION_SCRIPT.name if root else SIMULATION_SCRIPT).exists():
         simulation = ('Available', 'ok')
     else:
         simulation = ('Unavailable', 'off')

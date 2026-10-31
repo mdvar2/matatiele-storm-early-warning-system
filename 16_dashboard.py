@@ -563,18 +563,48 @@ def warning_record(events: list, error: str | None) -> dict:
     if match:return {'state':'dev','issued':None}
     return {'state':'unknown' if error else 'none','issued':None}
 
-def hourly_forecast() -> None:
-    """Genuine ECMWF hourly values at the Matatiele grid point (no imputation; missing hours are omitted)."""
+def six_hour_chart() -> None:
+    """Next six hours of ECMWF weather at Matatiele: rain bars and a wind line. These are forecasts, not storm-risk scores."""
     hours=six_hour_forecast(state.regional,datetime.now(SAST),complete_intervals=True)
+    st.html('<div class="section-title">Next 6 hours <small>ECMWF weather forecast, hour ending (SAST) · not storm-risk scores</small></div>')
     if hours.empty:
         st.caption('Hourly forecast unavailable until the next successful forecast retrieval.');return
-    cells=[]
-    for _,row in hours.iterrows():
-        kind,label=dashboard_theme.weather_condition(number(row,'precipitation'),number(row,'cloud_cover'),row['time'].hour)
-        cells.append((f'{row["time"]:%H:%M}',svg_image(dashboard_theme.weather_icon_svg(kind),label),
-                      weather_value(number(row,'temperature_2m'),chr(176),0),weather_value(number(row,'precipitation'),'mm'),
-                      weather_value(number(row,'wind_speed_10m'),'m/s')))
-    st.html('<div class="section-title">Next hours <small>ECMWF weather forecast, hour ending (SAST) · not storm-risk scores</small></div>'+dashboard_theme.hourly_html(cells))
+    data=pd.DataFrame({'Hour (SAST)':pd.to_datetime(hours['time']).dt.tz_convert(SAST).dt.tz_localize(None),
+                       'Rain (mm)':numeric_series(pd.Series(hours['precipitation'])),'Wind (m/s)':numeric_series(pd.Series(hours['wind_speed_10m']))})
+    base=alt.Chart(data).encode(x=alt.X('Hour (SAST):T',title=None,axis=alt.Axis(format='%H:%M',labelAngle=0,tickCount=6)))
+    tip=[alt.Tooltip('Hour (SAST):T',format='%a %H:%M'),alt.Tooltip('Rain (mm):Q',format='.1f'),alt.Tooltip('Wind (m/s):Q',format='.1f')]
+    rain=base.mark_bar(color='#2f80ed',opacity=.8,cornerRadiusTopLeft=3,cornerRadiusTopRight=3,size=26).encode(
+        y=alt.Y('Rain (mm):Q',title='Rain (mm)',scale=alt.Scale(domainMin=0,domainMax=max(1.0,float(data['Rain (mm)'].max() or 0)))),tooltip=tip)
+    wind=base.mark_line(color='#64748b',strokeWidth=3,point=alt.OverlayMarkDef(size=50)).encode(
+        y=alt.Y('Wind (m/s):Q',title='Wind (m/s)',scale=alt.Scale(domainMin=0)),tooltip=tip)
+    with st.container(border=True,key='six_hour_chart'):
+        st.altair_chart(dashboard_theme.style_chart(alt.layer(rain,wind).resolve_scale(y='independent').properties(height=230),theme_mode),width='stretch',theme=None)
+        st.caption('Bars: rain in the hour. Line: wind speed. The storm-risk model makes one estimate, for the next hour.')
+
+def key_variables() -> tuple[list, str]:
+    """The ECMWF values the model used for its current estimate (its input hour)."""
+    tiles=[('cloud-rain','Rainfall',weather_value(number(latest,'precipitation_mm'),'mm')),('wind','Wind speed',weather_value(number(latest,'wind_speed_ms'),'m/s')),
+           ('thermometer','Temperature',weather_value(number(latest,'temperature_c'),chr(176)+'C')),('droplets','Dew point',weather_value(number(latest,'dewpoint_c'),chr(176)+'C')),
+           ('zap','CAPE (storm energy)',weather_value(number(latest,'cape'),'J/kg',0)),('gauge','Pressure',weather_value(number(latest,'pressure_msl_hpa'),'hPa',0))]
+    hour=f'{input_time:%H:%M} SAST' if input_time is not None else 'the input hour'
+    return tiles,('Out-of-date saved values. ' if stale else '')+f'ECMWF forecast for {hour}: the inputs behind the current risk score.'
+
+def prediction_log(events: list, count: int=6) -> list:
+    """The trained model's recent hourly outputs from the saved history (newest first). 'Warning' only with a genuine record."""
+    if hist.empty or not {'prediction_for','storm_probability'}.issubset(hist.columns):return []
+    frame=pd.DataFrame({'target':pd.to_datetime(hist['prediction_for'],utc=True,errors='coerce'),
+                        'input':pd.to_datetime(hist['forecast_input_time'],utc=True,errors='coerce') if 'forecast_input_time' in hist else pd.NaT,
+                        'score':numeric_series(pd.Series(hist['storm_probability']))})
+    frame=frame.dropna(subset=['target','score']).loc[lambda f:f['score'].between(0,1)]
+    frame=frame.sort_values('target').drop_duplicates('target',keep='last').tail(count).iloc[::-1]
+    genuine={e['end'] for e in events if e['source']==warning_events.GENUINE}
+    rows=[]
+    for _,row in frame.iterrows():
+        end=row['target'].tz_convert(SAST)
+        decision='Warning' if end.to_pydatetime() in genuine else 'Threshold reached' if row['score']>=threshold else 'No warning'
+        source=f"{row['input'].tz_convert(SAST):%H:%M} SAST" if pd.notna(row['input']) else 'Unknown'
+        rows.append((f'{end-pd.Timedelta(hours=1):%d %b %H:%M}–{end:%H:%M}',source,resident_view.score_text(row['score']),decision))
+    return rows
 
 def forecast_chart() -> None:
     """Next 36 hours at the Matatiele grid point: rain bars and a temperature line (genuine ECMWF values)."""
@@ -670,11 +700,11 @@ if page=='🏠 Dashboard':
         warning_actions=st.columns([1,1,2])
         warning_actions[0].button('Open the warning',key='home_open_warning',on_click=open_warning,args=(active_events[0]['key'],),type='primary',icon=':material/warning:',width='stretch')
         warning_actions[1].button('Safety and emergency contacts',key='home_warning_safety',on_click=open_contacts,icon=':material/health_and_safety:',width='stretch')
-    communication=resident_alerts.communication_status(secret,events_error)
+    communication=resident_alerts.communication_status(secret,events_error,BASE)
     genuine_active=[e for e in active_events if e['source']==warning_events.GENUINE]
     if genuine_active:  # a genuine warning is in effect: the act-now advice comes straight after the warning
         st.html(resident_view.quick_actions_html(resident_view.guidance('WARNING')))
-    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error),communication))
+    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error)))
     with st.container(key='home_actions'):
         actions=st.columns(4,gap='small')
         actions[0].button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
@@ -682,7 +712,12 @@ if page=='🏠 Dashboard':
         actions[2].button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
         actions[3].button('SMS service',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch',
                           help='SMS warning service: research prototype. Public SMS delivery is not active.')
-    hourly_forecast()
+    chart_column,variables_column=st.columns([1.55,1],gap='medium')
+    with chart_column:six_hour_chart()
+    with variables_column:st.html(resident_view.variables_html(*key_variables()))
+    log_column,comms_column=st.columns([1.55,1],gap='medium')
+    with log_column:st.html(resident_view.prediction_log_html(prediction_log(events)))
+    with comms_column:st.html(resident_view.communication_html(communication))
     if not genuine_active:
         st.html(resident_view.quick_actions_html(advice))
     st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: the same essentials as plain text.</div>')

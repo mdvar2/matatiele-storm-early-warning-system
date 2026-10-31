@@ -27,7 +27,10 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 | **Weather forecast** | The ECMWF forecast temperature, conditions, rain, wind and gusts for Matatiele. It is a forecast, not an observation. |
 | **Warning communication** | Whether dashboard alerts and the SMS simulation are available, and that public SMS delivery is disabled. |
 | **View warnings · Safety advice · Emergency contacts · SMS service** | Shortcuts. Emergency contacts opens the numbers on the Safety page. |
-| **Next hours** | The weather forecast for the coming hours. These are not storm-risk scores. |
+| **Prediction period** | The hour the risk score is for, when the model last updated, and whether the data is fresh. |
+| **Next 6 hours** | A chart of forecast rain and wind for the coming hours. These are weather forecasts, not storm-risk scores. |
+| **Key weather variables** | The forecast values the model used for the current score: rain, wind, temperature, dew point, CAPE (storm energy) and pressure. |
+| **Recent predictions** | The model's last hourly results: the hour, the forecast hour it used, its risk score and the decision. "Warning" appears only when a real warning was recorded. |
 | **Be prepared / Act now** | A few short safety actions that match the current risk. |
 
 The bar under the title has **Home, Risk Analysis, Map** and **Safety**. Tap the **☰** button (top left) for **Alerts, Forecast, Historical Data** and **About**.

@@ -292,7 +292,7 @@ class VisualHomepage(unittest.TestCase):
     def test_wording_is_a_score_not_a_chance(self):
         status = self.status(.27)
         page = rv.summary_html(status, .27, {'temperature': '18 °C', 'rain': '0.0 mm', 'wind': '1 m/s', 'gust': '3 m/s',
-                                             'source': 'ECMWF forecast · 11:00 SAST', 'icon': ''}, {'state': 'none'}, [])
+                                             'source': 'ECMWF forecast · 11:00 SAST', 'icon': ''}, {'state': 'none'})
         self.assertIn('Model-estimated storm risk', page)  # shown in capitals by the card-title style
         self.assertIn('Model risk score — not a calibrated probability', page)
         self.assertNotIn('chance of a storm', page)
@@ -301,5 +301,36 @@ class VisualHomepage(unittest.TestCase):
     def test_mobile_layout_puts_the_risk_score_and_decision_first(self):
         import dashboard_theme
         css = dashboard_theme.CSS
-        self.assertIn('grid-template-areas:"risk decision weather" "risk comms comms"', css)
-        self.assertIn('grid-template-areas:"risk" "decision" "weather" "comms"', css)
+        self.assertIn('grid-template-areas:"weather risk period decision"', css)  # desktop: one row of four cards
+        self.assertIn('grid-template-areas:"risk" "decision" "period" "weather"', css)  # phone: risk score and decision first
+
+
+class PredictionLog(unittest.TestCase):
+    def test_log_shows_only_saved_rows_and_never_invents_a_warning(self):
+        rows = [('31 Oct 10:00–11:00', '10:00 SAST', '6%', 'No warning'), ('31 Oct 09:00–10:00', '09:00 SAST', '41%', 'Threshold reached'),
+                ('31 Oct 08:00–09:00', '08:00 SAST', '52%', 'Warning')]
+        page = rv.prediction_log_html(rows)
+        self.assertEqual(page.count('<tr><td>'), 3)
+        self.assertIn('log-decision tone-amber">Threshold reached', page)
+        self.assertIn('log-decision tone-red">Warning', page)
+        self.assertIn('not a calibrated probability', page)
+        self.assertIn('No saved predictions yet.', rv.prediction_log_html([]))
+
+
+class HomeDashboardData(DashboardHarness):
+    def test_home_log_and_variables_come_from_saved_records(self):
+        import pandas as pd
+        self.write_prediction(.27)
+        at = self.app().run()
+        page = self.html(at)
+        history = pd.read_csv(self.model / 'prediction_history.csv')
+        self.assertEqual(history['storm_probability'].tolist(), [.27])
+        self.assertEqual(page.count('class="log-decision'), 1)  # one saved run, one row
+        self.assertIn('<b>27%</b>', page)
+        self.assertIn('No warning</span>', page)
+        self.assertIn('Key weather variables', page)
+        self.assertIn('the inputs behind the current risk score', page)
+        for label in ('Rainfall', 'Wind speed', 'Temperature', 'Dew point', 'CAPE (storm energy)', 'Pressure'):
+            self.assertIn(f'<small>{label}</small>', page)
+        self.assertIn('Prediction period', page)
+        self.assertIn('Fresh data', page)

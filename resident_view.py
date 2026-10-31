@@ -289,11 +289,11 @@ def warning_state(status, record):
     return 'NO WARNING TRIGGERED', 'green', 'check-circle', detail
 
 
-def summary_html(status, probability, weather, record, communication):
-    """Homepage: model storm-risk gauge (largest), warning decision, forecast weather and communication status.
+def summary_html(status, probability, weather, record):
+    """Homepage row 1: forecast weather, model storm-risk gauge, prediction period and warning decision.
 
-    weather: display strings (temperature, rain, wind, gust, source) plus an 'icon' <img>; record: see warning_state;
-    communication: (label, state, tone) rows, tone 'ok', 'warn' or 'off'. Every value comes from these inputs.
+    weather: display strings (temperature, rain, wind, gust, source) plus an 'icon' <img>; record: see warning_state.
+    Every value comes from these inputs.
     """
     e = lambda value: html.escape(str(value))  # noqa: E731
     score = SIMULATED_PROBABILITY if status['simulated'] else probability
@@ -322,12 +322,53 @@ def summary_html(status, probability, weather, record, communication):
                     f'<span>{icons.icon("wind", "Wind")}<b>{e(weather["wind"])}</b><small>Wind</small></span>'
                     f'<span>{icons.icon("wind", "Gusts")}<b>{e(weather["gust"])}</b><small>Gusts</small></span></div>'
                     f'<div class="sc-foot">{e(weather["source"])}</div></div>')
+    fresh = ('<span class="fresh-badge stale">Out of date</span>' if status['stale'] else '<span class="fresh-badge">Fresh data</span>')
+    period_card = (f'<div class="summary-card period-summary"><div class="sc-title">{icons.icon("calendar")} Prediction period</div>'
+                   f'<div class="period-row">{icons.icon("calendar")}<span><small>Target hour</small><b>{e(status["period"])}</b></span></div>'
+                   f'<div class="period-row">{icons.icon("clock")}<span><small>Model updated</small><b>{e(status["updated"])}</b></span></div>'
+                   f'{fresh}</div>')
+    return f'<div class="summary-grid">{risk_card}{decision_card}{period_card}{weather_card}</div>'
+
+
+def communication_html(communication):
+    """Warning-communication tiles: (label, state, tone) rows derived from configuration."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
     comm_icons = {'Dashboard alerts': 'bell', 'SMS simulation': 'message', 'Public SMS delivery': 'smartphone'}
     tiles = ''.join(f'<div class="comm-tile">{icons.icon(comm_icons.get(label, "info"))}<span>{e(label)}</span>'
                     f'<span class="sc-state {e(state_tone)}">{e(state)}</span></div>' for label, state, state_tone in communication)
-    comms_card = (f'<div class="summary-card comms-summary"><div class="sc-title">{icons.icon("message")} Warning communication</div>'
-                  f'<div class="comm-tiles">{tiles}</div></div>')
-    return f'<div class="summary-grid">{risk_card}{decision_card}{weather_card}{comms_card}</div>'
+    return (f'<div class="summary-card comms-summary"><div class="sc-title">{icons.icon("message")} Warning communication</div>'
+            f'<div class="comm-tiles">{tiles}</div><div class="sc-foot">Details: Alerts, then SMS alerts.</div></div>')
+
+
+def variables_html(tiles, caption):
+    """Key weather variables the model uses: (icon, label, value) tiles from the ECMWF model input."""
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    cells = ''.join(f'<div class="var-tile">{icons.icon(icon)}<span><small>{e(label)}</small><b>{e(value)}</b></span></div>'
+                    for icon, label, value in tiles)
+    return (f'<div class="summary-card vars-summary"><div class="sc-title">{icons.icon("thermometer")} Key weather variables</div>'
+            f'<div class="var-grid">{cells}</div><div class="sc-foot">{e(caption)}</div></div>')
+
+
+LOG_TONES = {'Warning': 'red', 'Threshold reached': 'amber', 'No warning': 'green'}
+
+
+def prediction_log_html(rows):
+    """Recent outputs of the trained model: (target hour, input hour, score text, decision) rows, newest first.
+
+    'Warning' is used only where the public record holds a genuine warning for that hour.
+    """
+    e = lambda value: html.escape(str(value))  # noqa: E731
+    if not rows:
+        body = '<tr><td colspan="4">No saved predictions yet.</td></tr>'
+    else:
+        body = ''.join(f'<tr><td>{e(target)}</td><td>{e(source)}</td><td><b>{e(score)}</b></td>'
+                       f'<td><span class="log-decision tone-{LOG_TONES.get(decision, "gray")}">{e(decision)}</span></td></tr>'
+                       for target, source, score, decision in rows)
+    return (f'<div class="summary-card log-summary"><div class="sc-title">{icons.icon("history")} Recent predictions</div>'
+            '<div class="log-wrap"><table class="pred-log"><thead><tr><th scope="col">Target hour</th><th scope="col">Forecast input</th>'
+            f'<th scope="col">Risk score</th><th scope="col">Decision</th></tr></thead><tbody>{body}</tbody></table></div>'
+            '<div class="sc-foot">Hourly runs of the trained Random Forest, from saved records only: hours without a saved run are not '
+            'listed. Risk score: model score, not a calibrated probability.</div></div>')
 
 
 def details_html(status):
