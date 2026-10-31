@@ -127,7 +127,7 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
 ## Testing evidence
 
-- **Automated tests:** `python -m pytest tests/`. All 388 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+- **Automated tests:** `python -m pytest tests/`. All 390 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
 - **Reproducible evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs. See [docs/MODEL_EVALUATION.md §7](docs/MODEL_EVALUATION.md#7-reproducing-the-evidence).
 - **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).

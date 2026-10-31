@@ -225,3 +225,27 @@ class HomeOutlookAndOfflineStatus(DashboardHarness):
         data = self.status_file()
         self.assertEqual((data['risk_score'], data['risk_level']), ('5%', 'LOW RISK'))  # neither reaches the shared file
         self.assertIn('Offline page', self.html(self.app().run()))
+
+
+class ReferenceLayout(DashboardHarness):
+    def test_banner_reports_the_real_data_state_and_next_refresh(self):
+        self.write_prediction(.05)
+        page = self.html(self.app().run())
+        self.assertIn('class="banner"', page)
+        self.assertIn('Matatiele, Eastern Cape', page)
+        self.assertIn('System online', page)
+        self.assertIn('Next refresh: about', page)
+        self.assertIn('Protecting Matatiele through early warnings', page)  # sidebar card
+        self.write_prediction(.05, fresh=False)
+        stale = self.html(self.app(inference_ok=False).run())
+        self.assertIn('Saved data (out of date)', stale)
+        self.assertNotIn('System online', stale)
+
+    def test_risk_line_appears_only_with_genuine_outlook_scores(self):
+        import dashboard_theme
+        self.write_prediction(.05)
+        at = self.app().run()   # no forecast in the harness: no outlook scores
+        charts = [c.proto.spec for c in at.get('vega_lite_chart')]
+        self.assertFalse(any('Storm-risk score (%)' in spec and '"mark": {"type": "line", "color": "#d93449"' in spec for spec in charts))
+        self.assertIn('body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {display:none}', dashboard_theme.CHROME_CSS)  # top bar only when the side menu is closed
+        self.assertIn('Original artwork', (ROOT / 'dashboard_theme.py').read_text(encoding='utf-8'))  # no third-party image

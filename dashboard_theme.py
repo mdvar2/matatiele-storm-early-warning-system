@@ -467,6 +467,61 @@ def weather_condition(precipitation_mm, cloud_cover_percent, local_hour):
     return ('clear-night' if night else 'clear-day'), 'Clear (forecast)'
 
 
+# Original artwork (drawn for this project, no third-party image): layered hills and a river under an evening sky.
+LANDSCAPE_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice">'
+                 '<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e3a5f"/><stop offset="1" stop-color="#6d8fb3"/></linearGradient></defs>'
+                 '<rect width="1200" height="300" fill="url(#s)"/>'
+                 '<path d="M0 170 L120 110 L210 150 L330 80 L450 140 L560 95 L690 150 L820 85 L940 140 L1060 100 L1200 150 V300 H0Z" fill="#3c5a73"/>'
+                 '<path d="M0 205 L150 160 L300 195 L430 150 L600 200 L760 160 L910 205 L1060 165 L1200 195 V300 H0Z" fill="#2f5a3f"/>'
+                 '<path d="M0 240 Q300 200 600 235 T1200 225 V300 H0Z" fill="#3f7a4a"/>'
+                 '<path d="M0 285 Q250 250 520 270 T1200 262 V300 H0Z" fill="#7fb2d6" opacity=".55"/></svg>')
+LANDSCAPE_URI = 'data:image/svg+xml;base64,' + base64.b64encode(LANDSCAPE_SVG.encode()).decode()
+
+
+def banner_html(clock, status_ok, next_refresh):
+    """Header: brand, location, and the time with the system status (online = current data) and the next refresh."""
+    e = html.escape
+    chip = ('<span class="bn-chip ok"><i></i>System online</span>' if status_ok else '<span class="bn-chip stale"><i></i>Saved data (out of date)</span>')
+    return (f'<div class="banner" style="--landscape:url({LANDSCAPE_URI})"><div class="bn-brand">{icons.icon("cloud", "")}'
+            '<div><h1>Matatiele<span>Storm Early Warning System</span></h1><small>Smart · Resilient · Community focused</small></div></div>'
+            f'<div class="bn-place"><b>{icons.icon("map-pin")} Matatiele, Eastern Cape</b><span>Smart Resilient Storm Early Warning System</span>'
+            '<span>Machine-learning storm-risk assessment for safer communities</span></div>'
+            f'<div class="bn-clock"><div><small>{e(clock.strftime("%a, %d %b %Y"))}</small><b>{e(clock.strftime("%H:%M"))}</b><small>SAST (UTC+2)</small></div>'
+            f'<div>{chip}<small>{e(next_refresh)}</small></div></div></div>')
+
+
+def sidebar_card_html():
+    return (f'<div class="side-card"><img src="{LANDSCAPE_URI}" alt=""><b>Protecting Matatiele through early warnings</b>'
+            '<small>Data-driven storm-risk insights for safer communities</small></div>')
+
+
+CHROME_CSS = """
+.banner {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) auto;gap:18px;align-items:center;padding:18px 22px;border-radius:18px;color:#fff;margin:0 0 8px;
+  background:linear-gradient(90deg,rgba(8,26,48,.94),rgba(8,26,48,.62) 48%,rgba(8,26,48,.38)),var(--landscape) center/cover}
+.bn-brand {display:flex;gap:14px;align-items:center}.bn-brand>.ico {width:54px;height:54px;color:#93c5fd}
+.banner h1 {margin:0;color:#fff;font-size:clamp(22px,2.2vw,30px);line-height:1.15;font-weight:800}.banner h1 span {display:block;font-size:.62em;font-weight:600}
+.banner small {display:block;color:#dbe8ff;font-size:12.5px}
+.bn-place b {display:flex;align-items:center;gap:6px;font-size:clamp(16px,1.6vw,22px)}.bn-place span {display:block;color:#dbe8ff;font-size:13px}
+.bn-clock {display:flex;gap:16px;align-items:center;background:#fff;color:#0b1f3a;border-radius:14px;padding:12px 16px;box-shadow:0 8px 24px #0004}
+.bn-clock b {display:block;font-size:30px;line-height:1.1}.bn-clock small {color:#4a5b70}.bn-clock>div+div {border-left:1px solid #d9e1ec;padding-left:14px}
+.bn-chip {display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:9px;font-weight:700;font-size:13px;margin-bottom:4px}
+.bn-chip i {width:10px;height:10px;border-radius:50%}.bn-chip.ok {background:#dcfce7;color:#14532d}.bn-chip.ok i {background:#16a34a}
+.bn-chip.stale {background:#fef3c7;color:#713f12}.bn-chip.stale i {background:#d97706}
+.side-card {margin-top:14px;border-radius:14px;overflow:hidden;background:#ffffff14;color:var(--sidebar-text)}.side-card img {display:block;width:100%;height:110px;object-fit:cover}
+.side-card b,.side-card small {display:block;padding:0 12px}.side-card b {padding-top:10px}.side-card small {padding-bottom:12px;color:var(--sidebar-muted)}
+.sc-title {font-size:16px!important;font-weight:800!important;text-transform:none!important;letter-spacing:0!important;color:var(--heading)!important}
+.sc-title .ico {width:22px;height:22px;color:var(--accent)}.sc-sub {display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:-4px 0 8px}
+.wx-summary {background:var(--card)!important;color:var(--text)!important;border:1px solid var(--card-border)!important}
+.wx-summary .sc-title,.wx-summary .sc-foot {color:var(--muted)}.wx-summary .sc-value {color:var(--heading)!important}
+.wx-stats span {background:var(--accent-soft)!important}.wx-stats b {color:var(--heading)!important}.wx-stats small {color:var(--muted)!important}.wx-stats .ico {color:var(--accent)!important}
+.chart-legend {display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin:0 0 4px}.chart-legend i {display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {display:none}  /* the open side menu has every section */
+@media (max-width:1100px) {.banner {grid-template-columns:1fr auto}.bn-place {display:none}}
+@media (max-width:640px) {.banner {grid-template-columns:1fr;padding:12px 14px;gap:10px}.bn-brand small {display:none}.bn-brand>.ico {width:38px;height:38px}
+  .bn-clock {padding:8px 12px}.bn-clock b {font-size:20px}.status-strip .chip:nth-child(2) {display:none}}
+"""
+
+
 def status_strip(stale, updated, simulated, refresh_minutes=15):
     """Chips for data freshness and mode. `updated` is a preformatted SAST time or None."""
     e = html.escape
@@ -540,7 +595,7 @@ def theme_css(mode):
     so every page (and the officials' portal) follows the visitor's choice rather than the device setting."""
     switch = '@media all' if mode == 'dark' else '@media not all'
     tones = ''.join(f'.resident-card.tone-{tone}{{--m:url("{icons._uri(name)}")}}' for tone, name in TONE_ICONS.items())
-    return CSS.replace('@media (prefers-color-scheme: dark)', switch) + icons.CSS + tones
+    return CSS.replace('@media (prefers-color-scheme: dark)', switch) + CHROME_CSS + icons.CSS + tones
 
 
 def style_chart(chart, mode):

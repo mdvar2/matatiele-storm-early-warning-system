@@ -301,21 +301,21 @@ def summary_html(status, probability, weather, record):
     tone = status['tone']
     badge = 'OUT OF DATE' if status['stale'] else RISK_BADGES[status['level']]
     value = score_text(score) if status['level'] != 'UNAVAILABLE' else 'n/a'
-    risk_card = (f'<div class="summary-card risk-summary tone-{e(tone)}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div>'
+    risk_card = (f'<div class="summary-card risk-summary tone-{e(tone)}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div><span class="sc-sub">(Next hour, Random Forest)</span>'
                  f'<div class="risk-dial">{gauge_svg(score, tone)}<div class="risk-value">{e(value)}</div></div>'
                  f'<div class="risk-badge-row"><span class="risk-pill tone-{e(tone)}">{e(badge)}</span></div>'
                  f'<div class="risk-note">{e(SCORE_NOTE)}</div>'
                  f'<div class="risk-meta"><span>{icons.icon("clock")} For {e(status["period"])}</span><span>Updated {e(status["updated"])}</span></div>'
                  f'<div class="risk-caveat">{e(status["estimate"]) + " · " if status["stale"] or status["simulated"] else ""}Not a guarantee: storms can still develop.</div></div>')
     title, decision_tone, icon, detail = warning_state(status, record)
-    decision_card = (f'<div class="summary-card decision-summary"><div class="sc-title">{icons.icon("scale")} Warning decision</div>'
+    decision_card = (f'<div class="summary-card decision-summary"><div class="sc-title">{icons.icon("scale")} Warning decision</div><span class="sc-sub">(35% threshold)</span>'
                      f'<div class="decision-badge tone-{decision_tone}">{icons.icon(icon)}<b>{e(title)}</b></div>'
                      f'<div class="sc-line">{e(detail)}</div>'
                      f'<div class="decision-foot"><b>Warning threshold: {THRESHOLD:.0%}</b>'
                      f'<details class="threshold-info"><summary>{icons.icon("info")} Why 35%?</summary><p>{e(THRESHOLD_TEXT)}</p>'
                      '<p>More detail: menu, then Risk Analysis.</p></details></div>'
                      '<div class="sc-foot">Research system decision, not an official SAWS warning.</div></div>')
-    weather_card = (f'<div class="summary-card wx-summary"><div class="sc-title">{icons.icon("cloud")} Weather forecast</div>'
+    weather_card = (f'<div class="summary-card wx-summary"><div class="sc-title">{icons.icon("cloud")} Weather forecast</div><span class="sc-sub">(Matatiele, ECMWF)</span>'
                     f'<div class="wx-now"><div class="sc-value">{e(weather["temperature"])}</div>{weather["icon"]}</div>'
                     '<div class="wx-stats">'
                     f'<span>{icons.icon("cloud-rain", "Rain")}<b>{e(weather["rain"])}</b><small>Rain</small></span>'
@@ -323,7 +323,7 @@ def summary_html(status, probability, weather, record):
                     f'<span>{icons.icon("wind", "Gusts")}<b>{e(weather["gust"])}</b><small>Gusts</small></span></div>'
                     f'<div class="sc-foot">{e(weather["source"])}</div></div>')
     fresh = ('<span class="fresh-badge stale">Out of date</span>' if status['stale'] else '<span class="fresh-badge">Fresh data</span>')
-    period_card = (f'<div class="summary-card period-summary"><div class="sc-title">{icons.icon("calendar")} Prediction period</div>'
+    period_card = (f'<div class="summary-card period-summary"><div class="sc-title">{icons.icon("calendar")} Prediction period</div><span class="sc-sub">(Target hour)</span>'
                    f'<div class="period-row">{icons.icon("calendar")}<span><small>Target hour</small><b>{e(status["period"])}</b></span></div>'
                    f'<div class="period-row">{icons.icon("clock")}<span><small>Model updated</small><b>{e(status["updated"])}</b></span></div>'
                    f'{fresh}</div>')

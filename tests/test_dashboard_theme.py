@@ -53,7 +53,7 @@ class Assets(unittest.TestCase):
         # Same for the main area: phones position it absolutely under the sliding sidebar.
         self.assertNotRegex(theme.CSS, r'(stMain|stAppViewContainer)"\][^{]*\{[^}]*position')
         source = (rd.ROOT / '16_dashboard.py').read_text(encoding='utf-8')
-        self.assertIn("initial_sidebar_state='collapsed')", source)  # the ☰ menu holds Alerts and the research sections
+        self.assertIn("initial_sidebar_state='locked')", source)  # side menu open on desktop, behind ☰ on narrow screens
 
     def test_menu_button_is_a_hamburger(self):
         for control in ('stSidebarCollapseButton', 'stExpandSidebarButton'):
@@ -149,13 +149,14 @@ class RedesignedDashboard(rd.DashboardHarness):
         # Top bar: Home | Risk Analysis | Map | Safety. Side (☰) menu: Alerts | Forecast | Historical Data | About.
         self.assertEqual([str(o) for o in nav.options], ['Home', 'Risk Analysis', 'Map', 'Safety'])
         menu = [b for b in at.button if (b.key or '').startswith('menu_')]
-        self.assertEqual([b.label for b in menu], ['Alerts', 'Forecast', 'Historical Data', 'About'])
+        self.assertEqual([b.label for b in menu], ['Dashboard', 'Risk Analysis', 'Map', 'Safety', 'Alerts', 'Forecast', 'Historical Data', 'About'])
         self.assertEqual(nav.value, '🏠 Dashboard')  # Home is highlighted on first load
         nav.set_value('📈 Risk Analysis').run()
         self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')
         self.assertIn('Patterns learned from historical weather data', self.html(at))  # the unchanged Risk Analysis page
         self.assertEqual(next(g for g in at.button_group if g.key == 'top_nav').value, '📈 Risk Analysis')
-        self.assertTrue(all(b.proto.type == 'secondary' for b in at.button if (b.key or '').startswith('menu_')))
+        side = {b.label: b.proto.type for b in at.button if (b.key or '').startswith('menu_')}
+        self.assertEqual([label for label, kind in side.items() if kind == 'primary'], ['Risk Analysis'])  # one highlight, in both menus
         self.go(at, 'Safety Advice')
         self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
         self.assertIn('Full advice for when a storm is close', '\n'.join(c.value for c in at.caption))
