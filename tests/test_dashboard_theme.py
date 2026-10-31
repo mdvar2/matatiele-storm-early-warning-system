@@ -146,15 +146,31 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.write_prediction(.05)
         at = self.app().run()
         nav = next(g for g in at.button_group if g.key == 'top_nav')
-        self.assertEqual(len(nav.options), 4)  # Home, Forecast, Map, Safety
-        self.assertEqual(sorted(b.key for b in at.button if (b.key or '').startswith('menu_')),
-                         ['menu_About', 'menu_Alerts', 'menu_Historical Data', 'menu_Risk Analysis'])  # in the ☰ menu
-        nav.set_value('🛟 Safety Advice').run()
+        # Top bar: Home | Risk Analysis | Map | Safety. Side (☰) menu: Alerts | Forecast | Historical Data | About.
+        self.assertEqual([str(o) for o in nav.options], ['Home', 'Risk Analysis', 'Map', 'Safety'])
+        menu = [b for b in at.button if (b.key or '').startswith('menu_')]
+        self.assertEqual([b.label for b in menu], ['Alerts', 'Forecast', 'Historical Data', 'About'])
+        self.assertEqual(nav.value, '🏠 Dashboard')  # Home is highlighted on first load
+        nav.set_value('📈 Risk Analysis').run()
+        self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')
+        self.assertIn('Patterns learned from historical weather data', self.html(at))  # the unchanged Risk Analysis page
+        self.assertEqual(next(g for g in at.button_group if g.key == 'top_nav').value, '📈 Risk Analysis')
+        self.assertTrue(all(b.proto.type == 'secondary' for b in at.button if (b.key or '').startswith('menu_')))
+        self.go(at, 'Safety Advice')
         self.assertEqual(at.session_state['dashboard_page'], '🛟 Safety Advice')
         self.assertIn('Full advice for when a storm is close', '\n'.join(c.value for c in at.caption))
-        self.go(at, 'Historical Data')  # from the ☰ menu
-        self.assertEqual(at.session_state['dashboard_page'], '🕒 Historical Data')
+        self.go(at, 'Live Forecast')  # from the ☰ menu
+        self.assertEqual(at.session_state['dashboard_page'], '🌦️ Live Forecast')
+        self.assertIn('Weather forecast', self.html(at))  # the unchanged Forecast page
         self.assertIsNone(at.session_state['top_nav'])  # no top-bar section is highlighted
+        self.assertEqual({b.label: b.proto.type for b in at.button if (b.key or '').startswith('menu_')}['Forecast'], 'primary')
+        self.go(at, 'Historical Data')
+        self.assertEqual(at.session_state['dashboard_page'], '🕒 Historical Data')
+        self.assertIsNone(at.session_state['top_nav'])
+        # A browser refresh starts a new session: the dashboard opens on Home with Home highlighted, as before.
+        refreshed = self.app().run()
+        self.assertEqual(refreshed.session_state['dashboard_page'], '🏠 Dashboard')
+        self.assertEqual(next(g for g in refreshed.button_group if g.key == 'top_nav').value, '🏠 Dashboard')
 
     def test_each_component_appears_on_exactly_one_page(self):
         self.write_prediction(.05)

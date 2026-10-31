@@ -407,17 +407,20 @@ sidebar = cast(Any, st.sidebar)
 if 'admin_authenticated' not in st.session_state:st.session_state.admin_authenticated=False
 with sidebar:
     st.html(f'<div class="brand">{ui_icon("cloud")}<div><strong>Matatiele</strong><span>Storm Early Warning</span><small>Eastern Cape · Research Beta</small></div></div>')
-    # Top bar: everyday sections. The ☰ side menu: Alerts and the research sections.
-    navigation = ['🏠 Dashboard','🌦️ Live Forecast','🗺️ Weather Map','🛟 Safety Advice']
-    MENU = [('🚨 Alerts','notifications'),('📈 Risk Analysis','monitoring'),('🕒 Historical Data','insert_chart'),('ℹ️ About','info')]
-    NAV_LABELS = {'🏠 Dashboard':':material/home: Home','🌦️ Live Forecast':':material/partly_cloudy_day: Forecast',
+    # Top bar: Home, the model's storm-risk analysis (the RO3 contribution), Map and Safety.
+    # The ☰ side menu: Alerts and the supporting sections, including the weather forecast.
+    navigation = ['🏠 Dashboard','📈 Risk Analysis','🗺️ Weather Map','🛟 Safety Advice']
+    MENU = [('🚨 Alerts','notifications'),('🌦️ Live Forecast','partly_cloudy_day'),('🕒 Historical Data','insert_chart'),('ℹ️ About','info')]
+    MENU_LABELS = {'🌦️ Live Forecast':'Forecast'}
+    NAV_LABELS = {'🏠 Dashboard':':material/home: Home','📈 Risk Analysis':':material/monitoring: Risk Analysis',
                   '🗺️ Weather Map':':material/map: Map','🛟 Safety Advice':':material/health_and_safety: Safety'}
     if 'dashboard_page' not in st.session_state:st.session_state.dashboard_page=navigation[0]
     if st.session_state.dashboard_page in ('🔔 SMS Alerts','📜 Warning History','📱 Alerts & Notifications'):st.session_state.dashboard_page='🚨 Alerts'
     def _go(section: str) -> None:
         st.session_state.dashboard_page=section
     for item,menu_icon in MENU:
-        st.button(item.split(' ',1)[1],icon=f':material/{menu_icon}:',key='menu_'+item.split(' ',1)[1],width='stretch',on_click=_go,args=(item,),
+        label=MENU_LABELS.get(item,item.split(' ',1)[1])
+        st.button(label,icon=f':material/{menu_icon}:',key='menu_'+label,width='stretch',on_click=_go,args=(item,),
                   type='primary' if st.session_state.dashboard_page==item else 'secondary')
     page=st.session_state.dashboard_page
     st.divider()

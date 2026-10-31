@@ -200,7 +200,7 @@ class SmsPreviewNeverSends(unittest.TestCase):
 
 SECTIONS = ('🏠 Dashboard', '🚨 Alerts', '🌦️ Live Forecast', '🗺️ Weather Map', '🛟 Safety Advice', '📈 Risk Analysis',
             '🕒 Historical Data', 'ℹ️ About')  # internal page keys behind the navigation labels
-TOP_SECTIONS = ('🏠 Dashboard', '🌦️ Live Forecast', '🗺️ Weather Map', '🛟 Safety Advice')  # top bar; the rest are in the ☰ menu
+TOP_SECTIONS = ('🏠 Dashboard', '📈 Risk Analysis', '🗺️ Weather Map', '🛟 Safety Advice')  # top bar; the rest are in the ☰ menu
 
 
 class DashboardHarness(unittest.TestCase):
@@ -278,8 +278,9 @@ class DashboardHarness(unittest.TestCase):
         target = next(o for o in SECTIONS if o.endswith(section))
         if target in TOP_SECTIONS:
             next(g for g in at.button_group if g.key == 'top_nav').set_value(target).run()
-        else:  # Alerts and the research sections are in the side (☰) menu
-            next(b for b in at.button if b.key == 'menu_' + target.split(' ', 1)[1]).click().run()
+        else:  # Alerts, Forecast, Historical Data and About are in the side (☰) menu
+            label = {'🌦️ Live Forecast': 'Forecast'}.get(target, target.split(' ', 1)[1])
+            next(b for b in at.button if b.key == 'menu_' + label).click().run()
         return at
 
     def digest(self):

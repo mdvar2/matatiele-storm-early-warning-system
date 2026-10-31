@@ -30,7 +30,7 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 | **Next hours** | The weather forecast for the coming hours. These are not storm-risk scores. |
 | **Be prepared / Act now** | A few short safety actions that match the current risk. |
 
-The bar under the title has **Home, Forecast, Map** and **Safety**. Tap the **☰** button (top left) for **Alerts, Risk Analysis, Historical Data** and **About**.
+The bar under the title has **Home, Risk Analysis, Map** and **Safety**. Tap the **☰** button (top left) for **Alerts, Forecast, Historical Data** and **About**.
 
 When a storm warning is in effect, a **banner** appears at the top of the homepage, with **Open the warning** and **Safety and emergency contacts** buttons.
 
@@ -42,9 +42,9 @@ When a storm warning is in effect, a **banner** appears at the top of the homepa
 
 - **Safety:** what to do before a storm, and when a storm is close, followed by the **emergency contacts** (tap a number to call; calls need mobile network coverage). The numbers are also in the low-data version.
 - **Alerts** (☰ menu): current and past storm warnings, warning details, and **SMS alerts** (register, check or cancel; see below). Who received an SMS is never shown.
-- **Forecast:** a 36-hour temperature and rain chart, and the storm ingredients the model uses.
+- **Forecast** (☰ menu): a 36-hour temperature and rain chart, and the storm ingredients the model uses.
 - **Map:** the storm map, with a slider through the coming forecast hours.
-- **Risk Analysis** (☰ menu): the model estimate against the 35% warning threshold. **Historical Data** (☰ menu): past predictions. **About** (☰ menu): how warnings work, as one diagram.
+- **Risk Analysis** (top bar): the model estimate against the 35% warning threshold. **Historical Data** (☰ menu): past predictions. **About** (☰ menu): how warnings work, as one diagram.
 
 ## 3. Registering for SMS warnings
 
