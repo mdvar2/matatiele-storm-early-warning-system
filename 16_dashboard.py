@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from typing import Any, cast
 import os
 import hmac
+import hashlib
 import subprocess
 import sys
 import html
@@ -36,6 +37,7 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
 from sms_alert import sms_is_configured, send_test_sms
 from subscriptions import delivery_mode
 import model_evidence
+import system_log
 import prediction_log as run_log
 import resident_view
 import dashboard_theme
@@ -468,11 +470,13 @@ with sidebar:
         st.divider()
         st.markdown('**Administrator controls**')
         test_mode=st.toggle('Warning simulation (on screen only)',key='presentation_test_mode',value=False,help='Shows a clearly labelled 60% simulated model output, the warning advice and an SMS preview. Nothing is sent, saved or recorded; genuine data return when switched off.')
+        demo_offline=st.toggle('Connectivity-failure demonstration (this session only)',key='demo_offline',value=False,
+                               help='Treats the forecast service as unreachable for this browser session: the last known information is shown, labelled out of date, and no warning decision is made. Other users are not affected.')
         if test_mode:st.html('<div style="background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;border-radius:10px;padding:10px 12px;font-weight:700;font-size:13px;line-height:1.5">Simulation on: on screen only. No SMS can be sent and no records change.</div>')
         if not test_mode and sms_is_configured() and st.button('Send Test SMS',icon=':material/sms:',width='stretch'):
             outcome=send_test_sms()
             (st.success if outcome.get('sent') else st.error)('SMS accepted by provider.' if outcome.get('sent') else 'SMS request failed. Review private server logs.')
-    else:test_mode=False
+    else:test_mode=demo_offline=False
     if is_admin and st.button('Administration',icon=':material/admin_panel_settings:',key='nav_admin',width='stretch',
                               type='primary' if page=='🛠️ Administration' else 'secondary'):
         st.session_state.dashboard_page='🛠️ Administration';st.rerun()
@@ -503,7 +507,8 @@ with sidebar:
     manual_refresh=st.button('Refresh weather and model',key='refresh_all',icon=':material/refresh:',width='stretch')
     st.caption('Automatic refresh every 15 minutes while open.')
 previous_attempt=refresh_state().last_attempt
-if refresh_due(refresh_state(),datetime.now(SAST),manual_refresh):
+if demo_offline:state=refresh_state()  # demonstration: no retrieval this session
+elif refresh_due(refresh_state(),datetime.now(SAST),manual_refresh):
     with st.spinner('Retrieving ECMWF forecasts and running the existing Random Forest…'):
         state=refresh_sources(force=manual_refresh)
 else:state=refresh_state()
@@ -531,6 +536,10 @@ now=datetime.now(SAST)
 retrieved_time=local_time(latest.get('forecast_retrieved_at'))
 stale=bool(state.prediction_error) or valid is None or now>=valid.to_pydatetime() or retrieved_time is None or (now-retrieved_time.to_pydatetime()).total_seconds()>1800
 stale=stale or not is_next_complete_prediction(input_time,valid,now)
+data_stale=stale  # before any demonstration override: what the system really observed
+if demo_offline:
+    stale=True
+    st.warning('DEMONSTRATION: the forecast service is treated as unreachable for this session. The last known information is shown, labelled out of date; no warning decision is made.')
 
 # prediction_for is the next-hour target; a passed target must never look current.
 real_prob=number(latest,'storm_probability')
@@ -649,6 +658,54 @@ def open_sms_alerts() -> None:
 def open_warning(key: str) -> None:
     st.session_state.dashboard_page='🚨 Alerts';st.session_state.alerts_view=resident_alerts.VIEWS[0]
     st.session_state.alert_selected=key
+
+SEVERITY_FOR_LEVEL={'LOW':'LOW','ELEVATED':'ELEVATED','MODERATE':'MODERATE','WARNING':'HIGH'}
+SYSTEM_LOG=system_log.SystemLog(get_setting('SYSTEM_LOG_PATH') or BASE/'outputs'/'system_log.sqlite')
+
+def sms_period(value: str) -> str:
+    """A warning's stored period end (UTC) as the SAST hour it covers."""
+    try:
+        end=pd.Timestamp(value).tz_convert(SAST)
+        return f'{end-pd.Timedelta(hours=1):%d %b %H:%M}–{end:%H:%M} SAST'
+    except (ValueError,TypeError):return str(value)
+
+def record_system_events() -> None:
+    """Record what this run observed. Keys and stored state make every event appear once, however often the page reruns."""
+    log=SYSTEM_LOG
+    data='out_of_date' if data_stale else 'current'  # the real state, never the per-session demonstration
+    previous=log.swap('forecast_data',data)
+    if previous and previous!=data:
+        if data=='out_of_date':
+            log.record('WARNING','Dashboard',('Forecast service unreachable' if state.prediction_error else 'Forecast data out of date')+
+                       ': last known information shown, labelled out of date; no warning decisions from out-of-date data.')
+        else:log.record('NORMAL','Dashboard','Current forecast data available again: model risk score up to date.')
+    level=resident_view.classify(real_prob)  # the genuine model output, never the on-screen simulation
+    if not data_stale and level in SEVERITY_FOR_LEVEL:
+        if log.swap('risk_level',level)!=level:
+            log.record(SEVERITY_FOR_LEVEL[level],'Dashboard',f'Risk level set to {resident_view.RISK_BADGES[level].title()}: model risk score '
+                       f'{resident_view.score_text(real_prob)} for {resident["period"]}.')  # period: the same in simulation
+    events,_=resident_alerts.load_events(secret)
+    for event in events:
+        genuine=event['source']==warning_events.GENUINE
+        log.record('HIGH','Dashboard + public warning record' if genuine else 'Dashboard (development test)',
+                   ('' if genuine else 'DEVELOPMENT TEST, not a real warning: ')+f'Storm warning for Matatiele: model risk score '
+                   f'{warning_events.probability_text(event)}, {warning_events.period_text(event)}.',key='warning:'+event['key'],at=event['issued_at'])
+    for delivery in resident_alerts.sms_deliveries(secret):
+        status=delivery['status']
+        log.record('WARNING' if status in ('failed','uncertain') else 'INFO','SMS (simulation outbox)' if status=='outbox' else 'SMS',
+                   f'SMS for the warning for {sms_period(delivery["period"])}: {resident_alerts.SMS_STATUS_LABELS.get(status,status)}.',
+                   key=f'sms:{hashlib.sha256(delivery["key"].encode()).hexdigest()[:16]}:{status}',at=pd.Timestamp(delivery['updated_at']).to_pydatetime() if delivery.get('updated_at') else None)
+    for flag,on_text,off_text in (('presentation_test_mode','Warning simulation shown on screen only (simulated 60% score): no warning record and no SMS.',
+                                   'Warning simulation switched off: genuine data shown.'),
+                                  ('demo_offline','Forecast connection set to OFFLINE for a low-connectivity demonstration (this session only).',
+                                   'Forecast connection restored after the low-connectivity demonstration.')):
+        active=bool(is_admin and st.session_state.get(flag)); logged=st.session_state.get('logged_'+flag,False)
+        if active!=logged:
+            log.record('WARNING' if active and flag=='demo_offline' else 'INFO','Administrator demonstration',on_text if active else off_text)
+            st.session_state['logged_'+flag]=active
+
+try:record_system_events()
+except Exception:logging.exception('System log could not be updated.')  # logging must never interrupt the dashboard
 
 # The banner and officials always use the genuine estimate; only the resident card shows the simulation.
 genuine_status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,stale,False)
@@ -916,7 +973,8 @@ if page=='🕒 Historical Data':
     render_history(runs)
 
 if page=='🚨 Alerts':
-    resident_alerts.render_alerts(secret,genuine_status)
+    log_rows=[(f'{pd.Timestamp(at).tz_convert(SAST):%Y-%m-%d %H:%M:%S}',severity,delivery,status) for at,severity,delivery,status in SYSTEM_LOG.recent(100)]
+    resident_alerts.render_alerts(secret,genuine_status,log_rows)
     if is_admin:
         st.markdown('**Operational status (administrators)**')
         a,b,c=st.columns(3)

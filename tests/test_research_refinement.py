@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import resident_view as rv
 import subscriber_alerts
-from test_resident_dashboard import ROOT, DashboardHarness
+from test_resident_dashboard import ADMIN_TEST_PASSWORD, ROOT, DashboardHarness
 
 EVIDENCE = json.loads((ROOT / 'docs' / 'model_evidence.json').read_text(encoding='utf-8'))
 
@@ -422,3 +422,75 @@ class PublisherReaderRoundTrip(unittest.TestCase):
         self.assertTrue(publisher.publish(record, {'GITHUB_REPOSITORY': 'owner/repo', 'GH_TOKEN': 'x'}, request))
         frame = pl.worker_frame([pl.parse_comment(posted[0])])
         self.assertEqual(frame['storm_probability'].tolist(), [0.0533])
+
+
+class SystemLogStore(unittest.TestCase):
+    def test_events_are_recorded_once_and_newest_first(self):
+        import system_log
+        from datetime import datetime, timezone
+        log = system_log.SystemLog(Path(tempfile.mkdtemp()) / 'log.sqlite')
+        self.assertTrue(log.record('HIGH', 'Dashboard', 'first', key='warning:a', at=datetime(2026, 10, 31, 10, tzinfo=timezone.utc)))
+        self.assertFalse(log.record('HIGH', 'Dashboard', 'again', key='warning:a'))  # the same event is never logged twice
+        log.record('LOW', 'Dashboard', 'later', at=datetime(2026, 10, 31, 11, tzinfo=timezone.utc))
+        self.assertEqual([r[3] for r in log.recent()], ['later', 'first'])
+        self.assertIsNone(log.swap('risk_level', 'LOW'))
+        self.assertEqual(log.swap('risk_level', 'HIGH'), 'LOW')
+        with self.assertRaises(ValueError):
+            log.record('CRITICAL', 'Dashboard', 'unknown severity')
+
+    def test_sms_records_for_the_log_carry_no_numbers(self):
+        import resident_alerts
+
+        class Store:
+            def snapshot(self):
+                return {'alerts': {'A': {'forecast_period': '2026-10-31T11:00:00+00:00'}},
+                        'deliveries': {'A|sub1': {'alert': 'A', 'subscriber': 'sub1', 'masked': '+27 82 *** **01', 'status': 'outbox',
+                                                  'updated_at': '2026-10-31T10:00:00+00:00'}}}
+        with patch.object(resident_alerts, 'open_store', return_value=Store()):
+            rows = resident_alerts.sms_deliveries({'SMS_DELIVERY_MODE': 'outbox'}.get)
+        self.assertEqual(set(rows[0]), {'key', 'status', 'updated_at', 'period'})  # no number, masked or otherwise
+        self.assertEqual(resident_alerts.sms_deliveries({}.get), [])  # SMS off: nothing to log
+
+
+class SystemLogPanel(DashboardHarness):
+    def log_page(self, at):
+        at = self.go(at, 'Alerts')
+        next(g for g in at.button_group if g.key == 'alerts_view').set_value('System log').run()
+        return self.html(at)
+
+    def test_risk_level_and_outage_are_logged_from_real_observations(self):
+        self.write_prediction(.05)
+        page = self.log_page(self.app().run())
+        self.assertIn('System logs', page)
+        self.assertIn('sev-low">LOW</span>', page)
+        self.assertIn('Risk level set to Low Risk: model risk score 5%', page)
+        self.assertEqual(page.count('Risk level set to'), 1)  # reruns do not repeat it
+        self.write_prediction(.05, fresh=False)
+        page = self.log_page(self.app(inference_ok=False).run())
+        self.assertIn('last known information shown, labelled out of date; no warning decisions from out-of-date data', page)
+        self.assertIn('sev-warning">WARNING</span>', page)
+        table = page[page.index('<table class="dtable syslog">'):]
+        self.assertNotIn('Storm warning for Matatiele', table)  # no warning record exists, so none is logged
+
+    def test_administrator_demonstrations_are_logged_and_labelled(self):
+        self.write_prediction(.05)
+        at = self.app(admin='1').run()
+        self.login(at)
+        at.toggle(key='demo_offline').set_value(True).run()
+        page = self.html(at)
+        self.assertIn('NO DECISION', page)  # treated as out of date: no warning decision
+        self.assertIn('DEMONSTRATION: the forecast service is treated as unreachable', ' '.join(w.value for w in at.warning))
+        at.toggle(key='demo_offline').set_value(False).run()
+        at.toggle(key='presentation_test_mode').set_value(True).run()   # simulated 60% on screen
+        at.toggle(key='presentation_test_mode').set_value(False).run()
+        page = self.log_page(at)
+        self.assertEqual(page.count('Risk level set to'), 1)  # the simulation never changes the logged (genuine) risk level
+        self.assertNotIn('Risk level set to High Risk', page)
+        self.assertIn('Warning simulation shown on screen only', page)
+        self.assertIn('Forecast connection set to OFFLINE for a low-connectivity demonstration', page)
+        self.assertIn('Forecast connection restored after the low-connectivity demonstration', page)
+        self.assertIn('Administrator demonstration', page)
+
+    def login(self, at):
+        next(t for t in at.text_input if t.label == 'Administrator Password').input(ADMIN_TEST_PASSWORD)
+        next(b for b in at.button if b.label == 'Unlock Admin Controls').click().run()

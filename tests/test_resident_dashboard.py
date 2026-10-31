@@ -212,7 +212,7 @@ class DashboardHarness(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
         for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
                      'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
-                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py', 'prediction_log.py'):
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py', 'prediction_log.py', 'system_log.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
         (cls.tmp / 'docs').mkdir()
         shutil.copy(ROOT / 'docs' / 'model_evidence.json', cls.tmp / 'docs' / 'model_evidence.json')
@@ -231,6 +231,7 @@ class DashboardHarness(unittest.TestCase):
         st.cache_resource.clear()
         for name in ('dashboard_forecast_prediction.csv', 'prediction_history.csv', 'regional_ecmwf_forecast.csv'):
             (self.model / name).unlink(missing_ok=True)
+        (self.tmp / 'outputs' / 'system_log.sqlite').unlink(missing_ok=True)  # each test starts with an empty system log
         env = {k: v for k, v in os.environ.items() if not k.startswith(('TWILIO_', 'ALERT_TO', 'ADMIN_PASSWORD'))}
         env['ADMIN_PASSWORD'] = ADMIN_TEST_PASSWORD
         self.env = patch.dict(os.environ, env, clear=True); self.env.start(); self.addCleanup(self.env.stop)

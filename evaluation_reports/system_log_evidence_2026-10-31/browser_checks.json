@@ -1,0 +1,145 @@
+{
+ "Connectivity-failure demonstration on": true,
+ "Warning simulation on": true,
+ "light_1440": {
+  "rows": [
+   [
+    "2026-10-31 19:51:25",
+    "INFO",
+    "Administrator demonstration",
+    "Warning simulation switched off: genuine data shown."
+   ],
+   [
+    "2026-10-31 19:51:17",
+    "INFO",
+    "Administrator demonstration",
+    "Warning simulation shown on screen only (simulated 60% score): no warning record and no SMS."
+   ],
+   [
+    "2026-10-31 19:51:09",
+    "INFO",
+    "Administrator demonstration",
+    "Forecast connection restored after the low-connectivity demonstration."
+   ],
+   [
+    "2026-10-31 19:51:01",
+    "WARNING",
+    "Administrator demonstration",
+    "Forecast connection set to OFFLINE for a low-connectivity demonstration (this session only)."
+   ],
+   [
+    "2026-10-31 19:48:56",
+    "LOW",
+    "Dashboard",
+    "Risk level set to Low Risk: model risk score 2% for 31 Oct 20:00 - 21:00 (SAST)."
+   ],
+   [
+    "2026-10-31 19:48:41",
+    "INFO",
+    "SMS (simulation outbox)",
+    "SMS for the warning for 31 Oct 19:00\u201320:00 SAST: simulated, not sent."
+   ],
+   [
+    "2026-10-31 19:48:41",
+    "HIGH",
+    "Dashboard (development test)",
+    "DEVELOPMENT TEST, not a real warning: Storm warning for Matatiele: model risk score 62%, 31 Oct 2026 19:00 - 20:00 SAST."
+   ]
+  ],
+  "no_overflow": true
+ },
+ "dark_1440": {
+  "rows": [
+   [
+    "2026-10-31 19:51:25",
+    "INFO",
+    "Administrator demonstration",
+    "Warning simulation switched off: genuine data shown."
+   ],
+   [
+    "2026-10-31 19:51:17",
+    "INFO",
+    "Administrator demonstration",
+    "Warning simulation shown on screen only (simulated 60% score): no warning record and no SMS."
+   ],
+   [
+    "2026-10-31 19:51:09",
+    "INFO",
+    "Administrator demonstration",
+    "Forecast connection restored after the low-connectivity demonstration."
+   ],
+   [
+    "2026-10-31 19:51:01",
+    "WARNING",
+    "Administrator demonstration",
+    "Forecast connection set to OFFLINE for a low-connectivity demonstration (this session only)."
+   ],
+   [
+    "2026-10-31 19:48:56",
+    "LOW",
+    "Dashboard",
+    "Risk level set to Low Risk: model risk score 2% for 31 Oct 20:00 - 21:00 (SAST)."
+   ],
+   [
+    "2026-10-31 19:48:41",
+    "INFO",
+    "SMS (simulation outbox)",
+    "SMS for the warning for 31 Oct 19:00\u201320:00 SAST: simulated, not sent."
+   ],
+   [
+    "2026-10-31 19:48:41",
+    "HIGH",
+    "Dashboard (development test)",
+    "DEVELOPMENT TEST, not a real warning: Storm warning for Matatiele: model risk score 62%, 31 Oct 2026 19:00 - 20:00 SAST."
+   ]
+  ],
+  "no_overflow": true
+ },
+ "light_390": {
+  "rows": [
+   [
+    "2026-10-31 19:51:25",
+    "INFO",
+    "Administrator demonstration",
+    "Warning simulation switched off: genuine data shown."
+   ],
+   [
+    "2026-10-31 19:51:17",
+    "INFO",
+    "Administrator demonstration",
+    "Warning simulation shown on screen only (simulated 60% score): no warning record and no SMS."
+   ],
+   [
+    "2026-10-31 19:51:09",
+    "INFO",
+    "Administrator demonstration",
+    "Forecast connection restored after the low-connectivity demonstration."
+   ],
+   [
+    "2026-10-31 19:51:01",
+    "WARNING",
+    "Administrator demonstration",
+    "Forecast connection set to OFFLINE for a low-connectivity demonstration (this session only)."
+   ],
+   [
+    "2026-10-31 19:48:56",
+    "LOW",
+    "Dashboard",
+    "Risk level set to Low Risk: model risk score 2% for 31 Oct 20:00 - 21:00 (SAST)."
+   ],
+   [
+    "2026-10-31 19:48:41",
+    "INFO",
+    "SMS (simulation outbox)",
+    "SMS for the warning for 31 Oct 19:00\u201320:00 SAST: simulated, not sent."
+   ],
+   [
+    "2026-10-31 19:48:41",
+    "HIGH",
+    "Dashboard (development test)",
+    "DEVELOPMENT TEST, not a real warning: Storm warning for Matatiele: model risk score 62%, 31 Oct 2026 19:00 - 20:00 SAST."
+   ]
+  ],
+  "no_overflow": true
+ }
+}

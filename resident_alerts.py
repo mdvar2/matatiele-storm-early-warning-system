@@ -8,6 +8,7 @@ from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 
+import dashboard_theme
 import emergency_contacts
 import icons
 import resident_pages
@@ -19,8 +20,8 @@ from subscriber_store import StoreError, open_store, utc_now
 
 LEDGER_REPO = resident_pages.LEDGER_REPO
 SAWS_URL = 'https://www.weathersa.co.za/'
-VIEWS = ('Warnings', 'SMS alerts')
-VIEW_LABELS = {'Warnings': ':material/warning: Warnings', 'SMS alerts': ':material/sms: SMS alerts'}
+VIEWS = ('Warnings', 'SMS alerts', 'System log')
+VIEW_LABELS = {'Warnings': ':material/warning: Warnings', 'SMS alerts': ':material/sms: SMS alerts', 'System log': ':material/list_alt: System log'}
 _device = components.declare_component('device_id', path=str(Path(__file__).resolve().parent / 'components' / 'device_id'))
 
 
@@ -73,6 +74,20 @@ def sms_record_counts(getter):
     for delivery in doc.get('deliveries', {}).values():
         counts[delivery['status']] = counts.get(delivery['status'], 0) + 1
     return counts
+
+
+def sms_deliveries(getter):
+    """SMS delivery records for the system log: key, status, warning period and time only (never numbers). [] when SMS is off."""
+    if subs.delivery_mode(getter) == 'disabled':
+        return []
+    try:
+        doc = open_store(getter).snapshot()
+    except Exception:
+        return []
+    alerts_doc = doc.get('alerts', {})
+    return [{'key': key, 'status': d['status'], 'updated_at': d.get('updated_at'),
+             'period': alerts_doc.get(d.get('alert'), {}).get('forecast_period', 'unknown period')}
+            for key, d in doc.get('deliveries', {}).items()]
 
 
 def sms_counts_text(counts):
@@ -161,11 +176,18 @@ def status_banner_html(active_events, status):
     return ''  # no warning in effect: the risk card already shows the current estimate
 
 
-def render_alerts(getter, status):
-    """Warnings (list and details) and SMS alerts. The current status, contacts and SAWS link are on Home only."""
+def render_alerts(getter, status, log_rows=None):
+    """Warnings (list and details), SMS alerts and the system log. The current status, contacts and SAWS link are on Home only."""
     st.html('<div class="section-title">Alerts <small>Storm warnings for Matatiele and SMS alerts</small></div>')
     st.session_state.setdefault('alerts_view', VIEWS[0])
     view = st.segmented_control('Alerts section', VIEWS, key='alerts_view', format_func=VIEW_LABELS.get, label_visibility='collapsed')
+    if view == VIEWS[2]:
+        st.html('<div class="section-title">System logs <small>Warning and system events, stored in SQLite for demonstration and evaluation</small></div>')
+        st.html(dashboard_theme.system_log_html(log_rows or []))
+        st.caption('Only events this system actually observed: model risk-level changes, warning records, SMS records and their status, '
+                   'forecast-service outages and recoveries, and administrator demonstrations. No phone numbers or personal data. '
+                   'On the hosted app this file is reset when the app restarts; the public warning record is permanent.')
+        return
     if view == VIEWS[1]:
         st.html(sms_status_html(getter))
         resident_pages.render_sms_alerts(getter)

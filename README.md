@@ -63,7 +63,7 @@ Detailed stakeholder, use case, architecture and activity diagrams are in [docs/
 | **Risk Analysis** | Gauge, risk scale, the threshold explanation, patterns learned (grouped feature importance), why a Random Forest, the threshold comparison (30–50%) with the persistence baseline, the stricter validation-year evaluation, the confusion matrix, and what the percentage means (score, performance, calibration, confidence). |
 | **Map** | ECMWF rainfall forecast at 25 real ECMWF 0.25° grid cells (0.25° to 0.5° apart, about 24–48 km), interpolated and smoothed between them. It is not radar. Opens centred on Matatiele and has a forecast-hour slider (next 35 hours), an overlay opacity control, a ring for the model-estimated storm risk at Matatiele (one location only), and Satellite, Streets and Low data basemaps. |
 | **Safety** | Advice for before a storm and when a storm is close, then tap-to-call emergency numbers (10111, 10177, 112) to support residents' response. |
-| **☰ Alerts** | Current and past warnings, warning details, an anonymous "I have read this warning" acknowledgement, and the SMS section: configuration, simulation, registration status, delivery limitations, research-test restrictions and real record counts. |
+| **☰ Alerts** | Current and past warnings, warning details, an anonymous "I have read this warning" acknowledgement; the SMS section (configuration, simulation, registration status, delivery limitations, research-test restrictions, real record counts); and **System log**: timestamp, severity, delivery method and status of each observed event, stored in SQLite (model risk-level changes, warning records, SMS records, forecast-data outages and recoveries, administrator demonstrations). |
 | **☰ Forecast** | 36-hour ECMWF temperature and rainfall chart, the forecast variables the model uses (CAPE, dew point, showers), and which forecast hour the model uses. |
 | **☰ Historical Data** | The trained model's saved predictions (worker run log plus the dashboard's own runs, with the source shown): chart (24 hours / 7 days / all, zoom, 35% line, gaps never filled in) and table. |
 | **☰ About** | The resident warning workflow, development and operation phases, RO3 status (implemented / simulated / future), how the model and system work, the low-connectivity design, and the disclaimer. |
@@ -122,7 +122,7 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
 ## Testing evidence
 
-- **Automated tests:** `python -m pytest tests/`. All 373 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+- **Automated tests:** `python -m pytest tests/`. All 377 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
 - **Reproducible evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs. See [docs/MODEL_EVALUATION.md §7](docs/MODEL_EVALUATION.md#7-reproducing-the-evidence).
 - **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).

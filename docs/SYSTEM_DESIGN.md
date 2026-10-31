@@ -163,3 +163,21 @@ flowchart LR
 | Warning decisions at or above 35% | Public `[SMS-LEDGER] REAL-SHORT-V1-<hour>` issue | Durable (GitHub) |
 
 The Home **Recent predictions** log and **Historical Data** read `prediction_log.py`. It uses the `[RUN-LOG]` records first and adds the dashboard's own runs for other hours, labelling each row with its source. Only records with a validated model score are used. Publishing to `[RUN-LOG]` takes effect once the workflow change reaches `main`.
+
+## 7. System log (Alerts, then System log)
+
+`system_log.py` stores events in SQLite (`outputs/system_log.sqlite`, or `SYSTEM_LOG_PATH`), and the dashboard records only what it observes:
+
+| Event | Severity | Delivery method |
+|---|---|---|
+| Model risk level changed (with the real score and target hour) | LOW / ELEVATED / MODERATE / HIGH | Dashboard |
+| Warning record (genuine), or a labelled development test | HIGH | Dashboard + public warning record, or Dashboard (development test) |
+| SMS record status: simulated, queued, accepted, delivered, failed, outcome unknown | INFO, or WARNING if failed or unknown | SMS, or SMS (simulation outbox) |
+| Forecast data unavailable or out of date / current again | WARNING / NORMAL | Dashboard |
+| Administrator demonstrations: connectivity failure (this session only) and the on-screen warning simulation | WARNING / INFO | Administrator demonstration |
+
+**How events are recorded:**
+- Keyed events are written once, and level and data-state changes are detected against stored state, so page reruns never duplicate entries.
+- No phone numbers or subscriber identifiers are stored; SMS keys are hashed.
+- The connectivity demonstration affects only the administrator's session and is not recorded as a real outage.
+- On the hosted app the SQLite file is reset when the app restarts. The permanent records are the public warning record and `[RUN-LOG]`.

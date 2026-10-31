@@ -260,7 +260,8 @@ CSS = r"""
 .var-tile>.ico {width:26px;height:26px;color:var(--accent);flex-shrink:0}.var-tile small {display:block;font-size:11.5px;color:var(--muted)}.var-tile b {font-size:19px;color:var(--heading)}
 .log-wrap {overflow-x:auto}.pred-log {width:100%;border-collapse:collapse;font-size:13px;color:var(--text)}
 .pred-log th {text-align:left;font-size:12px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--divider)}.pred-log td {padding:7px 8px;border-bottom:1px solid var(--divider)}
-.log-decision {font-weight:700;white-space:nowrap}.log-decision.tone-red {color:#c81e33}.log-decision.tone-amber {color:#b45309}.log-decision.tone-green {color:var(--good)}
+.log-decision {font-weight:700;white-space:nowrap}
+.sev {display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.4px;background:#e2e8f0;color:#1e293b}.sev-high,.sev-warning {background:#fde2e4;color:#9f1239}.sev-moderate {background:#ffedd5;color:#9a3412}.sev-elevated {background:#fef3c7;color:#854d0e}.sev-low,.sev-normal {background:#dcfce7;color:#14532d}.syslog td:first-child {white-space:nowrap}.log-decision.tone-red {color:#c81e33}.log-decision.tone-amber {color:#b45309}.log-decision.tone-green {color:var(--good)}
 .risk-dial {position:relative;max-width:330px;margin:4px auto 0}.risk-gauge-img {display:block;width:100%;height:auto}
 .risk-value {position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:clamp(40px,4.4vw,58px);font-weight:800;color:var(--heading);line-height:1;letter-spacing:-1px}
 .risk-badge-row {text-align:center;margin:10px 0 4px}.risk-pill {display:inline-block;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.6px;color:#fff;background:#2f855a}
@@ -549,6 +550,16 @@ def style_chart(chart, mode):
             .configure_axis(labelColor=colours['text'], titleColor=colours['text'], gridColor=colours['grid'],
                             domainColor=colours['grid'], tickColor=colours['grid'])
             .configure_legend(labelColor=colours['text'], titleColor=colours['text']))
+
+
+def system_log_html(rows):
+    """System log rows (timestamp, severity, delivery, status) as a table with severity badges."""
+    e = html.escape
+    body = ''.join(f'<tr><td>{e(at)}</td><td><span class="sev sev-{e(severity.lower())}">{e(severity)}</span></td>'
+                   f'<td>{e(delivery)}</td><td>{e(status)}</td></tr>' for at, severity, delivery, status in rows)
+    body = body or '<tr><td colspan="4">No events recorded yet.</td></tr>'
+    return ('<div class="dtable-wrap"><table class="dtable syslog"><thead><tr><th scope="col">Timestamp (SAST)</th><th scope="col">Severity</th>'
+            f'<th scope="col">Delivery method</th><th scope="col">Status</th></tr></thead><tbody>{body}</tbody></table></div>')
 
 
 def table_html(frame, bars=None, links=None, caption=''):

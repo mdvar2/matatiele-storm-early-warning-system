@@ -67,3 +67,8 @@ It never touches the model, the threshold, the public ledger or any real store. 
 **Connectivity-failure demonstration:**
 - `tests/test_research_refinement.py::RiskAnalysisAndHome::test_connectivity_failure_then_recovery` runs normal (fresh, 41%, warning condition met), then failure (refresh fails: last estimate flagged, no decision), then recovery (fresh again).
 - Screenshots of the failure state are in `evaluation_reports/research_refinement_evidence_2026-10-30/`.
+
+## 5. Connectivity-failure demonstration and system log
+
+- **Demonstration:** administrators can switch on **Connectivity-failure demonstration (this session only)** in the sidebar. For that browser session the dashboard makes no forecast retrieval. It shows the last known information labelled out of date, and the warning decision reads NO DECISION. Other users are unaffected.
+- **System log:** switching the demonstration on and off is recorded under Alerts, then System log, as "Forecast connection set to OFFLINE for a low-connectivity demonstration" and "… restored". Genuine outages are recorded separately as "Forecast service unreachable" or "Forecast data out of date".
