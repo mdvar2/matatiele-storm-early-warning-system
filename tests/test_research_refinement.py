@@ -307,8 +307,9 @@ class VisualHomepage(unittest.TestCase):
 
 class PredictionLog(unittest.TestCase):
     def test_log_shows_only_saved_rows_and_never_invents_a_warning(self):
-        rows = [('31 Oct 10:00–11:00', '10:00 SAST', '6%', 'No warning'), ('31 Oct 09:00–10:00', '09:00 SAST', '41%', 'Threshold reached'),
-                ('31 Oct 08:00–09:00', '08:00 SAST', '52%', 'Warning')]
+        rows = [('31 Oct 10:00–11:00', '10:00 SAST', '6%', 'No warning', 'Hourly worker'),
+                ('31 Oct 09:00–10:00', '09:00 SAST', '41%', 'Threshold reached', 'Hourly worker'),
+                ('31 Oct 08:00–09:00', '08:00 SAST', '52%', 'Warning', 'Dashboard')]
         page = rv.prediction_log_html(rows)
         self.assertEqual(page.count('<tr><td>'), 3)
         self.assertIn('log-decision tone-amber">Threshold reached', page)
@@ -334,3 +335,90 @@ class HomeDashboardData(DashboardHarness):
             self.assertIn(f'<small>{label}</small>', page)
         self.assertIn('Prediction period', page)
         self.assertIn('Fresh data', page)
+
+
+class DurablePredictionLog(unittest.TestCase):
+    """The Home log and Historical Data read the worker's public [RUN-LOG] records (no network in these tests)."""
+
+    def record(self, target, probability, validation='passed', finished='2026-10-31T10:05:00+00:00'):
+        return {'record_type': 'worker_run', 'prediction_validation': validation, 'storm_probability': probability,
+                'prediction_target_utc': target, 'forecast_input_utc': target.replace('T11', 'T10'), 'finished_utc': finished}
+
+    def comment(self, record):
+        return {'body': 'Run record (sanitised; monitoring only).\n\n```json\n' + json.dumps(record) + '\n```'}
+
+    def test_parse_and_filter_records(self):
+        import prediction_log as pl
+        self.assertIsNone(pl.parse_comment('no record here'))
+        self.assertIsNone(pl.parse_comment('```json\n{"record_type": "other"}\n```'))
+        records = [self.record('2026-10-31T11:00:00+00:00', .06), self.record('2026-10-31T11:00:00+00:00', .07, finished='2026-10-31T10:40:00+00:00'),
+                   self.record('2026-10-31T12:00:00+00:00', None, validation='not_applicable'),  # connectivity test: no score
+                   self.record('2026-10-31T13:00:00+00:00', 1.4)]                                # invalid: never shown
+        frame = pl.worker_frame([pl.parse_comment(self.comment(r)['body']) for r in records])
+        self.assertEqual(frame['storm_probability'].tolist(), [.07])  # one row per hour, the latest record
+        self.assertEqual(frame['source'].tolist(), [pl.WORKER])
+
+    def test_fetch_reads_only_run_log_issues_and_recent_comments(self):
+        import prediction_log as pl
+        from datetime import datetime, timezone
+        calls = []
+
+        class Response:
+            def __init__(self, data): self.data = data
+            def raise_for_status(self): pass
+            def json(self): return self.data
+
+        class Session:
+            def get(inner, url, params=None, **kwargs):
+                calls.append((url, params))
+                if url.endswith('/issues'):
+                    return Response([{'number': 7, 'title': '[RUN-LOG] 2026-10'}, {'number': 3, 'title': '[SMS-LEDGER] REAL-SHORT-V1-x'},
+                                     {'number': 1, 'title': '[RUN-LOG] 2025-01'}])
+                return Response([self.comment(self.record('2026-10-31T11:00:00+00:00', .06))])
+
+        records = pl.fetch_records('owner/repo', Session(), now=datetime(2026, 10, 31, 12, tzinfo=timezone.utc))
+        self.assertEqual(len(records), 1)
+        comment_calls = [c for c in calls if '/comments' in c[0]]
+        self.assertEqual([c[0].rsplit('/issues/', 1)[1] for c in comment_calls], ['7/comments'])  # only this month's run log
+        self.assertTrue(comment_calls[0][1]['since'].startswith('2026-10-23'))  # recent records only
+
+    def test_worker_records_win_and_dashboard_runs_fill_other_hours(self):
+        import pandas as pd
+        import prediction_log as pl
+        worker = pl.worker_frame([self.record('2026-10-31T11:00:00+00:00', .06)])
+        local = pd.DataFrame({'prediction_for': ['2026-10-31 11:00:00+00:00', '2026-10-31 12:00:00+00:00'], 'storm_probability': [.5, .02],
+                              'forecast_input_time': ['2026-10-31 10:00:00+00:00', '2026-10-31 11:00:00+00:00']})
+        runs = pl.combine(worker, local)
+        self.assertEqual(list(zip(runs['storm_probability'], runs['source'])), [(.06, pl.WORKER), (.02, pl.DASHBOARD)])
+        self.assertTrue(pl.combine(pl.worker_frame([]), pd.DataFrame()).empty)
+
+
+class RunLogOnHome(DashboardHarness):
+    def test_unreachable_run_log_falls_back_to_saved_runs_and_says_so(self):
+        self.write_prediction(.27)
+        page = self.html(self.app().run())  # the harness blocks the network, so GitHub cannot be reached
+        self.assertIn('<td>Dashboard</td>', page)
+        self.assertIn('(unreachable just now)', page)
+        self.assertIn('Recorded by', page)
+
+
+class PublisherReaderRoundTrip(unittest.TestCase):
+    def test_reader_parses_what_the_publisher_posts(self):
+        import importlib.util
+        import prediction_log as pl
+        import run_record
+        spec = importlib.util.spec_from_file_location('publisher', ROOT / '19_publish_run_record.py')
+        publisher = importlib.util.module_from_spec(spec); spec.loader.exec_module(publisher)
+        record = run_record.new_record() if hasattr(run_record, 'new_record') else {'schema_version': run_record.SCHEMA_VERSION, 'record_type': 'worker_run'}
+        record.update({'prediction_validation': 'passed', 'storm_probability': 0.0533, 'prediction_target_utc': '2026-10-31T11:00:00+00:00',
+                       'forecast_input_utc': '2026-10-31T10:00:00+00:00', 'finished_utc': '2026-10-31T10:12:30+00:00', 'started_utc': '2026-10-31T10:12:00+00:00'})
+        posted = []
+
+        def request(method, url, token, payload=None, timeout=20):
+            if method == 'GET':
+                return [{'number': 9, 'title': '[RUN-LOG] 2026-10'}]
+            posted.append(payload['body'])
+            return {}
+        self.assertTrue(publisher.publish(record, {'GITHUB_REPOSITORY': 'owner/repo', 'GH_TOKEN': 'x'}, request))
+        frame = pl.worker_frame([pl.parse_comment(posted[0])])
+        self.assertEqual(frame['storm_probability'].tolist(), [0.0533])

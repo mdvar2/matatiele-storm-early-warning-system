@@ -212,7 +212,7 @@ class DashboardHarness(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
         for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
                      'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
-                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py'):
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py', 'prediction_log.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
         (cls.tmp / 'docs').mkdir()
         shutil.copy(ROOT / 'docs' / 'model_evidence.json', cls.tmp / 'docs' / 'model_evidence.json')

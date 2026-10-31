@@ -149,3 +149,17 @@ flowchart LR
   - The Home communication card shows three derived indicators.
   - The About card is relabelled **Warning threshold**: the model-risk score required to trigger a warning decision.
   - The evidence inputs are committed, so `25_build_model_evidence.py --check` works from a clean checkout.
+
+## 6. Where the training data and the model's outputs go
+
+| Stage | Location | Kept in Git |
+|---|---|---|
+| Raw ERA5 training data (2018–2026) | `data/era5/*.nc` | No (about 96 MB; local) |
+| Cleaned and labelled training table | `outputs/model_ready.csv` and intermediate CSVs | No (ignored) |
+| Trained Random Forest, 29 features, 35% threshold | `outputs/model_live/` (`.pkl`, `.txt`) | Yes |
+| Held-out evaluation rows | `docs/evidence/held_out_test_set.csv.gz` | Yes |
+| **Each hourly output (worker)** | One sanitised run record per run in the GitHub Actions job summary and, with `RUN_RECORD_PUBLISH=true`, as a comment on the public `[RUN-LOG] YYYY-MM` issue | Durable (GitHub) |
+| Each output (dashboard refresh) | `outputs/model_live/prediction_history.csv` | No; lost when the hosted app restarts |
+| Warning decisions at or above 35% | Public `[SMS-LEDGER] REAL-SHORT-V1-<hour>` issue | Durable (GitHub) |
+
+The Home **Recent predictions** log and **Historical Data** read `prediction_log.py`. It uses the `[RUN-LOG]` records first and adds the dashboard's own runs for other hours, labelling each row with its source. Only records with a validated model score are used. Publishing to `[RUN-LOG]` takes effect once the workflow change reaches `main`.

@@ -456,7 +456,7 @@ class WorkflowAndCode(unittest.TestCase):
         self.assertIn('permissions:\n  contents: read\n  issues: write\n'
                       '  # Read-only: lets a later run confirm that the holder of an abandoned SMS lock has ended.\n'
                       '  actions: read\nconcurrency:', self.workflow.replace('\r', ''))
-        self.assertIn("RUN_RECORD_PUBLISH: 'false'", self.workflow)
+        self.assertIn("RUN_RECORD_PUBLISH: 'true'", self.workflow)  # durable public prediction log (approved 31 Oct 2026)
         self.assertEqual(self.workflow.count('python 18_scheduled_sms_worker.py --live'), 1)
         self.assertEqual(self.workflow.count('python 18_scheduled_sms_worker.py --test-sms'), 1)
 

@@ -36,6 +36,7 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
 from sms_alert import sms_is_configured, send_test_sms
 from subscriptions import delivery_mode
 import model_evidence
+import prediction_log as run_log
 import resident_view
 import dashboard_theme
 import resident_pages
@@ -338,6 +339,22 @@ def load_history():
     except Exception:pass
     return pd.DataFrame()
 
+@st.cache_data(ttl=600,show_spinner=False)
+def worker_run_log(repo: str) -> tuple[pd.DataFrame, bool]:
+    """The hourly worker's published run records (public [RUN-LOG] issue). Returns (rows, reachable)."""
+    try:return run_log.worker_frame(run_log.fetch_records(repo)),True
+    except Exception:return pd.DataFrame(columns=run_log.COLUMNS),False
+
+def model_runs() -> tuple[pd.DataFrame, bool]:
+    """Every saved output of the trained model: worker records, plus the dashboard's own runs for other hours."""
+    worker,reachable=worker_run_log(resident_pages.LEDGER_REPO)
+    runs=run_log.combine(worker,hist)
+    weather=[c for c in ('precipitation_mm','temperature_c','wind_gust_ms') if c in hist.columns]
+    if weather and not runs.empty:  # the dashboard's runs also saved the forecast weather for their hour
+        saved=hist[['prediction_for']+weather].assign(prediction_for=pd.to_datetime(hist['prediction_for'],utc=True,errors='coerce'))
+        runs=runs.merge(saved.drop_duplicates('prediction_for',keep='last'),on='prediction_for',how='left')
+    return runs,reachable
+
 def ui_icon(kind: str) -> str:
     paths={
         'cloud':'<path d="M6 17a4 4 0 1 1 1-8 6 6 0 0 1 11-1 4.5 4.5 0 0 1 0 9H6"/><path d="m12 14-3 6h4l-1 4 5-7h-4l2-3"/>',
@@ -385,6 +402,7 @@ def render_history(hist: pd.DataFrame) -> None:
         if 'storm_probability' in display:
             display['Risk']=numeric_series(pd.Series(display['storm_probability'])).apply(lambda v:risk(float(v),threshold)[0])
             cols.append('Risk')
+        if 'source' in display:display['Source']=display['source'];cols.append('Source')
         for field,label in [('precipitation_mm','Precipitation (mm)'),('temperature_c','Temperature (°C)'),('wind_gust_ms','Wind gust (m/s)')]:
             if field in display:display[label]=numeric_series(pd.Series(display[field])).round(2);cols.append(label)
         st.html(dashboard_theme.table_html(display[cols],bars={'Probability (%)':100},caption='Saved model predictions'))
@@ -522,6 +540,7 @@ level,level_color=risk(prob,threshold)
 configured=sms_is_configured()
 
 hist=load_history()
+runs,runs_reachable=model_runs()
 
 # Resident view. The simulation replaces only what this card shows; `prob`, saved files and
 # every other output stay genuine, and nothing here can send an SMS.
@@ -590,20 +609,15 @@ def key_variables() -> tuple[list, str]:
     return tiles,('Out-of-date saved values. ' if stale else '')+f'ECMWF forecast for {hour}: the inputs behind the current risk score.'
 
 def prediction_log(events: list, count: int=6) -> list:
-    """The trained model's recent hourly outputs from the saved history (newest first). 'Warning' only with a genuine record."""
-    if hist.empty or not {'prediction_for','storm_probability'}.issubset(hist.columns):return []
-    frame=pd.DataFrame({'target':pd.to_datetime(hist['prediction_for'],utc=True,errors='coerce'),
-                        'input':pd.to_datetime(hist['forecast_input_time'],utc=True,errors='coerce') if 'forecast_input_time' in hist else pd.NaT,
-                        'score':numeric_series(pd.Series(hist['storm_probability']))})
-    frame=frame.dropna(subset=['target','score']).loc[lambda f:f['score'].between(0,1)]
-    frame=frame.sort_values('target').drop_duplicates('target',keep='last').tail(count).iloc[::-1]
+    """The trained model's recent hourly outputs (newest first). 'Warning' only with a genuine record."""
+    if runs.empty:return []
     genuine={e['end'] for e in events if e['source']==warning_events.GENUINE}
     rows=[]
-    for _,row in frame.iterrows():
-        end=row['target'].tz_convert(SAST)
-        decision='Warning' if end.to_pydatetime() in genuine else 'Threshold reached' if row['score']>=threshold else 'No warning'
-        source=f"{row['input'].tz_convert(SAST):%H:%M} SAST" if pd.notna(row['input']) else 'Unknown'
-        rows.append((f'{end-pd.Timedelta(hours=1):%d %b %H:%M}–{end:%H:%M}',source,resident_view.score_text(row['score']),decision))
+    for _,row in runs.tail(count).iloc[::-1].iterrows():
+        end=row['prediction_for'].tz_convert(SAST)
+        decision='Warning' if end.to_pydatetime() in genuine else 'Threshold reached' if row['storm_probability']>=threshold else 'No warning'
+        source=f"{row['forecast_input_time'].tz_convert(SAST):%H:%M} SAST" if pd.notna(row['forecast_input_time']) else 'Unknown'
+        rows.append((f'{end-pd.Timedelta(hours=1):%d %b %H:%M}–{end:%H:%M}',source,resident_view.score_text(row['storm_probability']),decision,row['source']))
     return rows
 
 def forecast_chart() -> None:
@@ -716,7 +730,7 @@ if page=='🏠 Dashboard':
     with chart_column:six_hour_chart()
     with variables_column:st.html(resident_view.variables_html(*key_variables()))
     log_column,comms_column=st.columns([1.55,1],gap='medium')
-    with log_column:st.html(resident_view.prediction_log_html(prediction_log(events)))
+    with log_column:st.html(resident_view.prediction_log_html(prediction_log(events),runs_reachable))
     with comms_column:st.html(resident_view.communication_html(communication))
     if not genuine_active:
         st.html(resident_view.quick_actions_html(advice))
@@ -871,8 +885,9 @@ if page=='📈 Risk Analysis':
 
 if page=='🕒 Historical Data':
     st.html('<div class="section-title">Historical data <small>Saved model predictions (genuine records only)</small></div>')
-    if not hist.empty and {'prediction_for','storm_probability'}.issubset(hist.columns):
-        series=pd.DataFrame(hist[['prediction_for','storm_probability']]).copy()
+    if not runs_reachable:st.caption('The hourly worker\'s public run log could not be reached; only this dashboard\'s saved runs are shown.')
+    if not runs.empty:
+        series=pd.DataFrame(runs[['prediction_for','storm_probability']]).copy()
         series['target']=pd.to_datetime(series['prediction_for'],utc=True,errors='coerce')
         series['Probability (%)']=numeric_series(pd.Series(series['storm_probability']))*100
         series=series.dropna()
@@ -898,7 +913,7 @@ if page=='🕒 Historical Data':
             st.caption(f'{len(series)} saved hourly predictions. Lines break where hours are missing; nothing is filled in. Scroll or pinch on the chart to zoom in time, double-click to reset.')
         else:st.info('No valid recorded probabilities available.')
     else:st.info('Recorded predictions will appear after successful forecast updates.')
-    render_history(hist)
+    render_history(runs)
 
 if page=='🚨 Alerts':
     resident_alerts.render_alerts(secret,genuine_status)

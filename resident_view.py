@@ -352,23 +352,25 @@ def variables_html(tiles, caption):
 LOG_TONES = {'Warning': 'red', 'Threshold reached': 'amber', 'No warning': 'green'}
 
 
-def prediction_log_html(rows):
-    """Recent outputs of the trained model: (target hour, input hour, score text, decision) rows, newest first.
+def prediction_log_html(rows, worker_log_reachable=True):
+    """Recent outputs of the trained model: (target hour, input hour, score text, decision, source) rows, newest first.
 
-    'Warning' is used only where the public record holds a genuine warning for that hour.
+    'Warning' is used only where the public record holds a genuine warning for that hour. Source: the hourly
+    worker's public run log, or this dashboard's own saved runs.
     """
     e = lambda value: html.escape(str(value))  # noqa: E731
     if not rows:
-        body = '<tr><td colspan="4">No saved predictions yet.</td></tr>'
+        body = '<tr><td colspan="5">No saved predictions yet.</td></tr>'
     else:
         body = ''.join(f'<tr><td>{e(target)}</td><td>{e(source)}</td><td><b>{e(score)}</b></td>'
-                       f'<td><span class="log-decision tone-{LOG_TONES.get(decision, "gray")}">{e(decision)}</span></td></tr>'
-                       for target, source, score, decision in rows)
+                       f'<td><span class="log-decision tone-{LOG_TONES.get(decision, "gray")}">{e(decision)}</span></td><td>{e(origin)}</td></tr>'
+                       for target, source, score, decision, origin in rows)
     return (f'<div class="summary-card log-summary"><div class="sc-title">{icons.icon("history")} Recent predictions</div>'
             '<div class="log-wrap"><table class="pred-log"><thead><tr><th scope="col">Target hour</th><th scope="col">Forecast input</th>'
-            f'<th scope="col">Risk score</th><th scope="col">Decision</th></tr></thead><tbody>{body}</tbody></table></div>'
-            '<div class="sc-foot">Hourly runs of the trained Random Forest, from saved records only: hours without a saved run are not '
-            'listed. Risk score: model score, not a calibrated probability.</div></div>')
+            f'<th scope="col">Risk score</th><th scope="col">Decision</th><th scope="col">Recorded by</th></tr></thead><tbody>{body}</tbody></table></div>'
+            f'<div class="sc-foot">Hourly runs of the trained Random Forest, from saved records only: the hourly worker\'s public run log'
+            f'{"" if worker_log_reachable else " (unreachable just now)"} and this dashboard\'s own runs. Hours without a saved run are '
+            'not listed. Risk score: model score, not a calibrated probability.</div></div>')
 
 
 def details_html(status):
