@@ -467,59 +467,93 @@ def weather_condition(precipitation_mm, cloud_cover_percent, local_hour):
     return ('clear-night' if night else 'clear-day'), 'Clear (forecast)'
 
 
-# Original artwork (drawn for this project, no third-party image): layered hills and a river under an evening sky.
-LANDSCAPE_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice">'
-                 '<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e3a5f"/><stop offset="1" stop-color="#6d8fb3"/></linearGradient></defs>'
-                 '<rect width="1200" height="300" fill="url(#s)"/>'
-                 '<path d="M0 170 L120 110 L210 150 L330 80 L450 140 L560 95 L690 150 L820 85 L940 140 L1060 100 L1200 150 V300 H0Z" fill="#3c5a73"/>'
-                 '<path d="M0 205 L150 160 L300 195 L430 150 L600 200 L760 160 L910 205 L1060 165 L1200 195 V300 H0Z" fill="#2f5a3f"/>'
-                 '<path d="M0 240 Q300 200 600 235 T1200 225 V300 H0Z" fill="#3f7a4a"/>'
-                 '<path d="M0 285 Q250 250 520 270 T1200 262 V300 H0Z" fill="#7fb2d6" opacity=".55"/></svg>')
-LANDSCAPE_URI = 'data:image/svg+xml;base64,' + base64.b64encode(LANDSCAPE_SVG.encode()).decode()
+# Header artwork: the project's own illustrative Matatiele storm landscape (static/matatiele_storm_banner*.jpg),
+# created for the research and survey material. It is branding, not a picture of current weather.
+BANNER_IMAGE, BANNER_IMAGE_SMALL = 'app/static/matatiele_storm_banner.jpg', 'app/static/matatiele_storm_banner_small.jpg'
 
 
-def banner_html(clock, status_ok, next_refresh):
-    """Header: brand, location, and the time with the system status (online = current data) and the next refresh."""
+def refresh_text(next_refresh, now):
+    """'Next refresh in ~N min' from the scheduled time; None gives the plain schedule."""
+    if next_refresh is None:
+        return 'Refreshes every 15 min'
+    minutes = int(-(-(next_refresh - now).total_seconds() // 60))
+    return f'Next refresh in ~{minutes} min' if minutes > 0 else 'Refreshing now'
+
+
+def banner_html(clock, status_ok, refresh, last_update=None, just_updated=False):
+    """Header: brand, location, and the time with the system status and the next refresh.
+
+    status_ok: the latest forecast and model result are current (not a continuous sensor feed). When they are not,
+    the status says so and gives the last successful update.
+    """
     e = html.escape
-    chip = ('<span class="bn-chip ok"><i></i>System online</span>' if status_ok else '<span class="bn-chip stale"><i></i>Saved data (out of date)</span>')
-    return (f'<div class="banner" style="--landscape:url({LANDSCAPE_URI})"><div class="bn-brand">{icons.icon("cloud", "")}'
-            '<div><h1>Matatiele<span>Storm Early Warning System</span></h1><small>Smart · Resilient · Community focused</small></div></div>'
-            f'<div class="bn-place"><b>{icons.icon("map-pin")} Matatiele, Eastern Cape</b><span>Smart Resilient Storm Early Warning System</span>'
-            '<span>Machine-learning storm-risk assessment for safer communities</span></div>'
+    if status_ok:
+        chip = '<span class="bn-chip ok"><i></i>System online</span>'
+    else:
+        chip = f'<span class="bn-chip stale"><i></i>Saved data · last update {e(last_update or "unknown")}</span>'
+    updated = '<span class="bn-updated">Updated</span>' if just_updated else ''
+    return (f'<div class="banner{" just-updated" if just_updated else ""}" title="Illustrative artwork of Matatiele, not current weather">'
+            f'<div class="bn-brand">{icons.icon("cloud", "")}'
+            '<div><h1>Matatiele<span>Storm Early Warning System</span></h1><small>Machine-learning storm-risk assessment for safer communities</small></div></div>'
+            f'<div class="bn-place"><b>{icons.icon("map-pin")} Matatiele, Eastern Cape</b><span>Smart · Resilient · Low-connectivity</span></div>'
             f'<div class="bn-clock"><div><small>{e(clock.strftime("%a, %d %b %Y"))}</small><b>{e(clock.strftime("%H:%M"))}</b><small>SAST (UTC+2)</small></div>'
-            f'<div>{chip}<small>{e(next_refresh)}</small></div></div></div>')
+            f'<div>{chip}{updated}<small>{e(refresh)}</small></div></div></div>')
 
 
 def sidebar_card_html():
-    return (f'<div class="side-card"><img src="{LANDSCAPE_URI}" alt=""><b>Protecting Matatiele through early warnings</b>'
-            '<small>Data-driven storm-risk insights for safer communities</small></div>')
+    return ('<div class="side-card"><b>Protecting Matatiele through earlier warnings</b>'
+            '<small>Smart · resilient · low-connectivity storm early warning</small></div>')
 
 
 CHROME_CSS = """
-.banner {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) auto;gap:18px;align-items:center;padding:18px 22px;border-radius:18px;color:#fff;margin:0 0 8px;
-  background:linear-gradient(90deg,rgba(8,26,48,.94),rgba(8,26,48,.62) 48%,rgba(8,26,48,.38)),var(--landscape) center/cover}
-.bn-brand {display:flex;gap:14px;align-items:center}.bn-brand>.ico {width:54px;height:54px;color:#93c5fd}
-.banner h1 {margin:0;color:#fff;font-size:clamp(22px,2.2vw,30px);line-height:1.15;font-weight:800}.banner h1 span {display:block;font-size:.62em;font-weight:600}
-.banner small {display:block;color:#dbe8ff;font-size:12.5px}
-.bn-place b {display:flex;align-items:center;gap:6px;font-size:clamp(16px,1.6vw,22px)}.bn-place span {display:block;color:#dbe8ff;font-size:13px}
-.bn-clock {display:flex;gap:16px;align-items:center;background:#fff;color:#0b1f3a;border-radius:14px;padding:12px 16px;box-shadow:0 8px 24px #0004}
-.bn-clock b {display:block;font-size:30px;line-height:1.1}.bn-clock small {color:#4a5b70}.bn-clock>div+div {border-left:1px solid #d9e1ec;padding-left:14px}
-.bn-chip {display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:9px;font-weight:700;font-size:13px;margin-bottom:4px}
-.bn-chip i {width:10px;height:10px;border-radius:50%}.bn-chip.ok {background:#dcfce7;color:#14532d}.bn-chip.ok i {background:#16a34a}
-.bn-chip.stale {background:#fef3c7;color:#713f12}.bn-chip.stale i {background:#d97706}
-.side-card {margin-top:14px;border-radius:14px;overflow:hidden;background:#ffffff14;color:var(--sidebar-text)}.side-card img {display:block;width:100%;height:110px;object-fit:cover}
-.side-card b,.side-card small {display:block;padding:0 12px}.side-card b {padding-top:10px}.side-card small {padding-bottom:12px;color:var(--sidebar-muted)}
-.sc-title {font-size:16px!important;font-weight:800!important;text-transform:none!important;letter-spacing:0!important;color:var(--heading)!important}
-.sc-title .ico {width:22px;height:22px;color:var(--accent)}.sc-sub {display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:-4px 0 8px}
+:root {--banner-overlay:linear-gradient(90deg,rgba(13,48,110,.86),rgba(29,78,216,.55) 50%,rgba(29,78,216,.22))}
+@media (prefers-color-scheme: dark) {:root {--banner-overlay:linear-gradient(90deg,rgba(6,16,32,.92),rgba(6,16,32,.62) 50%,rgba(6,16,32,.35))}}
+.banner {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:18px;align-items:center;min-height:120px;max-height:150px;padding:14px 20px;border-radius:18px;color:#fff;margin:0 0 6px;
+  background:var(--banner-overlay),url(BANNER_IMAGE) center 62%/cover;box-sizing:border-box}
+.bn-brand {display:flex;gap:14px;align-items:center}.bn-brand>.ico {width:48px;height:48px;color:#bfdbfe}
+.banner h1 {margin:0;color:#fff;font-size:clamp(21px,2.1vw,28px);line-height:1.12;font-weight:800;text-shadow:0 1px 3px #0006}.banner h1 span {display:block;font-size:.64em;font-weight:600}
+.banner small {display:block;color:#e2ecff;font-size:12.5px;text-shadow:0 1px 2px #0006}
+.bn-place b {display:flex;align-items:center;gap:6px;font-size:clamp(15px,1.5vw,20px);text-shadow:0 1px 3px #0006}.bn-place span {display:block;color:#e2ecff;font-size:13px}
+.bn-clock {display:flex;gap:14px;align-items:center;background:#fff;color:#0b1f3a;border-radius:14px;padding:10px 14px;box-shadow:0 8px 24px #0004}
+.bn-clock b {display:block;font-size:28px;line-height:1.1}.bn-clock small {color:#4a5b70;text-shadow:none}.bn-clock>div+div {border-left:1px solid #d9e1ec;padding-left:12px}
+.bn-chip {display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9px;font-weight:700;font-size:13px;margin-bottom:3px}
+.bn-chip i {width:10px;height:10px;border-radius:50%}.bn-chip.ok {background:#dcfce7;color:#14532d}.bn-chip.ok i {background:#16a34a;animation:pulse 2.4s ease-out infinite}
+.bn-chip.stale {background:#fef3c7;color:#713f12}.bn-chip.stale i {background:#d97706}.chip.stale .dot {animation:none}
+.bn-updated {display:inline-block;margin-left:6px;padding:2px 8px;border-radius:8px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:700;animation:fadeout 6s ease-out forwards}
+.just-updated ~ * .summary-grid,.summary-grid.just-updated {animation:glow 2.4s ease-out 1}
+@keyframes glow {0%{box-shadow:0 0 0 0 #16a34a66;border-radius:16px}100%{box-shadow:0 0 0 14px #16a34a00}}
+@keyframes fadeout {0%,70%{opacity:1}100%{opacity:0}}
+.side-card {margin-top:12px;border-radius:12px;padding:10px 12px;background:#ffffff14;color:var(--sidebar-text)}
+.side-card b {display:block;font-size:13.5px}.side-card small {display:block;color:var(--sidebar-muted);font-size:12px}
+.sc-title {font-size:16px!important;font-weight:800!important;text-transform:none!important;letter-spacing:0!important;color:var(--heading)!important;margin-bottom:2px!important}
+.sc-title .ico {width:22px;height:22px;color:var(--accent)}.sc-sub {display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:0 0 6px}
+.summary-card {padding:11px 13px!important}.risk-dial {max-width:270px!important}.risk-note,.risk-meta {margin-top:4px!important}
 .wx-summary {background:var(--card)!important;color:var(--text)!important;border:1px solid var(--card-border)!important}
 .wx-summary .sc-title,.wx-summary .sc-foot {color:var(--muted)}.wx-summary .sc-value {color:var(--heading)!important}
 .wx-stats span {background:var(--accent-soft)!important}.wx-stats b {color:var(--heading)!important}.wx-stats small {color:var(--muted)!important}.wx-stats .ico {color:var(--accent)!important}
-.chart-legend {display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin:0 0 4px}.chart-legend i {display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.chart-legend {display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted);margin:0 0 4px}.chart-legend i {display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.chart-legend .dash {height:0;border-top:3px dashed #d93449;border-radius:0}.chart-legend b {color:var(--heading);font-weight:700}
+.advice-grid.compact {grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}.advice-grid.compact .advice-card {padding:10px!important}
+.advice-grid.compact .advice-card p {font-size:12.5px;margin:4px 0 0}.advice-card {padding:12px 14px!important}
 body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {display:none}  /* the open side menu has every section */
-@media (max-width:1100px) {.banner {grid-template-columns:1fr auto}.bn-place {display:none}}
-@media (max-width:640px) {.banner {grid-template-columns:1fr;padding:12px 14px;gap:10px}.bn-brand small {display:none}.bn-brand>.ico {width:38px;height:38px}
-  .bn-clock {padding:8px 12px}.bn-clock b {font-size:20px}.status-strip .chip:nth-child(2) {display:none}}
-"""
+@media (max-width:1100px) {.banner {grid-template-columns:1fr auto}.bn-place {display:none}.advice-grid.compact {grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media (max-width:640px) {
+  .banner {grid-template-columns:1fr;min-height:0;max-height:none;padding:10px 12px;gap:8px;background:var(--banner-overlay),url(BANNER_IMAGE_SMALL) center 62%/cover}
+  .banner h1 {font-size:19px}.bn-brand small {display:none}.bn-brand>.ico {width:32px;height:32px}
+  .bn-clock {padding:6px 10px;gap:10px}.bn-clock b {font-size:18px}.bn-clock small {font-size:11px}.bn-chip {font-size:12px;padding:2px 8px}
+  .status-strip {display:none}  /* the banner already shows the system status */
+  .st-key-top_nav_bar button {padding:6px 8px!important;font-size:13px!important;min-height:36px!important}.st-key-top_nav_bar [data-testid=stButtonGroup] > div {gap:2px!important;flex-wrap:nowrap!important}
+  .decision-summary .sc-sub,.risk-summary .sc-sub {display:none}
+  .summary-card {padding:9px 11px!important}.risk-dial {max-width:190px!important}.risk-value {font-size:38px!important}
+  .decision-badge {padding:9px 12px!important;font-size:15px!important;margin:2px 0 6px!important}.decision-summary .sc-foot {display:none}
+  .wx-now img {width:46px;height:46px}.sc-value {font-size:26px!important}.period-row {margin:4px 0!important}
+  .comm-tile {padding:6px 8px!important}.var-grid {gap:8px 12px!important}.var-tile b {font-size:16px!important}
+  .advice-grid.compact {grid-template-columns:repeat(2,minmax(0,1fr))!important}.advice-card {padding:10px 12px!important}
+  .st-key-home_actions [data-testid=stHorizontalBlock] {flex-wrap:wrap!important;gap:8px!important}
+  .st-key-home_actions [data-testid=stColumn] {flex:1 1 calc(50% - 8px)!important;min-width:calc(50% - 8px)!important;width:calc(50% - 8px)!important}
+}
+@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.bn-updated,.summary-grid.just-updated {animation:none!important}}
+""".replace('BANNER_IMAGE_SMALL', BANNER_IMAGE_SMALL).replace('BANNER_IMAGE', BANNER_IMAGE)
 
 
 def status_strip(stale, updated, simulated, refresh_minutes=15):
@@ -595,7 +629,7 @@ def theme_css(mode):
     so every page (and the officials' portal) follows the visitor's choice rather than the device setting."""
     switch = '@media all' if mode == 'dark' else '@media not all'
     tones = ''.join(f'.resident-card.tone-{tone}{{--m:url("{icons._uri(name)}")}}' for tone, name in TONE_ICONS.items())
-    return CSS.replace('@media (prefers-color-scheme: dark)', switch) + CHROME_CSS + icons.CSS + tones
+    return (CSS + CHROME_CSS).replace('@media (prefers-color-scheme: dark)', switch) + icons.CSS + tones
 
 
 def style_chart(chart, mode):

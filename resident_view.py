@@ -289,7 +289,7 @@ def warning_state(status, record):
     return 'NO WARNING TRIGGERED', 'green', 'check-circle', detail
 
 
-def summary_html(status, probability, weather, record):
+def summary_html(status, probability, weather, record, just_updated=False):
     """Homepage row 1: forecast weather, model storm-risk gauge, prediction period and warning decision.
 
     weather: display strings (temperature, rain, wind, gust, source) plus an 'icon' <img>; record: see warning_state.
@@ -304,9 +304,9 @@ def summary_html(status, probability, weather, record):
     risk_card = (f'<div class="summary-card risk-summary tone-{e(tone)}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div><span class="sc-sub">(Next hour, Random Forest)</span>'
                  f'<div class="risk-dial">{gauge_svg(score, tone)}<div class="risk-value">{e(value)}</div></div>'
                  f'<div class="risk-badge-row"><span class="risk-pill tone-{e(tone)}">{e(badge)}</span></div>'
-                 f'<div class="risk-note">{e(SCORE_NOTE)}</div>'
-                 f'<div class="risk-meta"><span>{icons.icon("clock")} For {e(status["period"])}</span><span>Updated {e(status["updated"])}</span></div>'
-                 f'<div class="risk-caveat">{e(status["estimate"]) + " · " if status["stale"] or status["simulated"] else ""}Not a guarantee: storms can still develop.</div></div>')
+                 f'<div class="risk-note"><b>{THRESHOLD:.0%} warning threshold</b></div>'
+                 f'<div class="risk-meta"><span>{icons.icon("clock")} {e(status["period"])} · Updated {e(status["updated"].split()[-2] if status["updated"] != "Unknown" else "unknown")}</span></div>'
+                 f'<div class="risk-caveat">{e(status["estimate"]) + " · " if status["stale"] or status["simulated"] else ""}{e(SCORE_NOTE)}; not a guarantee.</div></div>')
     title, decision_tone, icon, detail = warning_state(status, record)
     decision_card = (f'<div class="summary-card decision-summary"><div class="sc-title">{icons.icon("scale")} Warning decision</div><span class="sc-sub">(35% threshold)</span>'
                      f'<div class="decision-badge tone-{decision_tone}">{icons.icon(icon)}<b>{e(title)}</b></div>'
@@ -327,7 +327,7 @@ def summary_html(status, probability, weather, record):
                    f'<div class="period-row">{icons.icon("calendar")}<span><small>Target hour</small><b>{e(status["period"])}</b></span></div>'
                    f'<div class="period-row">{icons.icon("clock")}<span><small>Model updated</small><b>{e(status["updated"])}</b></span></div>'
                    f'{fresh}</div>')
-    return f'<div class="summary-grid">{risk_card}{decision_card}{period_card}{weather_card}</div>'
+    return f'<div class="summary-grid{" just-updated" if just_updated else ""}">{risk_card}{decision_card}{period_card}{weather_card}</div>'
 
 
 OUTLOOK_NOTE = ('Hours 2 to 12 ahead: the same model applied to the ECMWF forecast for those hours. It was evaluated one hour '
@@ -406,9 +406,10 @@ def quick_actions_html(advice):
     return f'<div class="quick-actions"><div class="resident-action">{e(advice["action"])}</div><div class="action-chips">{chips}</div></div>'
 
 
-def advice_cards_html(advice, title):
-    """Safety advice as icon cards (one per topic) under a short heading."""
+def advice_cards_html(advice, title, compact=False):
+    """Safety advice as icon cards (one per topic) under a short heading; compact: small tiles."""
     e = lambda value: html.escape(str(value))  # noqa: E731
     cards = ''.join(f'<div class="advice-card"><div class="advice-icon">{icons.icon(TOPIC_ICONS[topic])}</div><b>{e(topic)}</b><p>{e(text)}</p></div>'
                     for topic, text in advice['items'])
-    return f'<div class="advice-block"><div class="resident-action">{e(title)}</div><div class="advice-grid">{cards}</div></div>'
+    grid = 'advice-grid compact' if compact else 'advice-grid'
+    return f'<div class="advice-block"><div class="resident-action">{e(title)}</div><div class="{grid}">{cards}</div></div>'

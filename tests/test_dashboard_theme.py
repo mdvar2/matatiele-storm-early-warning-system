@@ -280,7 +280,7 @@ class RedesignedDashboard(rd.DashboardHarness):
         about = self.html(self.go(at, 'About'))
         self.assertEqual(about.count('<li><b>'), 9 + 4 + 2)  # nine model steps, four low-connectivity points, two phases
         about += ' '.join(m.value for m in at.markdown)
-        for phrase in ('RO3:', 'Simulated / controlled test', 'Future work', 'not an official weather warning service',
+        for phrase in ('RO3:', 'Implemented as simulation', 'Exploratory, unvalidated', 'Future / deployment-dependent', 'not an official weather warning service',
                        'Follow official warnings and local emergency guidance', 'weathersa.co.za'):
             self.assertIn(phrase, about)
         for phrase in ('ERA5', '300 decision trees', 'does not produce weather forecasts', 'does not run offline', 'not implemented'):

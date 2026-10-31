@@ -296,7 +296,7 @@ class VisualHomepage(unittest.TestCase):
         self.assertIn('Model-estimated storm risk', page)  # shown in capitals by the card-title style
         self.assertIn('Model risk score — not a calibrated probability', page)
         self.assertNotIn('chance of a storm', page)
-        self.assertIn('Not a guarantee', page)
+        self.assertIn('not a guarantee', page)
 
     def test_mobile_layout_puts_the_risk_score_and_decision_first(self):
         import dashboard_theme

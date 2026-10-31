@@ -224,7 +224,7 @@ class HomeOutlookAndOfflineStatus(DashboardHarness):
         at.toggle(key='demo_offline').set_value(True).run()            # demonstration outage for this session
         data = self.status_file()
         self.assertEqual((data['risk_score'], data['risk_level']), ('5%', 'LOW RISK'))  # neither reaches the shared file
-        self.assertIn('Offline page', self.html(self.app().run()))
+        self.assertIn('Offline access', self.html(self.app().run()))
 
 
 class ReferenceLayout(DashboardHarness):
@@ -234,11 +234,11 @@ class ReferenceLayout(DashboardHarness):
         self.assertIn('class="banner"', page)
         self.assertIn('Matatiele, Eastern Cape', page)
         self.assertIn('System online', page)
-        self.assertIn('Next refresh: about', page)
-        self.assertIn('Protecting Matatiele through early warnings', page)  # sidebar card
+        self.assertIn('Next refresh in ~', page)
+        self.assertIn('Protecting Matatiele through earlier warnings', page)  # sidebar card
         self.write_prediction(.05, fresh=False)
         stale = self.html(self.app(inference_ok=False).run())
-        self.assertIn('Saved data (out of date)', stale)
+        self.assertIn('Saved data · last update', stale)
         self.assertNotIn('System online', stale)
 
     def test_risk_line_appears_only_with_genuine_outlook_scores(self):
@@ -248,4 +248,26 @@ class ReferenceLayout(DashboardHarness):
         charts = [c.proto.spec for c in at.get('vega_lite_chart')]
         self.assertFalse(any('Storm-risk score (%)' in spec and '"mark": {"type": "line", "color": "#d93449"' in spec for spec in charts))
         self.assertIn('body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {display:none}', dashboard_theme.CHROME_CSS)  # top bar only when the side menu is closed
-        self.assertIn('Original artwork', (ROOT / 'dashboard_theme.py').read_text(encoding='utf-8'))  # no third-party image
+        self.assertIn('app/static/matatiele_storm_banner.jpg', dashboard_theme.CHROME_CSS)  # the supplied artwork, served from ./static
+        self.assertIn('app/static/matatiele_storm_banner_small.jpg', dashboard_theme.CHROME_CSS)  # a smaller file for phones
+        self.assertTrue((ROOT / 'static' / 'matatiele_storm_banner.jpg').stat().st_size < 200_000)
+        self.assertIn('Illustrative artwork of Matatiele, not current weather', dashboard_theme.banner_html(
+            __import__('datetime').datetime(2026, 11, 1, 9, 15), True, 'Next refresh in ~12 min'))
+
+
+class LiveStateChrome(unittest.TestCase):
+    def test_countdown_status_and_motion(self):
+        import dashboard_theme as t
+        from datetime import datetime
+        now = datetime(2026, 11, 1, 9, 15)
+        self.assertEqual(t.refresh_text(datetime(2026, 11, 1, 9, 27), now), 'Next refresh in ~12 min')
+        self.assertEqual(t.refresh_text(datetime(2026, 11, 1, 9, 10), now), 'Refreshing now')
+        self.assertEqual(t.refresh_text(None, now), 'Refreshes every 15 min')
+        fresh, stale = t.banner_html(now, True, 'x'), t.banner_html(now, False, 'x', '01 Nov 08:00 SAST')
+        self.assertIn('bn-chip ok', fresh); self.assertNotIn('Saved data', fresh)
+        self.assertIn('bn-chip stale', stale); self.assertIn('last update 01 Nov 08:00 SAST', stale); self.assertNotIn('System online', stale)
+        self.assertIn('.bn-chip.ok i {background:#16a34a;animation:pulse', t.CHROME_CSS)       # pulse only when current
+        self.assertNotIn('.bn-chip.stale i {background:#d97706;animation', t.CHROME_CSS)
+        self.assertIn('.chip.stale .dot {animation:none}', t.CHROME_CSS)
+        self.assertIn('@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.bn-updated,.summary-grid.just-updated {animation:none!important}}', t.CHROME_CSS)
+        self.assertIn('class="bn-updated">Updated', t.banner_html(now, True, 'x', just_updated=True))

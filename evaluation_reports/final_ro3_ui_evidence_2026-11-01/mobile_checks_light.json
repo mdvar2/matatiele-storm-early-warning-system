@@ -1,0 +1,28 @@
+{
+ "390_home": {
+  "no_overflow": true,
+  "banner_height": 130,
+  "risk_value_bottom": 502,
+  "decision_bottom": 720,
+  "viewport": 800,
+  "risk_visible": true,
+  "decision_visible": true,
+  "pulse_animation": "pulse",
+  "status": "Sun, 01 Nov 2026 01:15 SAST (UTC+2) System online Next refresh in ~14 min"
+ },
+ "390_reduced_motion_pulse": "none",
+ "390_offline": "No connection: showing the last saved information. Saved 01 Nov 2026 01:00 SAST.",
+ "360_home": {
+  "no_overflow": true,
+  "banner_height": 130,
+  "risk_value_bottom": 502,
+  "decision_bottom": 739,
+  "viewport": 800,
+  "risk_visible": true,
+  "decision_visible": true,
+  "pulse_animation": "pulse",
+  "status": "Sun, 01 Nov 2026 01:16 SAST (UTC+2) System online Next refresh in ~13 min"
+ },
+ "360_reduced_motion_pulse": "none",
+ "360_offline": "No connection: showing the last saved information. Saved 01 Nov 2026 01:00 SAST."
+}

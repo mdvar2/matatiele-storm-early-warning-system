@@ -303,7 +303,7 @@ class DashboardApp(DashboardHarness):
         page = self.html(at)
         self.assertNotIn('class="kpi', page)  # technical status cards live in About, not on Home
         self.assertIn('LOW RISK', page)
-        self.assertIn('Not a guarantee', page)
+        self.assertIn('not a guarantee', page)
         self.assertIn('Model risk score — not a calibrated probability', page)
         self.assertNotIn('chance of a storm', page)
         self.assertIn('Be prepared', page)

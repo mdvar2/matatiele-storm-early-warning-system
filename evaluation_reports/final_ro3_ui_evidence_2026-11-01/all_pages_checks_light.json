@@ -1,0 +1,38 @@
+{
+ "1440_home": {
+  "no_overflow": true,
+  "saws_button": false
+ },
+ "1440_Forecast_no_overflow": true,
+ "1440_Map_no_overflow": true,
+ "1440_Safety_no_overflow": true,
+ "1440_Alerts_no_overflow": true,
+ "1440_Risk Analysis_no_overflow": true,
+ "1440_Historical Data_no_overflow": true,
+ "1440_About_no_overflow": true,
+ "1440_text_no_overflow": true,
+ "820_home": {
+  "no_overflow": true,
+  "saws_button": false
+ },
+ "820_Forecast_no_overflow": true,
+ "820_Map_no_overflow": true,
+ "820_Safety_no_overflow": true,
+ "820_Alerts_no_overflow": true,
+ "820_Risk Analysis_no_overflow": true,
+ "820_Historical Data_no_overflow": true,
+ "820_About_no_overflow": true,
+ "820_text_no_overflow": true,
+ "390_home": {
+  "no_overflow": true,
+  "saws_button": false
+ },
+ "390_Forecast_no_overflow": true,
+ "390_Map_no_overflow": true,
+ "390_Safety_no_overflow": true,
+ "390_Alerts_no_overflow": true,
+ "390_Risk Analysis_no_overflow": true,
+ "390_Historical Data_no_overflow": true,
+ "390_About_no_overflow": true,
+ "390_text_no_overflow": true
+}

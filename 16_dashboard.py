@@ -429,8 +429,9 @@ def render_history(hist: pd.DataFrame) -> None:
         if 'source' in display:display['Source']=display['source'];cols.append('Source')
         for field,label in [('precipitation_mm','Precipitation (mm)'),('temperature_c','Temperature (°C)'),('wind_gust_ms','Wind gust (m/s)')]:
             if field in display:display[label]=numeric_series(pd.Series(display[field])).round(2);cols.append(label)
-        st.html(dashboard_theme.table_html(display[cols],bars={'Probability (%)':100},caption='Saved model predictions'))
-        st.caption('Only genuine saved model predictions are included; demonstration values are excluded.')
+        with st.expander(f'Saved predictions table (latest {len(display)})',expanded=False):
+            st.html(dashboard_theme.table_html(display[cols],bars={'Probability (%)':100},caption='Saved model predictions'))
+            st.caption('Only genuine saved model predictions are included; demonstration values are excluded.')
     else:st.info('Prediction history will appear after multiple successful updates.')
 
 
@@ -581,10 +582,14 @@ if text_view:
     st.markdown(resident_view.text_only_page(resident,advice))
     st.caption('Low-data text version. [Open the full dashboard](?)')
     st.stop()
-if not text_view:
-    next_refresh=f'Next refresh: about {state.last_attempt+timedelta(minutes=15):%H:%M}' if state.last_attempt else 'Refreshes every 15 minutes'
-    banner_slot.html(dashboard_theme.banner_html(datetime.now(SAST),not stale,next_refresh))
 updated_label=(generated_time or retrieved_time).strftime('%d %b %H:%M SAST') if (generated_time or retrieved_time) is not None else None
+# A newer genuine result than this session last showed: a brief "Updated" signal (never on first load).
+seen=st.session_state.get('seen_update')
+just_updated=bool(seen and updated_label and seen!=updated_label and not stale)
+st.session_state.seen_update=updated_label
+if not text_view:
+    refresh=dashboard_theme.refresh_text(state.last_attempt+timedelta(minutes=15) if state.last_attempt else None,datetime.now(SAST))
+    banner_slot.html(dashboard_theme.banner_html(datetime.now(SAST),not stale,refresh,updated_label,just_updated))
 st.html(dashboard_theme.status_strip(stale,updated_label,simulated))
 
 if stale:
@@ -611,7 +616,7 @@ def outlook_card() -> None:
     later=[r for r in rows if r['lead_hours']>=2]
     hit=storm_outlook.first_exceedance(rows)
     with st.container(border=True,key='outlook_card'):
-        st.html('<div class="section-title">Storm-risk outlook <small>Next 12 hours · model outlook, unvalidated beyond one hour</small></div>')
+        st.html('<div class="section-title">Storm-risk outlook <small>Next 12 hours · Model outlook — unvalidated beyond one hour</small></div>')
         if not (available and later):
             st.html(resident_view.outlook_badge_html('unavailable'));return
         if hit:
@@ -627,7 +632,7 @@ def outlook_card() -> None:
             color=alt.Color('Level:N',scale=alt.Scale(domain=['Below 35%','At or above 35%'],range=['#2563eb','#d93449']),legend=alt.Legend(title=None,orient='top')),
             tooltip=['Hour starting (SAST)','Risk score (%)'])
         rule=alt.Chart(pd.DataFrame({'t':[35]})).mark_rule(color='#d93449',strokeDash=[6,4]).encode(y='t:Q')
-        st.altair_chart(dashboard_theme.style_chart((bars+rule).properties(height=200),theme_mode),width='stretch',theme=None)
+        st.altair_chart(dashboard_theme.style_chart((bars+rule).properties(height=170),theme_mode),width='stretch',theme=None)
         st.caption(resident_view.OUTLOOK_NOTE)
 
 def warning_record(events: list, error: str | None) -> dict:
@@ -664,14 +669,14 @@ def six_hour_chart() -> None:
     weather=alt.layer(rain,wind)
     layers=[weather]
     if data['Storm-risk score (%)'].notna().any():
-        risk=alt.Chart(data.dropna(subset=['Storm-risk score (%)'])).mark_line(color='#d93449',strokeWidth=3,point=alt.OverlayMarkDef(size=50,color='#d93449')).encode(
+        risk=alt.Chart(data.dropna(subset=['Storm-risk score (%)'])).mark_line(color='#d93449',strokeWidth=3,strokeDash=[7,4],point=alt.OverlayMarkDef(size=50,color='#d93449',shape='diamond')).encode(
             x=x,y=alt.Y('Storm-risk score (%):Q',title='Storm-risk score (%)',scale=alt.Scale(domain=[0,100])),tooltip=tip)
         layers=[risk,weather]
     chart=alt.layer(*layers).resolve_scale(y='independent') if len(layers)>1 else weather
     with st.container(border=True,key='six_hour_chart'):
-        st.html('<div class="chart-legend"><span><i style="background:#2f80ed"></i>Rain (mm, ECMWF)</span><span><i style="background:#64748b"></i>Wind (m/s, ECMWF)</span>'
-                '<span><i style="background:#d93449"></i>Storm-risk score (%, model outlook)</span></div>')
-        st.altair_chart(dashboard_theme.style_chart(chart.properties(height=240),theme_mode),width='stretch',theme=None)
+        st.html('<div class="chart-legend"><b>ECMWF forecast:</b><span><i style="background:#2f80ed"></i>Rain (mm)</span><span><i style="background:#64748b"></i>Wind (m/s)</span>'
+                '<b>Random Forest outlook:</b><span><i class="dash"></i>Storm-risk score (%, unvalidated beyond 1 h)</span></div>')
+        st.altair_chart(dashboard_theme.style_chart(chart.properties(height=200),theme_mode),width='stretch',theme=None)
         st.caption('Rain and wind: ECMWF forecasts. Risk: the model applied to each forecast hour; beyond one hour ahead it is unvalidated.')
 
 def key_variables() -> tuple[list, str]:
@@ -826,14 +831,16 @@ PHASES=[
     ('Operation (every hour).','The system retrieves the latest ECMWF forecast, the saved model estimates next-hour storm risk for Matatiele, the 35% rule decides whether to warn, and warnings are recorded and shown; SMS is optional.'),
 ]
 RO3_STATUS=[
-    ('Storm early warning','Implemented','Hourly ECMWF forecast, Random Forest estimate, 35% decision, public warning record, Alerts page'),
-    ('Smart (machine learning)','Implemented','Random Forest trained on ERA5; evaluation and threshold comparison on Risk Analysis'),
-    ('Resilient','Implemented, partly','Scheduled worker independent of the dashboard; duplicate prevention; out-of-date data flagged and never used to warn; last known information shown with a warning'),
-    ('Low connectivity','Implemented, partly','Low-data text view, low-data map, SMS to basic phones; the system itself still needs Internet access'),
-    ('SMS warnings','Simulated / controlled test','Simulation mode and trial-account test only; public SMS registration is not active'),
-    ('Offline operation, sensors, LoRa or MQTT links','Future work','Not implemented'),
+    ('Smart: Random Forest storm-risk assessment','Implemented','ECMWF forecast inputs, the trained Random Forest (29 inputs), model-estimated risk score; evidence on Risk Analysis'),
+    ('Early warning: 35% threshold decision','Implemented','Warning decision, public warning record, Alerts page'),
+    ('Resilient: degraded operation','Implemented','Fresh or out-of-date status, last-known information, offline saved-information page, warning records kept if SMS fails'),
+    ('Low connectivity: dashboard alerts, low-data view, offline page','Implemented','Plain-text view; offline page keeps the last warning, advice and emergency numbers'),
+    ('Low connectivity: SMS and community relays','Implemented as simulation','SMS simulation and controlled test; relay role and announcement scripts (not field-tested with relays)'),
+    ('Early: 2 to 12 hour storm-risk outlook','Exploratory, unvalidated','Same model on later forecast hours; evaluated one hour ahead only'),
+    ('Public SMS, sensors, LoRa, sirens, Cell Broadcast, field validation','Future / deployment-dependent','Not implemented'),
 ]
 
+OFFLINE_PAGE='app/static/offline.html'
 HISTORY_RANGES=('Last 24 hours','Last 7 days','All saved')
 
 def more_safety_advice() -> None:
@@ -859,14 +866,16 @@ if page=='🏠 Dashboard':
     genuine_active=[e for e in active_events if e['source']==warning_events.GENUINE]
     if genuine_active:  # a genuine warning is in effect: the act-now advice comes straight after the warning
         st.html(resident_view.quick_actions_html(resident_view.guidance('WARNING')))
-    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error)))
+    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error),just_updated))
     with st.container(key='home_actions'):
-        actions=st.columns(4,gap='small')
+        actions=st.columns(5,gap='small')
         actions[0].button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
         actions[1].button('Safety advice',key='home_safety',on_click=more_safety_advice,icon=':material/health_and_safety:',width='stretch')
         actions[2].button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
         actions[3].button('SMS service',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch',
                           help='SMS warning service: research prototype. Public SMS delivery is not active.')
+        actions[4].link_button('Offline access',OFFLINE_PAGE,icon=':material/wifi_off:',width='stretch',
+                               help='Open once while you have signal: your phone keeps the last warning, safety advice and emergency numbers for when the network is down. It cannot receive new warnings offline.')
     outlook_column,chart_column=st.columns([1,1.35],gap='medium')
     with outlook_column:outlook_card()
     with chart_column:six_hour_chart()
@@ -876,16 +885,16 @@ if page=='🏠 Dashboard':
     with comms_column:st.html(resident_view.communication_html(communication))
     if not genuine_active:
         st.html(resident_view.quick_actions_html(advice))
-    st.html('<div class="lowdata-link"><a href="?view=text">Low-data view</a>: the same essentials as plain text. · '
-            '<a href="app/static/offline.html" target="_blank" rel="noopener">Offline page</a>: open it once while you have signal; '
-            'your phone keeps the last warning, safety advice and emergency numbers for when the network is down.</div>')
+    st.html('<div class="lowdata-link">Low connectivity: <a href="?view=text">Low-data view</a> (plain text) · '
+            f'<a href="{OFFLINE_PAGE}" target="_blank" rel="noopener">Offline access</a> (open once with signal; keeps the last '
+            'warning, safety advice and emergency numbers for when the network is down).</div>')
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
 
 if page=='🛟 Safety Advice':
     st.html('<div class="section-title">Safety advice <small>Before a storm, and when a storm is close</small></div>')
-    st.html(resident_view.advice_cards_html(resident_view.guidance('LOW'),'Be prepared'))
+    st.html(resident_view.advice_cards_html(resident_view.guidance('LOW'),'Be prepared',compact=True))
     st.caption('Full advice for when a storm is close:')
     st.html(resident_view.advice_cards_html(resident_view.guidance('WARNING'),'Act now'))
     st.caption(resident_view.OFFICIAL_NOTE)

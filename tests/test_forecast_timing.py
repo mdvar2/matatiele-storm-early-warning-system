@@ -122,7 +122,7 @@ class ForecastTimingTests(unittest.TestCase):
         tree = ast.parse((ROOT/'16_dashboard.py').read_text(encoding='utf-8'))
         names = {'numeric_series','risk','render_history'}
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in names]
-        st = Mock()
+        st = MagicMock()  # supports `with st.expander(...)`
         captured = {}
         theme = SimpleNamespace(table_html=lambda frame, **kw: captured.setdefault('frame', frame) is None or '')
         namespace = dict(pd=pd, math=math, st=st, SAST=SAST, timestamp_labels=timestamp_labels, dashboard_theme=theme,
