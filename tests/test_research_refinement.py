@@ -164,10 +164,10 @@ class FinalRefinements(DashboardHarness):
         for number in ('10111', '10177', '112'):
             self.assertIn(f'href="tel:{number}"', page)
         self.assertIn(emergency_contacts.NOTE, page)
-        self.assertEqual(len(at.get('iframe')), 1)  # the scroll-to-contacts helper ran once
+        self.assertEqual(len(at.get('iframe')), 2)  # the header clock, and the scroll-to-contacts helper (once)
         self.assertNotIn('scroll_to_contacts', at.session_state)
         self.go(at, 'Dashboard'); self.go(at, 'Safety Advice')
-        self.assertEqual(len(at.get('iframe')), 0)  # opening Safety normally does not jump down
+        self.assertEqual(len(at.get('iframe')), 1)  # only the header clock: opening Safety normally does not jump down
 
     def test_low_data_view_lists_emergency_numbers_as_plain_text(self):
         self.write_prediction(.05)
@@ -279,9 +279,13 @@ class VisualHomepage(unittest.TestCase):
         import re
         html = rv.gauge_svg(.27, 'amber')
         svg = base64.b64decode(re.search(r'base64,([^"]+)"', html).group(1)).decode()
-        self.assertIn('stroke-dasharray="27.0 1000"', svg)  # filled to exactly the model score
-        zero = base64.b64decode(re.search(r'base64,([^"]+)"', rv.gauge_svg(0, 'green')).group(1)).decode()
-        self.assertEqual(zero.count('<path'), 1)  # a zero score draws only the empty track
+        gauge = rv.gauge_html(.27, 'amber')
+        self.assertIn('style="--to:0.2700;--from:0.2700;', gauge)  # filled to exactly the model score
+        self.assertNotIn('animate', gauge)                        # no movement without a previous, different score
+        self.assertNotIn('animate', rv.gauge_html(.27, 'amber', previous=.27))
+        moved = rv.gauge_html(.27, 'amber', previous=.10)
+        self.assertIn('risk-arc animate', moved); self.assertIn('--from:0.1000', moved)  # sweeps from the shown score
+        self.assertIn('--to:0.0000', rv.gauge_html(0, 'green'))
         self.assertIn('>35%</text>', svg)
         angle = math.pi * (1 - .35)
         x1 = 110 + 71 * math.cos(angle)

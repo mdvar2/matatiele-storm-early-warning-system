@@ -79,7 +79,7 @@ flowchart TD
   F --> V{Forecast complete<br/>and current?}
   V -- no --> X[Record failure; no warning;<br/>heartbeat alerts maintainers] --> E([End])
   V -- yes --> P[Build 29 live-compatible features;<br/>CAPE normalisation checks]
-  P --> M[Random Forest: next-hour storm probability]
+  P --> M[Random Forest: next-hour model risk score]
   M --> C{Probability at least 35%?}
   C -- no --> N[Record run: below threshold] --> E
   C -- yes --> L{Hour already reserved<br/>in public ledger?}

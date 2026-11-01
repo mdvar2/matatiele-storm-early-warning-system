@@ -367,7 +367,7 @@ class DashboardApp(DashboardHarness):
         self.write_prediction(.05)
         at = self.app().run()
         page = self.html(at)
-        self.assertIn('Fri, 30 Oct 2026</small><b>10:20</b>', page)  # the banner clock
+        self.assertIn('Fri, 30 Oct 2026</small><b class="bn-time">10:20<span class="bn-sec">:00</span></b>', page)  # the banner clock
         self.assertIn('30 Oct 11:00 - 12:00 (SAST)', self.html(at))
 
     def test_settings_are_test_only(self):

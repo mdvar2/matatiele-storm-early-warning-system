@@ -210,7 +210,7 @@ def render_alerts(getter, status, log_rows=None, early=None):
         for event in active:
             _event_row(event, True)
     else:
-        st.html(f'<div class="warn-card"><div class="warn-top"><b>{icons.icon("check-circle")} No severe weather warning issued by this research system</b></div></div>')
+        st.html(f'<div class="warn-card"><div class="warn-top"><b>{icons.icon("check-circle")} No storm warning issued by this research system</b></div></div>')
     past = [e for e in events if not we.is_active(e, now)]
     st.markdown('**Past warnings**')
     if past:

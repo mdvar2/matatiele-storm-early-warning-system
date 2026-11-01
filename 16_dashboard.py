@@ -419,10 +419,10 @@ def render_history(hist: pd.DataFrame) -> None:
         display['prediction_for']=pd.to_datetime(display['prediction_for'],utc=True,errors='coerce')
         display=display.dropna(subset=['prediction_for']).sort_values('prediction_for',ascending=False).head(15)
         display[TARGET_LABEL]=display['prediction_for'].dt.tz_convert(SAST).dt.strftime('%d %b %H:%M')
-        if 'storm_probability' in display:display['Probability (%)']=(numeric_series(pd.Series(display['storm_probability']))*100).round(1)
+        if 'storm_probability' in display:display['Risk score (%)']=(numeric_series(pd.Series(display['storm_probability']))*100).round(1)
         display[GENERATED_LABEL]=[timestamp_labels({'prediction_generated_at':row.get('prediction_generated_at')})[GENERATED_LABEL] for _,row in display.iterrows()]
         cols=[TARGET_LABEL,GENERATED_LABEL]
-        if 'Probability (%)' in display:cols.append('Probability (%)')
+        if 'Risk score (%)' in display:cols.append('Risk score (%)')
         if 'storm_probability' in display:
             display['Risk']=numeric_series(pd.Series(display['storm_probability'])).apply(lambda v:risk(float(v),threshold)[0])
             cols.append('Risk')
@@ -430,7 +430,7 @@ def render_history(hist: pd.DataFrame) -> None:
         for field,label in [('precipitation_mm','Precipitation (mm)'),('temperature_c','Temperature (°C)'),('wind_gust_ms','Wind gust (m/s)')]:
             if field in display:display[label]=numeric_series(pd.Series(display[field])).round(2);cols.append(label)
         with st.expander(f'Saved predictions table (latest {len(display)})',expanded=False):
-            st.html(dashboard_theme.table_html(display[cols],bars={'Probability (%)':100},caption='Saved model predictions'))
+            st.html(dashboard_theme.table_html(display[cols],bars={'Risk score (%)':100},caption='Saved model risk scores'))
             st.caption('Only genuine saved model predictions are included; demonstration values are excluded.')
     else:st.info('Prediction history will appear after multiple successful updates.')
 
@@ -583,13 +583,19 @@ if text_view:
     st.caption('Low-data text version. [Open the full dashboard](?)')
     st.stop()
 updated_label=(generated_time or retrieved_time).strftime('%d %b %H:%M SAST') if (generated_time or retrieved_time) is not None else None
-# A newer genuine result than this session last showed: a brief "Updated" signal (never on first load).
-seen=st.session_state.get('seen_update')
-just_updated=bool(seen and updated_label and seen!=updated_label and not stale)
-st.session_state.seen_update=updated_label
+# A newer genuine result than this session last showed: "Updated just now", or "Connection restored" when it follows
+# out-of-date data. Never on first load, and never without a genuinely newer result.
+seen,was_stale=st.session_state.get('seen_update'),st.session_state.get('seen_stale',False)
+update_state=None
+if seen and updated_label and seen!=updated_label and not stale:update_state='restored' if was_stale else 'updated'
+st.session_state.seen_update,st.session_state.seen_stale=updated_label,stale
+just_updated=update_state is not None
 if not text_view:
-    refresh=dashboard_theme.refresh_text(state.last_attempt+timedelta(minutes=15) if state.last_attempt else None,datetime.now(SAST))
-    banner_slot.html(dashboard_theme.banner_html(datetime.now(SAST),not stale,refresh,updated_label,just_updated))
+    next_at=state.last_attempt+timedelta(minutes=15) if state.last_attempt else None
+    clock_now=datetime.now(SAST)
+    banner_slot.html(dashboard_theme.banner_html(clock_now,not stale,dashboard_theme.refresh_text(next_at,clock_now),updated_label,update_state,
+                                                 next_at.timestamp()*1000 if next_at else None,clock_now.timestamp()*1000))
+    components.html(dashboard_theme.LIVE_CLOCK_JS,height=0)  # clock and countdown tick on the device; no server reruns
 st.html(dashboard_theme.status_strip(stale,updated_label,simulated))
 
 if stale:
@@ -866,7 +872,10 @@ if page=='🏠 Dashboard':
     genuine_active=[e for e in active_events if e['source']==warning_events.GENUINE]
     if genuine_active:  # a genuine warning is in effect: the act-now advice comes straight after the warning
         st.html(resident_view.quick_actions_html(resident_view.guidance('WARNING')))
-    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error),just_updated))
+    shown=st.session_state.get('shown_score')
+    st.html(resident_view.summary_html(resident,real_prob,weather_summary(),warning_record(events,events_error),just_updated,
+                                       shown if not stale else None))
+    if not simulated and not stale and math.isfinite(real_prob):st.session_state.shown_score=real_prob
     with st.container(key='home_actions'):
         actions=st.columns(5,gap='small')
         actions[0].button('View warnings',key='home_alerts',on_click=go_to,args=('🚨 Alerts',),icon=':material/notifications:',type='primary',width='stretch')
@@ -1001,7 +1010,7 @@ if page=='📈 Risk Analysis':
         gauge_value=prob if usable else 0.0
         value_text=f'{prob:.1%}' if usable else 'Unavailable'
         gauge=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 165" font-family="Arial, sans-serif"><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="#d4dce7" stroke-width="20" stroke-linecap="round"/><path d="M25 120 A105 105 0 0 1 235 120" fill="none" stroke="{level_color}" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="{gauge_value*100} 100"/></svg>'
-        st.html(f'<div class="risk-status">{"OUTDATED / UNVERIFIED SAVED RESULT" if stale else "RANDOM FOREST - FIXED HOURLY TARGET"}</div><div class="risk-body single"><div class="risk-gauge">{svg_image(gauge,"Storm probability "+value_text)}<div class="gauge-value">{value_text}</div><div class="gauge-label">Storm probability</div><span class="risk-badge" style="--accent:{level_color};--tint:{level_color}25">{level} RISK</span></div></div>')
+        st.html(f'<div class="risk-status">{"OUTDATED / UNVERIFIED SAVED RESULT" if stale else "RANDOM FOREST - FIXED HOURLY TARGET"}</div><div class="risk-body single"><div class="risk-gauge">{svg_image(gauge,"Model risk score "+value_text)}<div class="gauge-value">{value_text}</div><div class="gauge-label">Model risk score</div><span class="risk-badge" style="--accent:{level_color};--tint:{level_color}25">{level} RISK</span></div></div>')
     with right:
         st.html(dashboard_theme.risk_scale_html(prob if math.isfinite(prob) else None,threshold))
         st.html(resident_view.details_html(genuine_status))
@@ -1042,9 +1051,9 @@ if page=='🕒 Historical Data':
     if not runs.empty:
         series=pd.DataFrame(runs[['prediction_for','storm_probability']]).copy()
         series['target']=pd.to_datetime(series['prediction_for'],utc=True,errors='coerce')
-        series['Probability (%)']=numeric_series(pd.Series(series['storm_probability']))*100
+        series['Risk score (%)']=numeric_series(pd.Series(series['storm_probability']))*100
         series=series.dropna()
-        valid_probabilities=numeric_series(pd.Series(series['Probability (%)'])).between(0,100)
+        valid_probabilities=numeric_series(pd.Series(series['Risk score (%)'])).between(0,100)
         series=pd.DataFrame(series.loc[valid_probabilities]).sort_values(by='target').drop_duplicates('target',keep='last')
         span=st.segmented_control('Period',HISTORY_RANGES,default=HISTORY_RANGES[1],key='history_range',label_visibility='collapsed')
         hours={'Last 24 hours':24,'Last 7 days':24*7}.get(span or HISTORY_RANGES[1])
@@ -1054,8 +1063,8 @@ if page=='🕒 Historical Data':
             # A new line segment starts after any gap of more than one hour: missing records are never interpolated.
             series['segment']=(series['target'].diff()>pd.Timedelta(hours=1)).cumsum()
             x=alt.X('Target (SAST):T',title=None,axis=alt.Axis(format='%d %b %H:%M',labelAngle=0,tickCount=6))
-            y=alt.Y('Probability (%):Q',title='Model-estimated storm risk (%)',scale=alt.Scale(domain=[0,100]))
-            tip=[alt.Tooltip('Target (SAST):T',title='Hour ending (SAST)',format='%d %b %Y %H:%M'),alt.Tooltip('Probability (%):Q',format='.1f')]
+            y=alt.Y('Risk score (%):Q',title='Model risk score (%)',scale=alt.Scale(domain=[0,100]))
+            tip=[alt.Tooltip('Target (SAST):T',title='Hour ending (SAST)',format='%d %b %Y %H:%M'),alt.Tooltip('Risk score (%):Q',format='.1f')]
             base=alt.Chart(series)
             lines=base.mark_line(color='#1268c4').encode(x=x,y=y,detail='segment:N')
             points=base.mark_circle(size=34,color='#1268c4').encode(x=x,y=y,tooltip=tip)

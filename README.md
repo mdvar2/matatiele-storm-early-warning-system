@@ -1,114 +1,144 @@
 # Matatiele Smart Resilient Storm Early Warning System
 
-**Research title:** *Smart Resilient Storm Early Warning System for Low Connectivity Environments: A Case of Matatiele*
+**Research title:** *Smart Resilient Storm Early Warning System for Low-Connectivity Environments: A Case of Matatiele*
 
 **Research Objective 3 (RO3):** To design and develop a smart resilient storm early warning system for low-connectivity environments, using Matatiele as a case study.
 
-**Status:** academic Beta prototype · **Location:** Matatiele, Eastern Cape, South Africa · **[Live dashboard](https://matatiele-storm-early-warning-system-jykpxurtek3zejgqfk5xvr.streamlit.app/)**
+**Status:** academic research prototype · **Location:** Matatiele, Eastern Cape, South Africa · **[Live dashboard](https://matatiele-storm-early-warning-system-jykpxurtek3zejgqfk5xvr.streamlit.app/)**
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?logo=streamlit&logoColor=white)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-Random%20Forest-F7931E?logo=scikitlearn&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Scheduled%20Checks-2088FF?logo=githubactions&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Hourly%20checks-2088FF?logo=githubactions&logoColor=white)
 
 > **Disclaimer:** academic research prototype, not an official weather warning service. Follow official warnings (South African Weather Service) and local emergency guidance.
 
-## Overview
+![Dashboard](docs/screenshots/dashboard.jpg)
 
-The system **does not produce weather forecasts**. It works in three distinct steps:
+## System purpose
 
-| Step | What it is | Source |
-|---|---|---|
-| **Weather forecast** | Externally produced forecast of temperature, rainfall, wind, cloud, pressure, CAPE and related variables | ECMWF IFS (0.25°) via the Open-Meteo API, retrieved hourly |
-| **Model-estimated storm risk** | The probability that the next hour is a storm hour at Matatiele, estimated from those forecast variables | Random Forest classifier trained on historical ERA5 data |
-| **Warning decision** | A warning is issued when the estimate reaches or exceeds the **35% warning threshold** | Hourly worker (GitHub Actions) |
-
-Warnings are then communicated on the dashboard's Alerts page and, when enabled and configured, by SMS.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  subgraph Development["Model development (historical)"]
-    ERA5[ERA5 reanalysis, 2018 onwards] --> PRE[Cleaning, merging, storm labels, features] --> TRAIN[Random Forest training and evaluation] --> MODEL[(Saved model, 29 inputs)]
-  end
-  subgraph Operation["Operation (hourly)"]
-    OM[ECMWF forecast via Open-Meteo] --> RF[Random Forest: next-hour storm-risk estimate]
-    MODEL --> RF
-    RF --> DEC{35% or more?}
-    DEC -- yes --> REC[(Warning record: public ledger)]
-    REC --> ALERTS[Alerts page]
-    REC -. optional .-> SMS[SMS to registered phones]
-    DEC -- no --> NONE[No warning]
-  end
+```
+ECMWF forecast inputs → Random Forest storm-risk assessment → 35% warning decision → resident warning information → resilient low-connectivity communication support
 ```
 
-Detailed stakeholder, use case, architecture and activity diagrams are in [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md).
+| Step | What it is |
+|---|---|
+| **External forecasts** | ECMWF IFS forecasts retrieved hourly through Open-Meteo. The system **does not produce weather forecasts**. |
+| **Random Forest risk assessment** | The trained model turns the forecast variables into a **next-hour model risk score** for Matatiele |
+| **Warning decision** | A warning is decided when the score reaches the **35% warning-decision threshold**, and the warning is recorded publicly |
+| **Resilient communication** | Dashboard warnings, a low-data view, an offline saved-information page, SMS (simulation; public delivery disabled) and community-relay support |
 
-## The model (verified from the project scripts and evaluation reports)
+A model risk score is **not a calibrated probability**, and 35% is a warning-decision threshold, not a confidence level or an accuracy figure.
 
-- **Training data:** hourly ERA5 reanalysis for the grid cells covering Matatiele, from January 2018 (scripts `01`–`06`). Historical data supports model development only.
-- **Storm label:** an hour is a storm hour when ERA5 shows at least 1 mm of total precipitation **and** at least one supporting sign: CAPE ≥ 200 J/kg, convective precipitation ≥ 0.5 mm, K-index ≥ 26, or total cloud cover ≥ 90% (`03_create_labels.py`). The model estimates the *next* hour's label (`06_prepare_model_data.py`).
-- **Inputs (29):** the current and previous hour of temperature, dew point, sea-level and surface pressure, precipitation, CAPE, convective precipitation, cloud cover, wind components, gusts and wind speed, plus latitude, longitude, hour, month and day of year. The K-index is excluded, because the live forecast feed does not provide it.
-- **Classifier:** `RandomForestClassifier` with 300 trees, balanced class weights and `random_state=42`, trained on the earliest 80% of the chronological record, to 25 August 2025 (`14_train_live_compatible_random_forest.py`).
-- **Evaluation:** the most recent 20% was held out: 30,455 cell-hours, 860 labelled storm hours. At 35% the deployed model had **precision 51.6%, recall 72.0%, F1 0.601**, compared with persistence at 55.9% / 55.9% / 0.559. A stricter evaluation with a separate validation year gave F1 0.57–0.59 against 0.56 for persistence, which is **not a meaningful improvement**. All figures are against ERA5-derived proxy labels, not observed storms. See [docs/MODEL_EVALUATION.md](docs/MODEL_EVALUATION.md).
-- **Warning threshold (35%):** `15_evaluate_live_threshold.py` compared thresholds from 10% to 60% on the held-out period using the F1-score. Thresholds from 30% to 40% scored almost the same (F1 0.597–0.602), and 35% is the setting in use (`outputs/model_live/live_selected_threshold.txt`). It was compared on the same period it is reported on (selection bias), so it is a **practical working setting, not an independently validated optimum**. Lower thresholds detect more events but raise more false alarms.
-- **Calibration:** the model was not calibrated after training. Its scores run higher than the labelled storm frequency, so a score is a relative risk level, not a guaranteed probability.
+## Model-development workflow (historical, done once)
 
-## Dashboard
+```
+ERA5 reanalysis (2018 onwards) → preprocessing (scripts 01–04, 06) → storm labels and features (03, 05, 06)
+  → Random Forest training (14) → evaluation and threshold comparison (15, 25) → saved model (outputs/model_live/)
+```
+
+## Operational workflow (every hour)
+
+```
+ECMWF via Open-Meteo → feature preparation (29 inputs) → Random Forest → next-hour model risk score
+  → 35% threshold → warning record (public GitHub ledger) → Alerts page, dashboard, optional SMS
+```
+
+The hourly worker (`18_scheduled_sms_worker.py`, GitHub Actions) decides warnings, so the dashboard does not have to be open. Each run's sanitised record is published to a monthly public `[RUN-LOG] YYYY-MM` issue, which is the durable prediction log.
+
+## Model
+
+- **Classifier:** `RandomForestClassifier` with 300 trees, balanced class weights and `random_state=42` (`14_train_live_compatible_random_forest.py`).
+- **Inputs (29):** the current and previous hour of temperature, dew point, sea-level and surface pressure, precipitation, CAPE, convective precipitation, cloud cover, wind components, gusts and wind speed, plus latitude, longitude, hour, month and day of year.
+- **Target:** the **next hour's** ERA5-derived proxy storm label (`03_create_labels.py`): at least 1 mm of rain **and** CAPE ≥ 200 J/kg, convective rain ≥ 0.5 mm, K-index ≥ 26 or cloud cover ≥ 90%. These are not observed storm reports.
+- **Chronological evaluation:** the most recent 20% (30,455 cell-hours, 860 labelled storm hours) was held out. A stricter evaluation with a separate validation year is in `evaluation_reports/ml_evaluation_2026-10-29/`.
+- **Persistence comparison:** "the next hour will be like this hour".
+- **Calibration:** not calibrated. Scores run higher than the labelled storm frequency, so a score is a relative risk level.
+
+### The 35% threshold (held-out period, warning when the score is at or above 35%)
+
+| Measure | Value |
+|---|---|
+| Precision | ≈ 51.6% |
+| Recall | ≈ 72.0% |
+| F1 | ≈ 0.601 |
+| False alarms | 581 |
+| Missed storm hours | 241 |
+| Persistence baseline F1 | ≈ 0.559 |
+
+- 35% is a **practical operational setting, not a proven optimum**. It was chosen by comparing F1 on the same held-out period, so these figures are optimistic, and thresholds from 30% to 40% score almost the same.
+- With the threshold chosen on a separate validation year, F1 is 0.57–0.59 against 0.56 for persistence, which is **not a meaningful improvement**.
+- All figures are against proxy ERA5 labels, not independently observed storms.
+
+Details: [docs/MODEL_EVALUATION.md](docs/MODEL_EVALUATION.md).
+
+## Current features
+
+![Risk Analysis](docs/screenshots/risk_analysis.jpg)
 
 | Section | Content |
 |---|---|
-| **Home** | Header with the project's illustrative Matatiele storm artwork (branding, not current weather), the live clock, the system status (System online, with a green pulse only while the latest forecast and model result are current, or Saved data with the last update time) and a countdown to the next refresh. Row 1: weather forecast · model-estimated storm risk (gauge, 35% marker) · prediction period · warning decision (NO WARNING TRIGGERED / THRESHOLD REACHED / WARNING TRIGGERED only with a genuine record / NO DECISION). Compact actions: View warnings, Safety advice, Emergency contacts, SMS service, **Offline access**. Row 2: the 12-hour storm-risk outlook (model outlook, unvalidated beyond one hour) beside the 6-hour chart (ECMWF rain and wind, with the Random Forest outlook as a dashed line). Row 3: key weather variables · recent predictions · warning communication. |
-| **Risk Analysis** | Gauge, risk scale, the threshold explanation, patterns learned (grouped feature importance), why a Random Forest, the threshold comparison (30–50%) with the persistence baseline, the stricter validation-year evaluation, the confusion matrix, and what the percentage means (score, performance, calibration, confidence). |
-| **Map** | ECMWF rainfall forecast at 25 real ECMWF 0.25° grid cells (0.25° to 0.5° apart, about 24–48 km), interpolated and smoothed between them. It is not radar. Opens centred on Matatiele and has a forecast-hour slider (next 35 hours), an overlay opacity control, a ring for the model-estimated storm risk at Matatiele (one location only), and Satellite, Streets and Low data basemaps. |
-| **Safety** | Advice for before a storm and when a storm is close, then tap-to-call emergency numbers (10111, 10177, 112) to support residents' response. |
-| **☰ Alerts** | Current and past warnings, warning details, an anonymous "I have read this warning" acknowledgement; the SMS section (configuration, simulation, registration status, delivery limitations, research-test restrictions, real record counts); and **System log**: timestamp, severity, delivery method and status of each observed event, stored in SQLite (model risk-level changes, warning records, SMS records, forecast-data outages and recoveries, administrator demonstrations). |
-| **☰ Forecast** | 36-hour ECMWF temperature and rainfall chart, the forecast variables the model uses (CAPE, dew point, showers), and which forecast hour the model uses. |
-| **☰ Historical Data** | The trained model's saved predictions (worker run log plus the dashboard's own runs, with the source shown): chart (24 hours / 7 days / all, zoom, 35% line, gaps never filled in) and table. |
-| **☰ About** | The resident warning workflow, development and operation phases, RO3 status (implemented / simulated / future), how the model and system work, the low-connectivity design, and the disclaimer. |
+| **Dashboard** | Header with the live clock, system status and refresh countdown. Row 1: weather forecast · **model-estimated storm risk** (gauge, 35% marker) · prediction period · **warning decision** (NO WARNING TRIGGERED, THRESHOLD REACHED, WARNING TRIGGERED only with a genuine record, NO DECISION). Then actions (View warnings, Safety advice, Emergency contacts, SMS service, Offline access), the 12-hour outlook beside the 6-hour chart, key weather variables, recent predictions and the communication status. |
+| **Risk Analysis** | The examiner page: current score and 35% threshold, patterns learned (feature importance), why a Random Forest, precision, recall and F1, the persistence comparison, threshold trade-offs, calibration and confidence |
+| **Map** | ECMWF forecast rainfall at 25 grid cells around Matatiele, and the one-location model risk estimate. No spatial risk zones are fabricated. |
+| **Safety** | Compact "Be prepared" tiles, full "Act now" advice, and tap-to-call emergency numbers (10111, 10177, 112) |
+| **Alerts** | Current and past next-hour warnings, early alerts (outlook), SMS (simulation and controlled test; public disabled), and the system log |
+| **Forecast** | The 36-hour ECMWF chart and the variables the model uses; states that the system does not produce forecasts |
+| **Historical Data** | Saved model risk scores over 24 hours, 7 days or all, with the 35% line; gaps are left as gaps; collapsible table |
+| **About** | The workflow and the RO3 status, grouped as implemented, exploratory and future |
 
-The dashboard has light and dark themes (a header switch, kept across pages and refreshes), uses outline icons, works at desktop, tablet and phone widths, and respects the reduced-motion setting.
+![Map](docs/screenshots/map.jpg)
 
-## Low-connectivity design (RO3)
+### 12-hour storm-risk outlook (exploratory)
 
-| Implemented | Purpose |
+The same unchanged model is applied to each forecast hour, 2 to 12 hours ahead, using exactly the live script's inputs (tested).
+
+- It is **exploratory and unvalidated beyond one hour**, because the model was evaluated for the next hour only.
+- Scores are not calibrated probabilities.
+- An EARLY ALERT is shown when an hour reaches 35%. Early-alert records and SMS stay off unless enabled.
+
+## Low connectivity and resilience
+
+| Feature | What it does |
 |---|---|
-| **Low-data view** (`?view=text`) | Essential storm-risk information, the warning decision, information status, safety advice and the emergency numbers as plain text, without maps, charts or images. |
-| **SMS warnings** (optional) | Can reach a basic phone without the dashboard being opened; an SMS needs only mobile signal. |
-| **Low data basemap** | The map without downloaded tiles. |
-| **Scheduled worker** | Warnings are decided hourly on GitHub Actions; no one needs to keep the dashboard open. |
+| **Data freshness** | "System online" with a live pulse only while the latest retrieved forecast and model result are current. Otherwise it shows "Saved data · last update …" and no pulse, and no warning decision is made from out-of-date data. |
+| **Low-data view** (`?view=text`) | Plain text: score, decision, freshness, safety advice and emergency numbers. It loads no images. |
+| **Offline access** (`/app/static/offline.html`) | Opened once while connected, it keeps the last warning information, safety advice and emergency numbers, and reopens with no connection ("No connection: showing the last saved information"). It **cannot receive new warnings while offline**. |
+| **Warning records** | Reserved in the public ledger before any SMS, so an SMS failure never removes a warning |
+| **SMS** | Simulation implemented; see below |
+| **Community relays** | See below |
 
-**Resilient dissemination** ([docs/RESILIENT_DISSEMINATION.md](docs/RESILIENT_DISSEMINATION.md)):
-- **Early storm alerts:** a 12-hour model outlook (the unchanged model, the same 29 inputs) alerts residents and relays hours ahead, while networks still work. Scores beyond one hour are unvalidated, and alerts are switched off by default.
-- **Offline page:** saved once while there is signal, it keeps the last warning, safety advice and emergency numbers on the phone.
-- **Community relays:** relays receive warnings with a request to pass them on, and each warning has a script for radio and loudhailers.
+![Mobile and offline](docs/screenshots/mobile_offline.png)
 
-**Not implemented (future research):** offline operation, local weather sensors, edge processing, LoRa and MQTT links (no code exists for them). The system needs an Internet connection to retrieve forecasts. When a refresh fails, the last known information is shown labelled as out of date, and no warning is issued from it. See [docs/SMS_AND_LOW_CONNECTIVITY.md](docs/SMS_AND_LOW_CONNECTIVITY.md).
+### SMS
 
-## SMS and its limitations
+| Mode | Status |
+|---|---|
+| Simulation (`SMS_DELIVERY_MODE=outbox`) | Implemented: messages are labelled TEST ONLY and written to a local outbox, never sent. Reproducible with `python 26_sms_simulation_demo.py`. |
+| Controlled test (`twilio`, trial account) | Only when deliberately configured: verified numbers only |
+| Public subscriber delivery | **Disabled by default.** It needs a non-trial provider, POPIA compliance, ethics clearance and the project owner's authorisation. |
 
-- **Hourly worker:** `18_scheduled_sms_worker.py` (GitHub Actions) decides warnings, reserves each warning hour in a public GitHub issue ledger to prevent duplicates, and submits SMS through Twilio.
-- **Resident registration** (Alerts → SMS alerts): South African mobile numbers, explicit consent, a one-time verification code, encrypted storage in a private repository, and unsubscribe at any time. **Off until configured**: registration shows *not open yet*, and subscriber warnings also need `SUBSCRIBER_ALERTS_ENABLED=true`.
-- **Modes:** A, simulation (`outbox`, TEST ONLY messages, nothing sent); B, controlled test (trial account, verified numbers only); C, public (**disabled**). Reproducible simulation: `python 26_sms_simulation_demo.py`.
-- **Limitations:**
-  - The Twilio account is a **trial**, which can only message verified numbers.
-  - Provider acceptance is not proof of delivery.
-  - An automatic warning during a genuine high-risk event has not yet been observed.
+Duplicate prevention: one ledger record per warning hour and one delivery record per warning and subscriber, both reserved before sending. A message accepted by the provider is not proof of delivery.
 
-Setup: [docs/DEPLOYMENT_AND_CONFIGURATION.md](docs/DEPLOYMENT_AND_CONFIGURATION.md) and [README_SMS_SETUP.md](README_SMS_SETUP.md).
+### Community relays
 
-## Officials' portal
+These are **implemented in software, not field validated**:
+- residents can register as relays (ward councillors, community leaders, volunteers);
+- relays receive warnings with "please warn people near you (in person, loudhailer, bell)";
+- each warning has an announcement script for loudhailers and community radio.
 
-Authorised disaster-management officials sign in at `?portal=officials` with individual hashed accounts (`OFFICIAL_ACCOUNTS`, created with `23_create_official_account.py`). They can:
-- review active warnings and anonymous acknowledgement counts;
-- view the forecast geography;
-- record a review status and notes, with their name and the time;
-- export the action history.
+## User interface
 
-It records decisions only; it never dispatches emergency services. Administrators have a separate password-protected page for system health and SMS delivery.
+- Responsive (desktop, tablet, phone), with light and dark themes, outline icons and keyboard-accessible controls.
+- On desktop the sidebar is open: Dashboard, Risk Analysis, Map, Safety, Alerts, Forecast, Historical Data, About. On phones it sits behind ☰ and the top bar is shown.
+- **Live state:** the clock and refresh countdown tick on the device, with no server reruns. "Updated just now", or "Connection restored · data updated", appears only when a genuinely newer result arrives. The gauge sweeps only when the genuine score changes.
+- **Reduced motion:** with `prefers-reduced-motion`, all animation stops and the text status is unchanged.
 
-## Installation and running
+### Visual artwork
+
+The header uses the project's **illustrative Matatiele storm landscape artwork** (source: `Stormy Valley Overlook.png`, resized and compressed for low-data use as `static/matatiele_storm_banner*.jpg`). **It is illustrative artwork, not current weather or model evidence.** The low-data view does not load it.
+
+## Installation
 
 ```powershell
 git clone https://github.com/mdvar2/matatiele-storm-early-warning-system.git
@@ -121,27 +151,65 @@ python -m streamlit run 16_dashboard.py
 
 Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 
-- `python 18_scheduled_sms_worker.py --dry-run` runs the hourly check without sending SMS.
-- Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.toml.example`). Never commit passwords, tokens, keys or phone numbers.
-- For a local demonstration with nothing sent, set `SMS_DELIVERY_MODE=outbox`. `24_create_dev_test_warning.py` creates a warning labelled as a development test.
+## Configuration (names only; never commit values)
 
-## Testing evidence
+| Setting | Purpose |
+|---|---|
+| `SMS_DELIVERY_MODE` | `disabled` (default), `outbox` (simulation), `twilio` (controlled test) |
+| `SUBSCRIBER_ALERTS_ENABLED` | `true` lets the worker message subscribers (repository variable; default off) |
+| `OUTLOOK_ALERTS_ENABLED` | `true` creates early-alert records from the outlook (repository variable; default off) |
+| `SUBSCRIBER_STORE`, `SUBSCRIBER_STORE_REPO`, `SUBSCRIBER_STORE_TOKEN`, `SUBSCRIBER_ENCRYPTION_KEY`, `SUBSCRIBER_HASH_KEY` | Encrypted subscriber store |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `ALERT_TO_NUMBERS` | SMS provider (secrets) |
+| `ADMIN_PASSWORD`, `OFFICIAL_ACCOUNTS` | Administrator page and officials' portal |
+| `RUN_RECORD_PUBLISH` | Publishes worker run records to `[RUN-LOG]` (set in the workflow) |
+| `SYSTEM_LOG_PATH` | SQLite system log (default `outputs/system_log.sqlite`) |
 
-- **Automated tests:** `python -m pytest tests/`. All 391 tests (and 274 subtests) pass with network access blocked; no SMS is sent and no external service is called.
+Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.toml.example`). For a local demonstration with nothing sent, set `SMS_DELIVERY_MODE=outbox`. Setup details: [docs/DEPLOYMENT_AND_CONFIGURATION.md](docs/DEPLOYMENT_AND_CONFIGURATION.md).
+
+## Testing
+
+- **Command:** `python -m pytest tests/`.
+- **Final run:** **393 passed, 0 failed, 0 skipped** (287 subtests). It was repeated with a process-wide network guard, which logged 0 outbound connection attempts.
+- **No live SMS:** tests never send SMS or contact external services.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
-- **Reproducible evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs. See [docs/MODEL_EVALUATION.md §7](docs/MODEL_EVALUATION.md#7-reproducing-the-evidence).
-- **Model unchanged:** re-scoring the 30,455 held-out rows reproduces the saved probabilities. See [the research refinement evidence](evaluation_reports/research_refinement_evidence_2026-10-30/README.md).
-- **RO3 evidence table:** [docs/RO3_EVIDENCE.md](docs/RO3_EVIDENCE.md).
-- **Earlier verified operation:** genuine ECMWF retrieval and inference; an unattended scheduled live run (run #6, 0.00%, below 35%, so no SMS); a labelled NO WEATHER WARNING connectivity SMS received on a phone (run #4).
-- **Browser walkthroughs and screenshots:** the `evaluation_reports/*_evidence_*` folders.
+- **Model integrity:** the model, feature list and threshold match the approved files, and the held-out probabilities are reproduced exactly.
+- **Real-browser checks:** live pulse, countdown, clock, stale state, reduced motion, phone first screen and the offline page. See `evaluation_reports/final_master_evidence_2026-11-01/`.
 
-## Known limitations
+## Reproducibility
 
-- The storm-risk estimate covers **one location** (Matatiele town and its immediate surroundings). It has not been independently validated as a calibrated probability.
-- The 35% threshold is a working setting, not a validated optimum (see above).
-- Storm labels are derived from ERA5 rules, not from observed storm reports.
-- Rainfall on the map is an interpolated forecast between grid points, not observed rain.
-- Real SMS delivery to the public needs an upgraded Twilio account, POPIA and ethics clearance, and a private subscriber store.
+- **Model evidence:** `python 25_build_model_evidence.py --check` rebuilds the Risk Analysis figures from committed inputs and confirms them. See [docs/MODEL_EVALUATION.md](docs/MODEL_EVALUATION.md).
+- **RO3 evidence:** [docs/RO3_EVIDENCE.md](docs/RO3_EVIDENCE.md).
+- **System design:** [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md).
+- **SMS and low connectivity:** [docs/SMS_AND_LOW_CONNECTIVITY.md](docs/SMS_AND_LOW_CONNECTIVITY.md).
+- **Resilient dissemination:** [docs/RESILIENT_DISSEMINATION.md](docs/RESILIENT_DISSEMINATION.md).
+- **Evaluation scripts:** `15_evaluate_live_threshold.py`, `25_build_model_evidence.py`, `evaluation_reports/ml_evaluation_2026-10-29/ro3_chronological_evaluation.py`.
+- **Evidence folders:** `evaluation_reports/*_evidence_*`.
+
+## RO3 evidence
+
+| RO3 element | Implementation | Limitation / status |
+|---|---|---|
+| Smart | Random Forest trained on ERA5 (29 inputs) | Validated against proxy labels only |
+| Storm risk | Next-hour model risk score | Not a calibrated probability |
+| Early warning | 35% decision and warning record; exploratory 12-hour outlook | Outlook unvalidated beyond 1 h |
+| Resilient | Stale-data handling, offline saved information, warning records independent of SMS | No new alerts while fully offline |
+| Low connectivity | Low-data view, offline page, SMS simulation, relay support | Public SMS disabled; relays not field validated |
+| Matatiele case study | Matatiele model location, map and interface | One model location |
+
+## Limitations
+
+- Proxy ERA5 storm labels; no independent validation against observed storms.
+- Scores are not calibrated probabilities.
+- The validated target is the next hour; the 2–12 hour outlook is unvalidated.
+- There is one model location: Matatiele town and its immediate surroundings.
+- The backend needs Internet access to retrieve forecasts.
+- The offline page shows the last saved information and cannot receive new alerts.
+- Public SMS is disabled, and community relays have not been field validated.
+- There are no deployed sensors, no physical LoRa links, no Cell Broadcast and no sirens.
+
+## Future work
+
+Public SMS deployment after POPIA and ethics clearance, field validation with residents and relays, evaluation against observed storm reports, probability calibration, a validated multi-hour target, physical sensors, LoRa or solar sirens, and Cell Broadcast through the authorities.
 
 ## Documentation
 
@@ -151,6 +219,6 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 - [System design](docs/SYSTEM_DESIGN.md)
 - [Model evaluation](docs/MODEL_EVALUATION.md)
 - [SMS and low connectivity](docs/SMS_AND_LOW_CONNECTIVITY.md)
-- [RO3 evidence](docs/RO3_EVIDENCE.md)
 - [Resilient dissemination](docs/RESILIENT_DISSEMINATION.md)
+- [RO3 evidence](docs/RO3_EVIDENCE.md)
 - [Storm early warning design notes](docs/STORM_EWS_DESIGN_RESEARCH.md)

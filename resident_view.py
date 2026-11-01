@@ -241,7 +241,7 @@ def score_text(probability):
 
 
 def gauge_svg(probability, tone):
-    """Semicircle gauge of the model score with a labelled marker at the 35% threshold; the value is also the alt text."""
+    """The 35% marker and its label over the gauge (the arc itself is CSS, see gauge_html); value in the alt text."""
     try:
         p = min(max(float(probability), 0.0), 1.0)
         usable = math.isfinite(p)
@@ -252,17 +252,25 @@ def gauge_svg(probability, tone):
     point = lambda radius: (cx + radius * math.cos(angle), cy - radius * math.sin(angle))  # noqa: E731
     (x1, y1), (x2, y2), (tx, ty) = point(r - 17), point(r + 17), point(r + 27)
     label = f'Model risk score {score_text(p)}, warning threshold 35%' if usable else 'No model risk score'
-    colour = GAUGE_COLOURS.get(tone, GAUGE_COLOURS['gray'])
-    arc = f'M{cx - r} {cy} A{r} {r} 0 0 1 {cx + r} {cy}'
     svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 124" font-family="Segoe UI, Arial, sans-serif">'
-           f'<path d="{arc}" fill="none" stroke="#c7d2e0" stroke-width="20" stroke-linecap="round"/>'
-           # Filled part: exactly the score. Nothing is drawn for 0 (a zero-length dash with round caps would show as dots).
-           + (f'<path d="{arc}" fill="none" stroke="{colour}" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="{p * 100:.1f} 1000"/>'
-              if usable and p > 0 else '') +
            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#d93449" stroke-width="4" stroke-linecap="round"/>'
            f'<text x="{tx:.1f}" y="{ty:.1f}" font-size="13" font-weight="700" fill="#d93449" text-anchor="middle">35%</text></svg>')
     # An image, because the page's HTML sanitiser removes inline SVG; the value is in the alt text.
     return f'<img class="risk-gauge-img" src="data:image/svg+xml;base64,{base64.b64encode(svg.encode()).decode()}" alt="{label}">'
+
+
+def gauge_html(probability, tone, previous=None):
+    """Track, fill and marker. The fill equals the genuine score; it sweeps from `previous` only when the score changed."""
+    try:
+        p = min(max(float(probability), 0.0), 1.0)
+        p = p if math.isfinite(p) else 0.0
+    except (TypeError, ValueError):
+        p = 0.0
+    sweep = previous is not None and abs(float(previous) - p) >= 0.005
+    start = min(max(float(previous), 0.0), 1.0) if sweep else p
+    colour = GAUGE_COLOURS.get(tone, GAUGE_COLOURS['gray'])
+    return (f'<div class="risk-track"></div><div class="risk-arc{" animate" if sweep else ""}" '
+            f'style="--to:{p:.4f};--from:{start:.4f};--arc:{colour}"></div>{gauge_svg(probability, tone)}')
 
 
 def warning_state(status, record):
@@ -289,7 +297,7 @@ def warning_state(status, record):
     return 'NO WARNING TRIGGERED', 'green', 'check-circle', detail
 
 
-def summary_html(status, probability, weather, record, just_updated=False):
+def summary_html(status, probability, weather, record, just_updated=False, previous_score=None):
     """Homepage row 1: forecast weather, model storm-risk gauge, prediction period and warning decision.
 
     weather: display strings (temperature, rain, wind, gust, source) plus an 'icon' <img>; record: see warning_state.
@@ -302,7 +310,7 @@ def summary_html(status, probability, weather, record, just_updated=False):
     badge = 'OUT OF DATE' if status['stale'] else RISK_BADGES[status['level']]
     value = score_text(score) if status['level'] != 'UNAVAILABLE' else 'n/a'
     risk_card = (f'<div class="summary-card risk-summary tone-{e(tone)}">{sim}<div class="sc-title">{icons.icon("gauge")} Model-estimated storm risk</div><span class="sc-sub">(Next hour, Random Forest)</span>'
-                 f'<div class="risk-dial">{gauge_svg(score, tone)}<div class="risk-value">{e(value)}</div></div>'
+                 f'<div class="risk-dial">{gauge_html(score, tone, None if status["simulated"] else previous_score)}<div class="risk-value">{e(value)}</div></div>'
                  f'<div class="risk-badge-row"><span class="risk-pill tone-{e(tone)}">{e(badge)}</span></div>'
                  f'<div class="risk-note"><b>{THRESHOLD:.0%} warning threshold</b></div>'
                  f'<div class="risk-meta"><span>{icons.icon("clock")} {e(status["period"])} · Updated {e(status["updated"].split()[-2] if status["updated"] != "Unknown" else "unknown")}</span></div>'

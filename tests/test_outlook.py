@@ -234,7 +234,7 @@ class ReferenceLayout(DashboardHarness):
         self.assertIn('class="banner"', page)
         self.assertIn('Matatiele, Eastern Cape', page)
         self.assertIn('System online', page)
-        self.assertIn('Next refresh in ~', page)
+        self.assertRegex(page, r'Next refresh in \d\d:\d\d')  # a real countdown, ticking on the device
         self.assertIn('Protecting Matatiele through earlier warnings', page)  # sidebar card
         self.write_prediction(.05, fresh=False)
         stale = self.html(self.app(inference_ok=False).run())
@@ -251,8 +251,8 @@ class ReferenceLayout(DashboardHarness):
         self.assertIn('app/static/matatiele_storm_banner.jpg', dashboard_theme.CHROME_CSS)  # the supplied artwork, served from ./static
         self.assertIn('app/static/matatiele_storm_banner_small.jpg', dashboard_theme.CHROME_CSS)  # a smaller file for phones
         self.assertTrue((ROOT / 'static' / 'matatiele_storm_banner.jpg').stat().st_size < 200_000)
-        self.assertIn('Illustrative artwork of Matatiele, not current weather', dashboard_theme.banner_html(
-            __import__('datetime').datetime(2026, 11, 1, 9, 15), True, 'Next refresh in ~12 min'))
+        self.assertIn('Illustrative Matatiele storm landscape artwork — not current weather.', dashboard_theme.banner_html(
+            __import__('datetime').datetime(2026, 11, 1, 9, 15), True, 'Next refresh in 12:00'))
 
 
 class LiveStateChrome(unittest.TestCase):
@@ -260,14 +260,49 @@ class LiveStateChrome(unittest.TestCase):
         import dashboard_theme as t
         from datetime import datetime
         now = datetime(2026, 11, 1, 9, 15)
-        self.assertEqual(t.refresh_text(datetime(2026, 11, 1, 9, 27), now), 'Next refresh in ~12 min')
+        self.assertEqual(t.refresh_text(datetime(2026, 11, 1, 9, 27, 30), now), 'Next refresh in 12:30')
         self.assertEqual(t.refresh_text(datetime(2026, 11, 1, 9, 10), now), 'Refreshing now')
         self.assertEqual(t.refresh_text(None, now), 'Refreshes every 15 min')
         fresh, stale = t.banner_html(now, True, 'x'), t.banner_html(now, False, 'x', '01 Nov 08:00 SAST')
         self.assertIn('bn-chip ok', fresh); self.assertNotIn('Saved data', fresh)
         self.assertIn('bn-chip stale', stale); self.assertIn('last update 01 Nov 08:00 SAST', stale); self.assertNotIn('System online', stale)
-        self.assertIn('.bn-chip.ok i {background:#16a34a;animation:pulse', t.CHROME_CSS)       # pulse only when current
+        self.assertIn('.bn-chip.ok i {background:#16a34a;animation:ring 2s', t.CHROME_CSS)     # ring only when current
         self.assertNotIn('.bn-chip.stale i {background:#d97706;animation', t.CHROME_CSS)
         self.assertIn('.chip.stale .dot {animation:none}', t.CHROME_CSS)
-        self.assertIn('@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.bn-updated,.summary-grid.just-updated {animation:none!important}}', t.CHROME_CSS)
-        self.assertIn('class="bn-updated">Updated', t.banner_html(now, True, 'x', just_updated=True))
+        self.assertIn('@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.chip .dot,.chip:not(.stale) .dot,.bn-updated,.summary-grid.just-updated,.risk-arc.animate {animation:none!important}}', t.CHROME_CSS)
+        self.assertIn('class="bn-updated">Updated just now', t.banner_html(now, True, 'x', update_state='updated'))
+        self.assertIn('Connection restored · data updated', t.banner_html(now, True, 'x', update_state='restored'))
+        self.assertNotIn('bn-updated', fresh)                                                  # nothing without new data
+        timer = t.banner_html(now, True, 'x', next_refresh_ms=1000, now_ms=500)
+        self.assertIn('data-next="1000" data-now="500"', timer)
+        self.assertIn("win.setInterval(tick, 1000)", t.LIVE_CLOCK_JS)                          # ticks on the device
+        self.assertNotIn('fetch(', t.LIVE_CLOCK_JS)                                            # never contacts the server
+
+
+class GaugeMovesOnlyOnRealChange(DashboardHarness):
+    def test_sweep_only_when_the_genuine_score_changes(self):
+        self.write_prediction(.05)
+        at = self.app().run()
+        self.assertNotIn('risk-arc animate', self.html(at))            # first view: no movement
+        at.run()
+        self.assertNotIn('risk-arc animate', self.html(at))            # same score again: still no movement
+        self.write_prediction(.27)
+        at.run()
+        page = self.html(at)
+        self.assertIn('risk-arc animate', page)                         # a genuinely new score: sweep from 5% to 27%
+        self.assertIn('--to:0.2700;--from:0.0500', page)
+        at.run()
+        self.assertNotIn('risk-arc animate', self.html(at))
+
+
+class StylesheetSurvivesTheSanitiser(unittest.TestCase):
+    def test_no_tag_like_text_or_control_characters_in_the_stylesheet(self):
+        """Streamlit's HTML sanitiser removes a whole <style> block whose text contains '<' followed by a letter or '/'
+        (found in a real browser: the page lost all styling). Control characters would corrupt it too."""
+        import re
+        import dashboard_theme
+        for mode in ('light', 'dark'):
+            css = dashboard_theme.theme_css(mode)
+            self.assertEqual(re.findall(r'<[/\w]', css), [], mode)
+            self.assertFalse([c for c in css if ord(c) < 32 and c not in '\n\r\t'], mode)
+        self.assertIn("syntax:'\\3C number>'", dashboard_theme.CHROME_CSS)

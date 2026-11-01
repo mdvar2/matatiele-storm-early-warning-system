@@ -473,31 +473,65 @@ BANNER_IMAGE, BANNER_IMAGE_SMALL = 'app/static/matatiele_storm_banner.jpg', 'app
 
 
 def refresh_text(next_refresh, now):
-    """'Next refresh in ~N min' from the scheduled time; None gives the plain schedule."""
+    """'Next refresh in MM:SS' from the scheduled time (the page's own timer then counts down each second)."""
     if next_refresh is None:
         return 'Refreshes every 15 min'
-    minutes = int(-(-(next_refresh - now).total_seconds() // 60))
-    return f'Next refresh in ~{minutes} min' if minutes > 0 else 'Refreshing now'
+    seconds = int((next_refresh - now).total_seconds())
+    return f'Next refresh in {seconds // 60:02d}:{seconds % 60:02d}' if seconds > 0 else 'Refreshing now'
 
 
-def banner_html(clock, status_ok, refresh, last_update=None, just_updated=False):
-    """Header: brand, location, and the time with the system status and the next refresh.
+BANNER_LABEL = 'Illustrative Matatiele storm landscape artwork — not current weather.'
 
-    status_ok: the latest forecast and model result are current (not a continuous sensor feed). When they are not,
-    the status says so and gives the last successful update.
+
+def banner_html(clock, status_ok, refresh, last_update=None, update_state=None, next_refresh_ms=None, now_ms=None):
+    """Header: brand, location, the clock and the system status.
+
+    status_ok: the latest retrieved ECMWF forecast and model result are current (not radar or a sensor feed).
+    update_state: 'updated' when a newer genuine result has just arrived, 'restored' when it arrived after out-of-date
+    data; None otherwise. next_refresh_ms / now_ms let the page count down and run the clock between reruns.
     """
     e = html.escape
     if status_ok:
         chip = '<span class="bn-chip ok"><i></i>System online</span>'
     else:
         chip = f'<span class="bn-chip stale"><i></i>Saved data · last update {e(last_update or "unknown")}</span>'
-    updated = '<span class="bn-updated">Updated</span>' if just_updated else ''
-    return (f'<div class="banner{" just-updated" if just_updated else ""}" title="Illustrative artwork of Matatiele, not current weather">'
+    note = {'updated': 'Updated just now', 'restored': 'Connection restored · data updated'}.get(update_state)
+    updated = f'<span class="bn-updated">{note}</span>' if note else ''
+    timer = (f' data-next="{int(next_refresh_ms)}"' if next_refresh_ms else '') + (f' data-now="{int(now_ms)}"' if now_ms else '')
+    return (f'<div class="banner{" just-updated" if update_state else ""}" title="{e(BANNER_LABEL)}">'
+            f'<span class="sr-only" role="img" aria-label="{e(BANNER_LABEL)}"></span>'
             f'<div class="bn-brand">{icons.icon("cloud", "")}'
             '<div><h1>Matatiele<span>Storm Early Warning System</span></h1><small>Machine-learning storm-risk assessment for safer communities</small></div></div>'
             f'<div class="bn-place"><b>{icons.icon("map-pin")} Matatiele, Eastern Cape</b><span>Smart · Resilient · Low-connectivity</span></div>'
-            f'<div class="bn-clock"><div><small>{e(clock.strftime("%a, %d %b %Y"))}</small><b>{e(clock.strftime("%H:%M"))}</b><small>SAST (UTC+2)</small></div>'
-            f'<div>{chip}{updated}<small>{e(refresh)}</small></div></div></div>')
+            f'<div class="bn-clock"{timer}><div><small>{e(clock.strftime("%a, %d %b %Y"))}</small>'
+            f'<b class="bn-time">{e(clock.strftime("%H:%M"))}<span class="bn-sec">:{e(clock.strftime("%S"))}</span></b><small>SAST (UTC+2)</small></div>'
+            f'<div>{chip}{updated}<small class="bn-countdown">{e(refresh)}</small></div></div></div>')
+
+
+# Runs in a zero-height component frame: updates the header clock and the refresh countdown once a second on the
+# visitor's device, aligned to the server's clock. It changes text only; it never contacts the server.
+LIVE_CLOCK_JS = """<script>
+(function () {
+  var doc = window.parent.document, win = window.parent;
+  if (win.__matatieleTimer) win.clearInterval(win.__matatieleTimer);
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function tick() {
+    var box = doc.querySelector('.bn-clock[data-now]');
+    if (!box) return;
+    if (!box.dataset.offset) box.dataset.offset = String(Number(box.dataset.now) - Date.now());
+    var now = Date.now() + Number(box.dataset.offset), sast = new Date(now + 2 * 3600000);
+    var time = box.querySelector('.bn-time');
+    if (time) time.innerHTML = pad(sast.getUTCHours()) + ':' + pad(sast.getUTCMinutes()) + '<span class="bn-sec">:' + pad(sast.getUTCSeconds()) + '</span>';
+    var count = box.querySelector('.bn-countdown');
+    if (count && box.dataset.next) {
+      var left = Math.round((Number(box.dataset.next) - now) / 1000);
+      count.textContent = left > 0 ? 'Next refresh in ' + pad(Math.floor(left / 60)) + ':' + pad(left % 60) : 'Refreshing now';
+    }
+  }
+  tick();
+  win.__matatieleTimer = win.setInterval(tick, 1000);
+})();
+</script>"""
 
 
 def sidebar_card_html():
@@ -506,10 +540,10 @@ def sidebar_card_html():
 
 
 CHROME_CSS = """
-:root {--banner-overlay:linear-gradient(90deg,rgba(13,48,110,.86),rgba(29,78,216,.55) 50%,rgba(29,78,216,.22))}
-@media (prefers-color-scheme: dark) {:root {--banner-overlay:linear-gradient(90deg,rgba(6,16,32,.92),rgba(6,16,32,.62) 50%,rgba(6,16,32,.35))}}
-.banner {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:18px;align-items:center;min-height:120px;max-height:150px;padding:14px 20px;border-radius:18px;color:#fff;margin:0 0 6px;
-  background:var(--banner-overlay),url(BANNER_IMAGE) center 62%/cover;box-sizing:border-box}
+:root {--banner-overlay:linear-gradient(90deg,rgba(13,48,110,.74),rgba(29,78,216,.30) 48%,rgba(29,78,216,.06))}
+@media (prefers-color-scheme: dark) {:root {--banner-overlay:linear-gradient(90deg,rgba(6,16,32,.80),rgba(6,16,32,.40) 48%,rgba(6,16,32,.10))}}
+.banner {display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:18px;align-items:center;min-height:128px;max-height:160px;padding:14px 20px;border-radius:18px;color:#fff;margin:0 0 6px;
+  background:var(--banner-overlay),url(BANNER_IMAGE) center 46%/cover;box-sizing:border-box}
 .bn-brand {display:flex;gap:14px;align-items:center}.bn-brand>.ico {width:48px;height:48px;color:#bfdbfe}
 .banner h1 {margin:0;color:#fff;font-size:clamp(21px,2.1vw,28px);line-height:1.12;font-weight:800;text-shadow:0 1px 3px #0006}.banner h1 span {display:block;font-size:.64em;font-weight:600}
 .banner small {display:block;color:#e2ecff;font-size:12.5px;text-shadow:0 1px 2px #0006}
@@ -517,9 +551,10 @@ CHROME_CSS = """
 .bn-clock {display:flex;gap:14px;align-items:center;background:#fff;color:#0b1f3a;border-radius:14px;padding:10px 14px;box-shadow:0 8px 24px #0004}
 .bn-clock b {display:block;font-size:28px;line-height:1.1}.bn-clock small {color:#4a5b70;text-shadow:none}.bn-clock>div+div {border-left:1px solid #d9e1ec;padding-left:12px}
 .bn-chip {display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9px;font-weight:700;font-size:13px;margin-bottom:3px}
-.bn-chip i {width:10px;height:10px;border-radius:50%}.bn-chip.ok {background:#dcfce7;color:#14532d}.bn-chip.ok i {background:#16a34a;animation:pulse 2.4s ease-out infinite}
+.bn-chip i {width:10px;height:10px;border-radius:50%}.bn-chip.ok {background:#dcfce7;color:#14532d}.bn-chip.ok i {background:#16a34a;animation:ring 2s ease-out infinite}.chip:not(.stale) .dot {animation:ring 2s ease-out infinite!important}
+@keyframes ring {0%{box-shadow:0 0 0 0 rgba(22,163,74,.75)}80%{box-shadow:0 0 0 11px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
 .bn-chip.stale {background:#fef3c7;color:#713f12}.bn-chip.stale i {background:#d97706}.chip.stale .dot {animation:none}
-.bn-updated {display:inline-block;margin-left:6px;padding:2px 8px;border-radius:8px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:700;animation:fadeout 6s ease-out forwards}
+.bn-updated {display:inline-block;margin:0 0 3px 6px;padding:2px 8px;border-radius:8px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:700;animation:fadeout 8s ease-out forwards}.bn-sec {font-size:.6em;color:#4a5b70}
 .just-updated ~ * .summary-grid,.summary-grid.just-updated {animation:glow 2.4s ease-out 1}
 @keyframes glow {0%{box-shadow:0 0 0 0 #16a34a66;border-radius:16px}100%{box-shadow:0 0 0 14px #16a34a00}}
 @keyframes fadeout {0%,70%{opacity:1}100%{opacity:0}}
@@ -527,7 +562,14 @@ CHROME_CSS = """
 .side-card b {display:block;font-size:13.5px}.side-card small {display:block;color:var(--sidebar-muted);font-size:12px}
 .sc-title {font-size:16px!important;font-weight:800!important;text-transform:none!important;letter-spacing:0!important;color:var(--heading)!important;margin-bottom:2px!important}
 .sc-title .ico {width:22px;height:22px;color:var(--accent)}.sc-sub {display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:0 0 6px}
-.summary-card {padding:11px 13px!important}.risk-dial {max-width:270px!important}.risk-note,.risk-meta {margin-top:4px!important}
+.summary-card {padding:10px 13px!important}.risk-dial {max-width:240px!important;overflow:hidden}
+@property --g {syntax:'\\3C number>';inherits:false;initial-value:0}  /* \\3C is '<', escaped: the HTML sanitiser drops a style block containing '<' followed by a letter */
+.risk-track,.risk-arc {position:absolute;left:5.4545%;top:11.29%;width:89.0909%;aspect-ratio:1;border-radius:50%;-webkit-mask:radial-gradient(farthest-side,transparent 79.3%,#000 79.8%);mask:radial-gradient(farthest-side,transparent 79.3%,#000 79.8%)}
+.risk-track {background:conic-gradient(from 270deg,#c7d2e0 0 180deg,transparent 0)}
+.risk-arc {--g:var(--to);background:conic-gradient(from 270deg,var(--arc) 0 calc(var(--g) * 180deg),transparent 0)}
+.risk-arc.animate {animation:sweep 1.4s ease-out both}@keyframes sweep {from{--g:var(--from)}to{--g:var(--to)}}
+.risk-gauge-img {position:relative}
+.kpi {padding:10px 14px!important;min-height:0!important}.st-key-outlook_card,.st-key-six_hour_chart {padding-top:2px}.risk-note,.risk-meta {margin-top:4px!important}
 .wx-summary {background:var(--card)!important;color:var(--text)!important;border:1px solid var(--card-border)!important}
 .wx-summary .sc-title,.wx-summary .sc-foot {color:var(--muted)}.wx-summary .sc-value {color:var(--heading)!important}
 .wx-stats span {background:var(--accent-soft)!important}.wx-stats b {color:var(--heading)!important}.wx-stats small {color:var(--muted)!important}.wx-stats .ico {color:var(--accent)!important}
@@ -538,13 +580,13 @@ CHROME_CSS = """
 body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {display:none}  /* the open side menu has every section */
 @media (max-width:1100px) {.banner {grid-template-columns:1fr auto}.bn-place {display:none}.advice-grid.compact {grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 @media (max-width:640px) {
-  .banner {grid-template-columns:1fr;min-height:0;max-height:none;padding:10px 12px;gap:8px;background:var(--banner-overlay),url(BANNER_IMAGE_SMALL) center 62%/cover}
+  .banner {grid-template-columns:1fr;min-height:0;max-height:none;padding:10px 12px;gap:8px;background:var(--banner-overlay),url(BANNER_IMAGE_SMALL) center 46%/cover}
   .banner h1 {font-size:19px}.bn-brand small {display:none}.bn-brand>.ico {width:32px;height:32px}
-  .bn-clock {padding:6px 10px;gap:10px}.bn-clock b {font-size:18px}.bn-clock small {font-size:11px}.bn-chip {font-size:12px;padding:2px 8px}
+  .bn-clock {padding:6px 10px;gap:10px}.bn-clock b {font-size:18px}.bn-sec {display:none}.bn-clock small {font-size:11px}.bn-chip {font-size:12px;padding:2px 8px}
   .status-strip {display:none}  /* the banner already shows the system status */
   .st-key-top_nav_bar button {padding:6px 8px!important;font-size:13px!important;min-height:36px!important}.st-key-top_nav_bar [data-testid=stButtonGroup] > div {gap:2px!important;flex-wrap:nowrap!important}
   .decision-summary .sc-sub,.risk-summary .sc-sub {display:none}
-  .summary-card {padding:9px 11px!important}.risk-dial {max-width:190px!important}.risk-value {font-size:38px!important}
+  .summary-card {padding:8px 10px!important}.risk-dial {max-width:180px!important}.risk-value {font-size:38px!important}
   .decision-badge {padding:9px 12px!important;font-size:15px!important;margin:2px 0 6px!important}.decision-summary .sc-foot {display:none}
   .wx-now img {width:46px;height:46px}.sc-value {font-size:26px!important}.period-row {margin:4px 0!important}
   .comm-tile {padding:6px 8px!important}.var-grid {gap:8px 12px!important}.var-tile b {font-size:16px!important}
@@ -552,7 +594,7 @@ body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {dis
   .st-key-home_actions [data-testid=stHorizontalBlock] {flex-wrap:wrap!important;gap:8px!important}
   .st-key-home_actions [data-testid=stColumn] {flex:1 1 calc(50% - 8px)!important;min-width:calc(50% - 8px)!important;width:calc(50% - 8px)!important}
 }
-@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.bn-updated,.summary-grid.just-updated {animation:none!important}}
+@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.chip .dot,.chip:not(.stale) .dot,.bn-updated,.summary-grid.just-updated,.risk-arc.animate {animation:none!important}}
 """.replace('BANNER_IMAGE_SMALL', BANNER_IMAGE_SMALL).replace('BANNER_IMAGE', BANNER_IMAGE)
 
 
