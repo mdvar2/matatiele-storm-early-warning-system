@@ -59,6 +59,30 @@ New regressions:
 
 The model, 29 inputs, 35% threshold, warning, outlook and SMS logic, worker and evaluation evidence are unchanged.
 
-## Live verification after deployment
+## Live verification on Streamlit Community Cloud
 
-See `live_after/` (added after the push).
+**First deploy (`d29d066`, `live_first_deploy/`).**
+- Working: no error; one fixed bar; ☰ visible; More correct.
+- Found: Cloud's Streamlit marks the open sidebar with `data-collapsed="false"`, not `aria-expanded`. As a result:
+  - the drawer did not close itself;
+  - the tablet rule hiding the top bar could not match;
+  - the drawer's download button was white with light text.
+
+  All three were fixed in `87f3b14`.
+
+**Final deploy (`52f1a6d`, `live_after/`).**
+
+| Live check | 360 light | 390 light | 390 dark | 430 light | 820 tablet | 1366 desktop |
+|---|---|---|---|---|---|---|
+| Exception / traceback | none | none | none | none | none | none |
+| Visible bottom bars | 1, fixed | 1, fixed | 1, fixed | 1, fixed | 0 | 0 |
+| Old top tab row | hidden, 0 px | hidden, 0 px | hidden, 0 px | hidden, 0 px | hidden | hidden |
+| ☰ visible | yes | yes | yes | yes | sidebar open | sidebar open |
+| Tabs: truncated / height / width | no / 54 / 69 | no / 54 / 75 | no / 54 / 75 | no / 54 / 83 | – | – |
+| Bar unchanged after scrolling | yes | yes | yes | yes | – | – |
+| Horizontal overflow | no | no | no | no | no | no |
+| Risk card / decision top (px) | 280 / 609 | 280 / 591 | 280 / 591 | 280 / 591 | 398 / 462 | 326 / 390 |
+| Active tab, More sheet (closes after a choice) | yes | yes | – | yes | – | – |
+| ☰ drawer: opens; closes after a choice, Escape, outside tap | yes | yes | – | yes | – | – |
+
+**Platform overlay (not part of the app).** On the live site, Streamlit Community Cloud draws its own floating "hosted with Streamlit" badge and the developer's avatar in the bottom-right corner of the page that wraps the app. On phones they overlap the right end of the bottom bar (More and part of Safety): see `live_after/live_390_dark_first_screen.png`. They come from the hosting page, not the dashboard, and do not appear locally or on other hosting. Hiding or moving the platform badge was not done without the project owner's decision.
