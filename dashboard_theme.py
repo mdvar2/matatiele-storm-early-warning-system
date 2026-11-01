@@ -578,6 +578,12 @@ CHROME_CSS = """
 .advice-grid.compact {grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:8px!important}.advice-grid.compact .advice-card {padding:10px!important}
 .advice-grid.compact .advice-card p {font-size:12.5px;margin:4px 0 0}.advice-card {padding:12px 14px!important}
 body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {display:none}  /* the open side menu has every section */
+/* Streamlit versions differ: some mark the open sidebar with aria-expanded, others (e.g. Community Cloud's) with data-collapsed. */
+body:has([data-testid=stSidebar][data-collapsed="false"]) .st-key-top_nav_bar,
+body:has([data-testid=stSidebar][data-collapsed="false"]) [data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar) {display:none}
+/* Side-menu download button (phone drawer): the same look as the other side-menu entries, readable on the dark menu. */
+[data-testid=stSidebar] [data-testid=stDownloadButton] button {background:transparent!important;border:1px solid rgba(255,255,255,.35)!important;color:var(--sidebar-text,#e8f1fb)!important}
+[data-testid=stSidebar] [data-testid=stDownloadButton] button p,[data-testid=stSidebar] [data-testid=stDownloadButton] button [data-testid=stIconMaterial] {color:inherit!important}
 @media (max-width:1100px) {.banner {grid-template-columns:1fr auto}.bn-place {display:none}.advice-grid.compact {grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 @media (max-width:640px) {
   .banner {grid-template-columns:1fr;min-height:0;max-height:none;padding:10px 12px;gap:8px;background:var(--banner-overlay),url(BANNER_IMAGE_SMALL) center 46%/cover}
@@ -779,7 +785,11 @@ CONNECTION_WATCH = r"""
   }
   bar.querySelector('button').onclick = openSaved;
   // Phone menu (hamburger) drawer: closes after a choice, on a tap outside it, and with Escape.
-  function drawer() { var s = d.querySelector('[data-testid=stSidebar]'); return s && innerWidth <= 640 && s.getAttribute('aria-expanded') === 'true' ? s : null; }
+  function drawer() {
+    var s = d.querySelector('[data-testid=stSidebar]');
+    var open = s && (s.getAttribute('aria-expanded') === 'true' || s.getAttribute('data-collapsed') === 'false');  // both Streamlit variants
+    return open && innerWidth <= 640 ? s : null;
+  }
   function closeDrawer() {
     var b = d.querySelector('[data-testid=stSidebarCollapseButton] button') || d.querySelector('[data-testid=stSidebarCollapseButton]');
     if (b) b.click();
