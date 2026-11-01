@@ -1,0 +1,88 @@
+{
+ "A_first_visit_no_saved_data": {
+  "status": "No saved warning information yet",
+  "saved": "No saved warning information yet",
+  "note": "Open this offline page once while connected to save the latest warning information for later use.",
+  "score": null,
+  "decision": [],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "dashboard_score": "3%",
+ "dashboard_decision": "NO WARNING TRIGGERED",
+ "downloaded": [],
+ "B_online_saved": {
+  "status": "Connected \u2014 latest information saved on this device",
+  "saved": "Last saved: 01 Nov 2026 02:42 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "C_network_disabled": {
+  "status": "No connection: showing the last saved information",
+  "saved": "Last saved: 01 Nov 2026 02:42 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "D_reload_while_offline": {
+  "status": "No connection: showing the last saved information",
+  "saved": "Last saved: 01 Nov 2026 02:42 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "D2_closed_and_reopened_offline": {
+  "status": "No connection: showing the last saved information",
+  "saved": "Last saved: 01 Nov 2026 02:42 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "E_corrupt_storage": {
+  "status": "No saved warning information yet",
+  "saved": "No saved warning information yet",
+  "note": "Open this offline page once while connected to save the latest warning information for later use.",
+  "score": null,
+  "decision": [],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "E2_partial_old_record": {
+  "status": "Warning service not reachable: showing the last saved information",
+  "saved": "Last saved: 2026-11-01T00:00:00+00:00",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "F_downloaded_file": "no file"
+}

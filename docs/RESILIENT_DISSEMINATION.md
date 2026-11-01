@@ -30,11 +30,13 @@ Both are off by default.
 
 | Part | What it does |
 |---|---|
-| `static/offline.html` (served at `/app/static/offline.html`; **Offline access** button on Home) | A small self-contained page showing the last risk score and level, the warning decision, warnings in effect, any early alert, safety advice and tap-to-call emergency numbers |
+| **Save for offline use** (Dashboard) and `static/offline.html` (template; also served at `/app/static/offline.html` on self-hosted deployments) | A small self-contained page showing the last risk score and level, the warning decision, warnings in effect, any early alert, safety advice and tap-to-call emergency numbers |
 | `static/sw.js` (service worker), `manifest.webmanifest`, `icon.svg` | After one visit with signal, the phone keeps the page and the last status. With no connection the page still opens, says it is offline, and shows when it was saved. It can be added to the home screen. |
 | `offline_page.py` → `static/status.json` | Written by the dashboard from the **genuine** output and real data state. The administrator's simulation and connectivity demonstration never reach it. It contains no personal data and is ignored by Git. |
 
-**Limit:** the offline page cannot receive new warnings without a connection. It keeps the last one and the advice.
+**Deployment note:** on Streamlit Community Cloud, `/app/static/offline.html` cannot be opened as a standalone page. The platform answers it with its own page, which is blank, so the Dashboard offers **Save for offline use** instead: a self-contained copy with the latest genuine status embedded, which opens from the phone's files with no connection.
+
+**Limit:** the saved information cannot receive new warnings without a connection. It keeps the last saved status and the advice, and residents save it again when they have signal.
 
 ## 3. Community relays
 

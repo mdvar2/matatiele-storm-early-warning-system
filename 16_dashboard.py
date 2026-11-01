@@ -791,8 +791,8 @@ except Exception:logging.exception('System log could not be updated.')  # loggin
 # The banner and officials always use the genuine estimate; only the resident card shows the simulation.
 genuine_status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,stale,False)
 
-def write_offline_status() -> None:
-    """The offline page's status file, from the genuine output and the real data state (never a demonstration)."""
+def offline_status() -> dict:
+    """The resident-safe saved status, from the genuine output and the real data state (never a demonstration)."""
     status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,data_stale,False)
     events,error=resident_alerts.load_events(secret)
     active=[e for e in events if e['source']==warning_events.GENUINE and warning_events.is_active(e)]
@@ -800,10 +800,12 @@ def write_offline_status() -> None:
     if not data_stale:
         hit=storm_outlook.first_exceedance(outlook_scores(f'{datetime.now(UTC):%Y-%m-%dT%H}')[0])
         if hit:early=f"Raised storm risk from about {pd.Timestamp(hit['target_end_utc']).tz_convert(SAST)-pd.Timedelta(hours=1):%H:%M} SAST"
-    offline_page.write(BASE/'static'/'status.json',offline_page.build(status,real_prob,warning_record(events,error),active,early))
+    return offline_page.build(status,real_prob,warning_record(events,error),active,early)
 
-try:write_offline_status()
-except Exception:logging.exception('Offline status could not be written.')  # never interrupts the dashboard
+try:offline_data=offline_status();offline_page.write(BASE/'static'/'status.json',offline_data)
+except Exception:
+    offline_data=None
+    logging.exception('Offline status could not be written.')  # never interrupts the dashboard
 if portal_mode:
     official=official_portal.sign_in(secret,failed_official_logins(),LOGIN_WINDOW_SECONDS,MAX_FAILED_LOGINS)
     if official:
@@ -840,13 +842,12 @@ RO3_STATUS=[
     ('Smart: Random Forest storm-risk assessment','Implemented','ECMWF forecast inputs, the trained Random Forest (29 inputs), model-estimated risk score; evidence on Risk Analysis'),
     ('Early warning: 35% threshold decision','Implemented','Warning decision, public warning record, Alerts page'),
     ('Resilient: degraded operation','Implemented','Fresh or out-of-date status, last-known information, offline saved-information page, warning records kept if SMS fails'),
-    ('Low connectivity: dashboard alerts, low-data view, offline page','Implemented','Plain-text view; offline page keeps the last warning, advice and emergency numbers'),
+    ('Low connectivity: dashboard alerts, low-data view, saved offline copy','Implemented','Plain-text view; Save for offline use keeps the last warning, advice and emergency numbers on the phone'),
     ('Low connectivity: SMS and community relays','Implemented as simulation','SMS simulation and controlled test; relay role and announcement scripts (not field-tested with relays)'),
     ('Early: 2 to 12 hour storm-risk outlook','Exploratory, unvalidated','Same model on later forecast hours; evaluated one hour ahead only'),
     ('Public SMS, sensors, LoRa, sirens, Cell Broadcast, field validation','Future / deployment-dependent','Not implemented'),
 ]
 
-OFFLINE_PAGE='app/static/offline.html'
 HISTORY_RANGES=('Last 24 hours','Last 7 days','All saved')
 
 def more_safety_advice() -> None:
@@ -883,8 +884,14 @@ if page=='🏠 Dashboard':
         actions[2].button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
         actions[3].button('SMS service',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch',
                           help='SMS warning service: research prototype. Public SMS delivery is not active.')
-        actions[4].link_button('Offline access',OFFLINE_PAGE,icon=':material/wifi_off:',width='stretch',
-                               help='Open once while you have signal: your phone keeps the last warning, safety advice and emergency numbers for when the network is down. It cannot receive new warnings offline.')
+        # A self-contained page with the genuine latest status embedded: saved once, it opens with no connection on any
+        # hosting (Streamlit Community Cloud does not serve ./static as a standalone page).
+        try:offline_file=offline_page.download_html(offline_data,BASE/'static'/'offline.html') if offline_data else None
+        except (OSError,ValueError):offline_file=None  # a missing template must never break Home: the button is disabled instead
+        actions[4].download_button('Save for offline use',offline_file or '',
+                                   file_name=f'matatiele-storm-info-{datetime.now(SAST):%Y%m%d-%H%M}.html',mime='text/html',
+                                   icon=':material/download:',width='stretch',key='save_offline',disabled=not offline_file,
+                                   help='Saves the latest warning information, safety advice and emergency numbers as a small page on your phone. Open it any time, even with no connection. It cannot receive new warnings: save again when you have signal.')
     outlook_column,chart_column=st.columns([1,1.35],gap='medium')
     with outlook_column:outlook_card()
     with chart_column:six_hour_chart()
@@ -895,8 +902,8 @@ if page=='🏠 Dashboard':
     if not genuine_active:
         st.html(resident_view.quick_actions_html(advice))
     st.html('<div class="lowdata-link">Low connectivity: <a href="?view=text">Low-data view</a> (plain text) · '
-            f'<a href="{OFFLINE_PAGE}" target="_blank" rel="noopener">Offline access</a> (open once with signal; keeps the last '
-            'warning, safety advice and emergency numbers for when the network is down).</div>')
+            '<b>Save for offline use</b> (above): keeps the latest warning information, safety advice and emergency numbers on '
+            'your phone for when the network is down.</div>')
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
