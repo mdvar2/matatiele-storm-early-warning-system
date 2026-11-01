@@ -1,0 +1,44 @@
+{
+ "width": 390,
+ "theme": "light",
+ "state": {
+  "exception": [
+   "AttributeError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).\nTraceback:\nFile \"/mount/src/matatiele-storm-early-warning-system/16_dashboard.py\", line 1227, in <module>\n    components.html(dashboard_theme.connectio"
+  ],
+  "script_state": "notRunning",
+  "css_has_bottom_nav_rules": false,
+  "css_has_connection_watch": false,
+  "top_nav_visible": true,
+  "bottom_nav_present": true,
+  "bottom_nav_visible": true,
+  "bottom_nav_position": "static",
+  "bottom_nav_box": [
+   339,
+   539,
+   200
+  ],
+  "viewport": [
+   390,
+   800
+  ],
+  "more_button": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 40,
+   "w": 363
+  },
+  "burger_visible": false,
+  "testids": {
+   "layoutWrapper": true,
+   "mainBlock": true,
+   "expandSidebar": true,
+   "collapsedControl": false,
+   "stKeyClasses": 29
+  },
+  "overflow_x": false,
+  "text_head": "Skip to main content\nhome\n\nDashboard\n\nmonitoring\n\nRisk Analysis\n\nmap\n\nMap\n\nhealth_and_safety\n\nSafety\n\nnotifications\n\nAlerts\n\npartly_cloudy_day\n\nForecast\n\ninsert_chart\n\nHistorical Data\n\ninfo\n\nAbout\n\nResearch prototype \u00b7 not an official SAWS service\nLow-data text version\nrefresh\n\nRefresh weather and model\n\nAutomatic refresh every 15 minutes while open.\n\nProtecting Matatiele through earlier warnings\nSmart \u00b7 resilient \u00b7 low-connectivity storm early warning\n\nLast attempt: 01 Nov 09:31 SAST\n\nFork\nMata"
+ },
+ "scrolled_bottom_nav_box": [
+  -1061,
+  -861
+ ]
+}
