@@ -1,0 +1,85 @@
+{
+ "width": 1366,
+ "theme": "light",
+ "state": {
+  "exception": [],
+  "script_state": "notRunning",
+  "css_has_bottom_nav_rules": true,
+  "css_has_cloud_marker": true,
+  "sidebar_open": true,
+  "top_nav_height": 0,
+  "visible_bottom_bars": 0,
+  "nav_items": [
+   [
+    "Home",
+    "primary",
+    false,
+    0,
+    0
+   ],
+   [
+    "Risk",
+    "tertiary",
+    false,
+    0,
+    0
+   ],
+   [
+    "Map",
+    "tertiary",
+    false,
+    0,
+    0
+   ],
+   [
+    "Safety",
+    "tertiary",
+    false,
+    0,
+    0
+   ],
+   [
+    "More",
+    "secondary",
+    false,
+    0,
+    0
+   ]
+  ],
+  "risk_top": 326,
+  "decision_top": 390,
+  "css_has_connection_watch": true,
+  "top_nav_visible": false,
+  "bottom_nav_present": true,
+  "bottom_nav_visible": false,
+  "bottom_nav_position": "static",
+  "bottom_nav_box": [
+   0,
+   0,
+   0
+  ],
+  "viewport": [
+   1366,
+   800
+  ],
+  "more_button": {
+   "bg": "rgb(255, 255, 255)",
+   "h": 0,
+   "w": 0
+  },
+  "burger_visible": false,
+  "testids": {
+   "layoutWrapper": true,
+   "mainBlock": true,
+   "expandSidebar": false,
+   "collapsedControl": false,
+   "stKeyClasses": 32
+  },
+  "overflow_x": false,
+  "text_head": "Skip to main content\nhome\n\nDashboard\n\nmonitoring\n\nRisk Analysis\n\nmap\n\nMap\n\nhealth_and_safety\n\nSafety\n\nnotifications\n\nAlerts\n\npartly_cloudy_day\n\nForecast\n\ninsert_chart\n\nHistorical Data\n\ninfo\n\nAbout\n\nResearch prototype \u00b7 not an official SAWS service\nLow-data text version\nrefresh\n\nRefresh weather and model\n\nAutomatic refresh every 15 minutes while open.\n\nProtecting Matatiele through earlier warnings\nSmart \u00b7 resilient \u00b7 low-connectivity storm early warning\n\nLast attempt: 01 Nov 16:16 SAST\n\nFork\nMata"
+ },
+ "scrolled_bottom_nav_box": [
+  0,
+  0
+ ]
+}
