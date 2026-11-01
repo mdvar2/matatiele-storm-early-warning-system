@@ -476,8 +476,8 @@ class ContractsAndInvariants(unittest.TestCase):
         self.assertIn("- cron: '12 * * * *'", workflow)
         publish = workflow.split('- name: Publish sanitised run record (monitoring only)', 1)[1]
         for line in ('if: ${{ always() }}', 'continue-on-error: true', 'run: python 19_publish_run_record.py',
-                     "RUN_RECORD_PUBLISH: 'false'"):
-            self.assertIn(line, publish)  # initial deployment: job summary only, no public issue
+                     "RUN_RECORD_PUBLISH: 'true'"):
+            self.assertIn(line, publish)  # job summary plus the public [RUN-LOG] issue (the durable prediction log)
         self.assertIn('issues: write', workflow); self.assertIn('contents: read', workflow)
         self.assertNotIn('contents: write', workflow)
         compile_line = next(l for l in workflow.splitlines() if 'py_compile' in l)

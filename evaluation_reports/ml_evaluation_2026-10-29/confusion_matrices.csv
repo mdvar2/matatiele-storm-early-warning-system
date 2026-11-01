@@ -1,0 +1,13 @@
+classifier,period,TN,FP,FN,TP
+M1 @ validation-selected primary threshold,test,29183,385,361,499
+M1 @ validation-selected recall>=0.70 threshold,test,28884,684,216,644
+M1 @ 0.35 (deployed threshold; reference),test,28995,573,275,585
+M1 @ 0.50 (default; reference),test,29247,321,401,459
+M2 deployed RF @ validation-selected primary threshold,test,29171,397,339,521
+M2 deployed RF @ 0.35 (test-tuned; optimistic reference),test,28987,581,241,619
+M2 deployed RF @ 0.50 (default; reference),test,29241,327,386,474
+B1 always-negative baseline,test,29568,0,860,0
+B2 persistence baseline,test,29189,379,379,481
+M1 @ validation-selected primary threshold,validation,33551,462,432,595
+B2 persistence baseline,validation,33564,449,449,578
+B1 always-negative baseline,validation,34013,0,1027,0

@@ -1,0 +1,41 @@
+{
+ "test_warning_1": "he hour ending 2026-10-30T13:00:00+00:00 (UTC): {'subscriber_alerts': 'no_active_subscribers', 'subscriber_recipients': 0, 'subscriber_submitted': 0, 'subscriber_failed': 0, 'subscriber_uncertain': 0}",
+ "test_warning_-50": "he hour ending 2026-10-28T10:00:00+00:00 (UTC): {'subscriber_alerts': 'no_active_subscribers', 'subscriber_recipients': 0, 'subscriber_submitted': 0, 'subscriber_failed': 0, 'subscriber_uncertain': 0}",
+ "r1_home_loaded": true,
+ "r1_test_banner_not_real": true,
+ "r1_contacts_tap_to_call": true,
+ "r1_hourly_strip": true,
+ "r2_alerts_page": true,
+ "r2_contacts_on_alerts": true,
+ "r3_detail": true,
+ "r3_detail_parts": true,
+ "r4_acknowledged": true,
+ "r5_duplicate_prevented_after_reload": true,
+ "r6_sms_view": true,
+ "m1_loaded": true,
+ "m2_detail": true,
+ "o1_portal": true,
+ "o2_signed_in": true,
+ "o2_ack_count_visible": true,
+ "o3_details": true,
+ "o4_review_recorded": true,
+ "o5_geography": true,
+ "o6_history": true,
+ "o6_recorded_actions": [
+  [
+   "demo.official",
+   "Monitoring",
+   "Demonstration note: ward councillor info"
+  ]
+ ],
+ "o6_reviews": {
+  "2026-10-30T13:00:00+00:00": [
+   "Monitoring",
+   "demo.official"
+  ]
+ },
+ "o3_status_set_to_monitoring": true,
+ "o6_acknowledgement_counts": {
+  "2026-10-30T13:00:00+00:00": 1
+ }
+}

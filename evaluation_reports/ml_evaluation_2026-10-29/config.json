@@ -1,0 +1,129 @@
+{
+  "design_document": "evaluation_reports/RO3_ml_evaluation_design_2026-10-29.md",
+  "run_utc": "2026-10-29T13:20:43.119283+00:00",
+  "smoke_test": false,
+  "periods_utc_start_inclusive_end_exclusive": {
+    "train": [
+      "2018-01-01 00:00",
+      "2024-08-12 00:00"
+    ],
+    "validation": [
+      "2024-08-19 00:00",
+      "2025-08-19 00:00"
+    ],
+    "test": [
+      "2025-08-26 00:00",
+      "2026-08-08 00:00"
+    ]
+  },
+  "embargo_days": 7,
+  "features": [
+    "latitude",
+    "longitude",
+    "t2m",
+    "d2m",
+    "msl",
+    "sp",
+    "tp",
+    "cape",
+    "cp",
+    "tcc",
+    "u10",
+    "v10",
+    "i10fg",
+    "hour",
+    "month",
+    "day_of_year",
+    "wind_speed",
+    "previous_t2m",
+    "previous_d2m",
+    "previous_msl",
+    "previous_sp",
+    "previous_tp",
+    "previous_cape",
+    "previous_cp",
+    "previous_tcc",
+    "previous_u10",
+    "previous_v10",
+    "previous_i10fg",
+    "previous_wind_speed"
+  ],
+  "rf_params_from_deployed_model": {
+    "n_estimators": 300,
+    "max_depth": null,
+    "min_samples_split": 2,
+    "min_samples_leaf": 1,
+    "max_features": "sqrt",
+    "class_weight": "balanced",
+    "bootstrap": true,
+    "criterion": "gini"
+  },
+  "primary_seed": 42,
+  "extra_seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "n_jobs": -1,
+  "threshold_grid": [
+    0.01,
+    0.99,
+    0.01
+  ],
+  "decision_rule": "probability >= threshold",
+  "primary_rule": "max validation F1; ties -> higher threshold",
+  "secondary_rule": "among validation recall >= 0.7, max F1; ties -> higher threshold",
+  "selected_thresholds": {
+    "primary": 0.46,
+    "recall_constrained": 0.3
+  },
+  "bootstrap": {
+    "type": "moving block",
+    "block_days": 7,
+    "resamples": 2000,
+    "seed": 20261029,
+    "ci": "percentile 95%"
+  },
+  "meaningful_improvement_criterion": {
+    "margin_f1": 0.05,
+    "requires_ci_lower_bound_above_zero": true,
+    "result": {
+      "point_diff_f1": 0.012945380840623022,
+      "ci_low": -0.028878348802070648,
+      "ci_high": 0.04722472279529598,
+      "margin_met": false,
+      "ci_excludes_zero": false,
+      "meaningful_improvement": false
+    }
+  },
+  "train_climatology_for_brier": 0.02294640767610578,
+  "inputs": {
+    "model_ready.csv": "outputs\\model_ready.csv",
+    "live_model_features.txt": "outputs\\model_live\\live_model_features.txt",
+    "random_forest_live_model.pkl": "outputs\\model_live\\random_forest_live_model.pkl",
+    "live_model_test_predictions.csv": "outputs\\model_live\\live_model_test_predictions.csv"
+  },
+  "input_sha256_before": {
+    "outputs\\model_ready.csv": "e4a80a04f6b25d9d50fc2df683ed50d093a3835bc9fe65eac4a1ade3b582e6ac",
+    "outputs\\model_live\\live_model_features.txt": "583f95ca3eeae89532c6bdad4dc035a3e1e34d1fb8b14bf4635fc4540bbf9650",
+    "outputs\\model_live\\random_forest_live_model.pkl": "bb0b85d21ded4e78b1dd67f104188c55a76a71a359bf683982ad92ab3fb94e4c",
+    "outputs\\model_live\\live_model_test_predictions.csv": "76dc32988f971bb63d0a5e589d22bf4328b6a3814cf07e7f03dff78ee7b3bb9d"
+  },
+  "input_sha256_after": {
+    "outputs\\model_ready.csv": "e4a80a04f6b25d9d50fc2df683ed50d093a3835bc9fe65eac4a1ade3b582e6ac",
+    "outputs\\model_live\\live_model_features.txt": "583f95ca3eeae89532c6bdad4dc035a3e1e34d1fb8b14bf4635fc4540bbf9650",
+    "outputs\\model_live\\random_forest_live_model.pkl": "bb0b85d21ded4e78b1dd67f104188c55a76a71a359bf683982ad92ab3fb94e4c",
+    "outputs\\model_live\\live_model_test_predictions.csv": "76dc32988f971bb63d0a5e589d22bf4328b6a3814cf07e7f03dff78ee7b3bb9d"
+  },
+  "inputs_unchanged": true,
+  "versions": {
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "scikit_learn": "1.9.0",
+    "joblib": "1.6.0"
+  },
+  "runtime_seconds": 105.5
+}

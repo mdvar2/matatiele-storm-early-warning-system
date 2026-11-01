@@ -406,6 +406,13 @@ def main(argv=None):
         return
     _note(duplicate_prevention='reserved', ledger_issue_number=issue, sms_submission='exception')
     print('Reserved warning hour in GitHub issue #', issue)
+    # Resident subscribers (off unless SUBSCRIBER_ALERTS_ENABLED=true). Runs only inside this
+    # reserved hour, never raises, and records counts only; the path below is unchanged.
+    try:
+        import subscriber_alerts
+        _note(**subscriber_alerts.run_for_worker(forecast_time.isoformat(), probability, threshold))
+    except Exception:
+        _note(subscriber_alerts='failed')
     result_status = None
     try:
         result = send_storm_sms(

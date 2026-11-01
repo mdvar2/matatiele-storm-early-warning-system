@@ -1,0 +1,19 @@
+{
+ "dashboard_loaded": true,
+ "hero_subtitle": true,
+ "sms_page": true,
+ "consent_ticked": true,
+ "code_screen": true,
+ "code_found_in_dev_outbox": true,
+ "subscription_active": true,
+ "worker_hook": "{'subscriber_alerts': 'sent', 'subscriber_recipients': 1, 'subscriber_submitted': 1, 'subscriber_failed': 0, 'subscriber_uncertain': 0}",
+ "admin_signed_in": true,
+ "admin_page": true,
+ "admin_full_number_absent": true,
+ "manage_code_sent": true,
+ "manage_status_shown": true,
+ "unsubscribed": true,
+ "history_page": true,
+ "mobile_loaded": true,
+ "mobile_sms_page": true
+}

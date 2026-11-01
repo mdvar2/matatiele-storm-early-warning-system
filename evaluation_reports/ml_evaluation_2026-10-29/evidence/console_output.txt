@@ -1,0 +1,10 @@
+[    1.6s] Periods verified: row counts match design, no shared timestamps, embargoes >= 7 days
+[    1.6s] Fitting M1 (seed 42) on 85460 training rows
+[   13.2s] Validation-selected thresholds: primary(max F1)=0.46, recall>=0.7: 0.3
+[   14.0s] Point metrics written
+[   50.9s] Bootstrap complete (2000 resamples of 46 x 7-day blocks over 317 test days)
+[   50.9s] Fitting seed-stability model (seed 1)
+[   63.0s] Fitting seed-stability model (seed 2)
+[   76.9s] Fitting seed-stability model (seed 3)
+[   91.6s] Fitting seed-stability model (seed 4)
+[  105.5s] Done. Meaningful-improvement criterion met: False

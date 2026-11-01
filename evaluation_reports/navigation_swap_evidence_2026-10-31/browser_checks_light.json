@@ -1,0 +1,302 @@
+{
+ "1440_1_home": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Home"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Next hours",
+  "no_overflow": true
+ },
+ "1440_2_risk_from_top": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Risk Analysis"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Risk analysis",
+  "no_overflow": true
+ },
+ "1440_3_forecast_from_menu": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [
+   "partly_cloudy_day\n\nForecast"
+  ],
+  "heading": "Weather forecast",
+  "no_overflow": true
+ },
+ "1440_4_map_from_top": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Map"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Home",
+  "no_overflow": true
+ },
+ "1440_5_after_refresh": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Home"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Next hours",
+  "no_overflow": true
+ },
+ "820_1_home": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Home"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Next hours",
+  "no_overflow": true
+ },
+ "820_2_risk_from_top": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Risk Analysis"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Risk analysis",
+  "no_overflow": true
+ },
+ "820_3_forecast_from_menu": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [
+   "partly_cloudy_day\n\nForecast"
+  ],
+  "heading": "Weather forecast",
+  "no_overflow": true
+ },
+ "820_4_map_from_top": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Map"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Home",
+  "no_overflow": true
+ },
+ "820_5_after_refresh": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Home"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Next hours",
+  "no_overflow": true
+ },
+ "390_1_home": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Home"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Next hours",
+  "no_overflow": true
+ },
+ "390_2_risk_from_top": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Risk Analysis"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Risk analysis",
+  "no_overflow": true
+ },
+ "390_3_forecast_from_menu": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [
+   "partly_cloudy_day\n\nForecast"
+  ],
+  "heading": "Weather forecast",
+  "no_overflow": true
+ },
+ "390_4_map_from_top": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Map"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Home",
+  "no_overflow": true
+ },
+ "390_5_after_refresh": {
+  "top": [
+   "Home",
+   "Risk Analysis",
+   "Map",
+   "Safety"
+  ],
+  "top_active": [
+   "Home"
+  ],
+  "side": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About"
+  ],
+  "side_active": [],
+  "heading": "Next hours",
+  "no_overflow": true
+ }
+}

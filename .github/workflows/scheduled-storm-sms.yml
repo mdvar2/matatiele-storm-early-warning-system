@@ -65,6 +65,14 @@ jobs:
           RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
           RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
           RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
+          # Resident subscribers: off unless the repository variable SUBSCRIBER_ALERTS_ENABLED is 'true'.
+          SUBSCRIBER_ALERTS_ENABLED: ${{ vars.SUBSCRIBER_ALERTS_ENABLED || 'false' }}
+          SMS_DELIVERY_MODE: twilio
+          SUBSCRIBER_STORE: github
+          SUBSCRIBER_STORE_REPO: ${{ vars.SUBSCRIBER_STORE_REPO }}
+          SUBSCRIBER_STORE_TOKEN: ${{ secrets.SUBSCRIBER_STORE_TOKEN }}
+          SUBSCRIBER_ENCRYPTION_KEY: ${{ secrets.SUBSCRIBER_ENCRYPTION_KEY }}
+          SUBSCRIBER_HASH_KEY: ${{ secrets.SUBSCRIBER_HASH_KEY }}
         run: python 18_scheduled_sms_worker.py --live
       - name: Manual connectivity test (NO WEATHER WARNING)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.send_test_sms == true }}
@@ -73,6 +81,23 @@ jobs:
           RUN_TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'github_schedule' || inputs.trigger_source || 'manual' }}
           RUN_SCHEDULED_FOR: ${{ inputs.scheduled_for }}
         run: python 18_scheduled_sms_worker.py --test-sms
+      # Early storm alert from the 12-hour model outlook (27_outlook_alert.py). Separate from the worker: it never
+      # changes the next-hour warning and cannot fail the job. Off unless the repository variable
+      # OUTLOOK_ALERTS_ENABLED is 'true'; SMS additionally needs SUBSCRIBER_ALERTS_ENABLED.
+      - name: Early storm alert (12-hour outlook)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.send_test_sms != true }}
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          OUTLOOK_ALERTS_ENABLED: ${{ vars.OUTLOOK_ALERTS_ENABLED || 'false' }}
+          SUBSCRIBER_ALERTS_ENABLED: ${{ vars.SUBSCRIBER_ALERTS_ENABLED || 'false' }}
+          SMS_DELIVERY_MODE: twilio
+          SUBSCRIBER_STORE: github
+          SUBSCRIBER_STORE_REPO: ${{ vars.SUBSCRIBER_STORE_REPO }}
+          SUBSCRIBER_STORE_TOKEN: ${{ secrets.SUBSCRIBER_STORE_TOKEN }}
+          SUBSCRIBER_ENCRYPTION_KEY: ${{ secrets.SUBSCRIBER_ENCRYPTION_KEY }}
+          SUBSCRIBER_HASH_KEY: ${{ secrets.SUBSCRIBER_HASH_KEY }}
+        run: python 27_outlook_alert.py
       # Monitoring only: confirms the token can create/delete lock labels and read run status.
       # Uses a throwaway "sms-probe:" label, never an SMS lock or ledger issue; cannot fail the job.
       - name: Probe duplicate-lock permissions (monitoring only)
@@ -89,8 +114,9 @@ jobs:
         timeout-minutes: 2
         env:
           RUN_RECORD_FILE: ${{ runner.temp }}/run_record.json
-          # Job summary only. Set to 'true' to also post to the public [RUN-LOG] issue.
-          RUN_RECORD_PUBLISH: 'false'
+          # Also post each sanitised record to the public [RUN-LOG] YYYY-MM issue: the durable prediction log the
+          # dashboard reads (no phone numbers, message content or provider identifiers).
+          RUN_RECORD_PUBLISH: 'true'
         run: python 19_publish_run_record.py
       # Monitoring only (R2): heartbeats derived from the R1 run record. Never sends SMS; cannot fail the job.
       - name: Heartbeat - report outcome (monitoring only)

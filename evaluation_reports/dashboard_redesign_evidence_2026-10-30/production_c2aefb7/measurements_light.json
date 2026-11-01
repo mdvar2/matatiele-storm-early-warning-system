@@ -1,0 +1,53 @@
+[
+  {
+    "scenario": "dashboard_desktop",
+    "url_path": "/",
+    "content_found": true,
+    "seconds": 26.5,
+    "http_requests": 161,
+    "http_bytes": 8578047,
+    "websocket_bytes": 75839,
+    "total_bytes": 8653886,
+    "public_admin_text_visible": false,
+    "safety_page": true
+  },
+  {
+    "scenario": "text_view_mobile",
+    "url_path": "/?view=text",
+    "content_found": true,
+    "seconds": 7.2,
+    "http_requests": 80,
+    "http_bytes": 2781960,
+    "websocket_bytes": 5621,
+    "total_bytes": 2787581,
+    "public_admin_text_visible": false
+  },
+  {
+    "scenario": "dashboard_mobile",
+    "url_path": "/",
+    "content_found": true,
+    "seconds": 13.2,
+    "http_requests": 161,
+    "http_bytes": 8714266,
+    "websocket_bytes": 75525,
+    "total_bytes": 8789791,
+    "public_admin_text_visible": false
+  },
+  {
+    "scenario": "admin_simulation",
+    "url_path": "/?admin=1",
+    "content_found": true,
+    "seconds": 16.3,
+    "http_requests": 177,
+    "http_bytes": 8745306,
+    "websocket_bytes": 75989,
+    "total_bytes": 8821295,
+    "public_admin_text_visible": true,
+    "wrong_password_rejected": true,
+    "toggle_absent_after_wrong_password": true,
+    "admin_signed_in": true,
+    "simulation_shown": true,
+    "sms_preview_shown": true,
+    "reverted_to_genuine": true
+  }
+]

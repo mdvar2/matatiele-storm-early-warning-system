@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matatiele storm warnings (offline page)</title>
+<meta name="description" content="Last known storm-risk information, safety advice and emergency numbers for Matatiele. Works without a connection once saved.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#1d4ed8">
+<style>
+  :root {--bg:#f5f7fb;--card:#fff;--text:#14243a;--muted:#4a5b70;--border:#d9e1ec;--green:#2f855a;--amber:#b45309;--red:#c81e33;--gray:#5b6b80;--link:#1d4ed8}
+  @media (prefers-color-scheme: dark) {:root {--bg:#0b1626;--card:#16233a;--text:#e6edf6;--muted:#a9b8cc;--border:#2a3a52;--link:#93c5fd}}
+  * {box-sizing:border-box}
+  body {margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
+  main {max-width:640px;margin:0 auto;padding:16px}
+  h1 {font-size:20px;margin:0 0 4px}
+  h2 {font-size:15px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .card {background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin:12px 0}
+  .net {font-size:13px;font-weight:700;padding:8px 12px;border-radius:10px;margin:8px 0;background:#dcfce7;color:#14532d}
+  .net.offline {background:#fef3c7;color:#713f12}
+  .badge {display:inline-block;color:#fff;font-weight:800;letter-spacing:.4px;padding:8px 12px;border-radius:10px;margin:4px 0}
+  .green {background:var(--green)} .amber {background:var(--amber)} .red {background:var(--red)} .gray {background:var(--gray)}
+  .score {font-size:40px;font-weight:800;line-height:1}
+  .muted {color:var(--muted);font-size:13px}
+  ul {padding-left:20px;margin:6px 0} li {margin:4px 0}
+  a {color:var(--link)}
+  .call {display:flex;justify-content:space-between;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;margin:6px 0;text-decoration:none;color:var(--text)}
+  .call b {font-size:20px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Matatiele storm warnings</h1>
+  <div class="muted">Offline page of the Matatiele Smart Resilient Storm Early Warning System (academic research prototype)</div>
+  <div id="net" class="net" role="status">Checking connection…</div>
+  <div id="content"><div class="card">Loading the last saved information…</div></div>
+  <div class="card">
+    <h2>Keep this page</h2>
+    Open this page once while you have signal. Your phone then keeps it and shows the last saved information,
+    safety advice and emergency numbers even with no connection. New warnings need a connection or an SMS.
+  </div>
+  <p class="muted">Academic research prototype, not an official weather warning service. Follow official warnings
+    (South African Weather Service) and local emergency guidance.</p>
+</main>
+<script>
+(function () {
+  var KEY = 'matatiele-offline-status';
+  function esc(text) {
+    return String(text == null ? '' : text).replace(/[&<>"']/g, function (c) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+    });
+  }
+  function hoursOld(iso) { var t = Date.parse(iso); return isNaN(t) ? null : (Date.now() - t) / 3600000; }
+  function render(s, fromNetwork) {
+    var age = hoursOld(s.generated_utc);
+    var net = document.getElementById('net');
+    var old = age !== null && age > 2;
+    net.className = 'net' + (fromNetwork && !old ? '' : ' offline');
+    net.textContent = (fromNetwork ? 'Connected. ' : 'No connection: showing the last saved information. ') +
+      'Saved ' + esc(s.generated_sast) + (old ? ' (over 2 hours ago, may be out of date).' : '.');
+    var html = '<div class="card"><h2>Storm risk now</h2>' +
+      '<div class="score">' + esc(s.risk_score) + '</div>' +
+      '<span class="badge ' + esc(s.risk_tone) + '">' + esc(s.risk_level) + '</span>' +
+      '<div class="muted">Model risk score for ' + esc(s.period) + '. Not a calibrated probability, not a guarantee.</div>' +
+      '<p><span class="badge ' + esc(s.decision_tone) + '">' + esc(s.decision) + '</span><br>' + esc(s.decision_detail) + '</p></div>';
+    if (s.warnings && s.warnings.length) {
+      html += '<div class="card"><h2>Warnings in effect</h2><ul>' + s.warnings.map(function (w) {
+        return '<li><b>' + esc(w.title) + '</b>: ' + esc(w.period) + '</li>';
+      }).join('') + '</ul></div>';
+    }
+    if (s.early_alert) {
+      html += '<div class="card"><h2>Early alert (model outlook)</h2><span class="badge amber">' + esc(s.early_alert) +
+        '</span><div class="muted">Unvalidated beyond one hour ahead; not certain.</div></div>';
+    }
+    html += '<div class="card"><h2>' + esc(s.advice_title) + '</h2><ul>' + (s.advice || []).map(function (a) {
+      return '<li><b>' + esc(a[0]) + ':</b> ' + esc(a[1]) + '</li>';
+    }).join('') + '</ul></div>';
+    html += '<div class="card"><h2>Emergency numbers</h2>' + (s.emergency || []).map(function (c) {
+      return '<a class="call" href="tel:' + esc(c[0]) + '"><b>' + esc(c[0]) + '</b><span>' + esc(c[1]) + '</span></a>';
+    }).join('') + '<div class="muted">' + esc(s.emergency_note) + ' Calls need mobile network coverage.</div></div>';
+    document.getElementById('content').innerHTML = html;
+  }
+  function fromStorage() {
+    try { var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
+  fetch('status.json', {cache: 'no-store'}).then(function (r) {
+    if (!r.ok) throw new Error('status ' + r.status);
+    var live = !r.headers.get('X-Offline-Copy') && navigator.onLine !== false;  // the service worker marks saved copies
+    return r.json().then(function (s) { return [s, live]; });
+  }).then(function (result) {
+    if (result[1]) { try { localStorage.setItem(KEY, JSON.stringify(result[0])); } catch (e) {} }
+    render(result[0], result[1]);
+  }).catch(function () {
+    var s = fromStorage();
+    if (s) { render(s, false); return; }
+    document.getElementById('net').className = 'net offline';
+    document.getElementById('net').textContent = 'No connection, and no saved information yet. Open this page once while you have signal.';
+    document.getElementById('content').innerHTML = '';
+  });
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>

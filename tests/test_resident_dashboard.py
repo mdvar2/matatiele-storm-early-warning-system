@@ -123,7 +123,7 @@ class ResidentStatus(unittest.TestCase):
         self.assertEqual((s['level'], s['guidance_level'], s['tone']), ('LOW', 'LOW', 'green'))
         self.assertIn('model estimate', s['headline'])
         self.assertIn('not a guarantee', s['explanation'])
-        self.assertEqual(s['estimate'], 'Model estimate: 4% chance of a storm')
+        self.assertEqual(s['estimate'], 'Model risk score: 4%')  # a score, not a 'chance of a storm'
         self.assertEqual(s['period'], '30 Oct 14:00 - 15:00 (SAST)')
         self.assertEqual(s['updated'], '30 Oct 2026 13:12 SAST')
         self.assertIn('Matatiele', s['coverage'])
@@ -140,7 +140,7 @@ class ResidentStatus(unittest.TestCase):
                 s = self.status(probability, stale=True)
                 self.assertEqual(s['headline'], rv.STALE_HEADLINE)
                 self.assertEqual((s['guidance_level'], s['tone'], s['stale']), ('UNAVAILABLE', 'gray', True))
-                self.assertTrue(s['estimate'].startswith('Last estimate'))
+                self.assertTrue(s['estimate'].startswith('Last risk score'))
                 self.assertIn('Do not rely on it', s['explanation'])
 
     def test_missing_or_invalid_probability(self):
@@ -149,7 +149,7 @@ class ResidentStatus(unittest.TestCase):
                 s = self.status(probability)
                 self.assertEqual((s['level'], s['guidance_level'], s['estimate']), ('UNAVAILABLE', 'UNAVAILABLE', 'No model estimate'))
                 self.assertIn('Do not assume it is safe', s['explanation'])
-        self.assertEqual(self.status(.04, start=None)['period'], 'Forecast period unavailable')
+        self.assertEqual(self.status(.04, start=None)['period'], 'Prediction period unavailable')
 
     def test_simulation_is_fixed_labelled_and_ignores_genuine_inputs(self):
         for genuine, stale in ((.02, False), (.02, True), (float('nan'), True)):
@@ -198,19 +198,30 @@ class SmsPreviewNeverSends(unittest.TestCase):
         self.assertFalse({c for c in called if c.startswith('send') or c in {'open', 'write_text', 'to_csv', 'create'}})
 
 
-class DashboardApp(unittest.TestCase):
-    """The real 16_dashboard.py, run hermetically with Streamlit's AppTest."""
+SECTIONS = ('🏠 Dashboard', '🚨 Alerts', '🌦️ Live Forecast', '🗺️ Weather Map', '🛟 Safety Advice', '📈 Risk Analysis',
+            '🕒 Historical Data', 'ℹ️ About')  # internal page keys behind the navigation labels
+TOP_SECTIONS = ('🏠 Dashboard', '📈 Risk Analysis', '🗺️ Weather Map', '🛟 Safety Advice')  # top bar; the rest are in the ☰ menu
+
+
+class DashboardHarness(unittest.TestCase):
+    """The real 16_dashboard.py, run hermetically with Streamlit's AppTest. Defines no tests."""
 
     @classmethod
     def setUpClass(cls):
         from streamlit.testing.v1 import AppTest  # noqa: F401  (skip cleanly if unavailable)
         cls.tmp = Path(tempfile.mkdtemp(prefix='resident-dashboard-'))
-        for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py'):
+        for name in ('16_dashboard.py', 'app_config.py', 'forecast_timing.py', 'sms_alert.py', 'resident_view.py', 'dashboard_theme.py',
+                     'resident_pages.py', 'subscriptions.py', 'subscriber_store.py', 'subscriber_alerts.py',
+                     'resident_alerts.py', 'official_portal.py', 'emergency_contacts.py', 'warning_events.py', 'officials.py', 'icons.py', 'model_evidence.py', '26_sms_simulation_demo.py', 'prediction_log.py', 'system_log.py', 'outlook.py', 'offline_page.py', 'cape_normalisation.py'):
             shutil.copy(ROOT / name, cls.tmp / name)
+        (cls.tmp / 'docs').mkdir()
+        shutil.copy(ROOT / 'docs' / 'model_evidence.json', cls.tmp / 'docs' / 'model_evidence.json')
+        shutil.copytree(ROOT / 'components', cls.tmp / 'components')
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
         cls.model = cls.tmp / 'outputs' / 'model_live'
         cls.model.mkdir(parents=True)
         (cls.model / 'live_selected_threshold.txt').write_text('0.35\n')
+        shutil.copy(ROOT / 'outputs' / 'model_live' / 'live_model_features.txt', cls.model / 'live_model_features.txt')
 
     @classmethod
     def tearDownClass(cls):
@@ -219,8 +230,10 @@ class DashboardApp(unittest.TestCase):
     def setUp(self):
         import streamlit as st
         st.cache_resource.clear()
+        st.cache_data.clear()  # e.g. the outlook and ledger caches start empty in every test
         for name in ('dashboard_forecast_prediction.csv', 'prediction_history.csv', 'regional_ecmwf_forecast.csv'):
             (self.model / name).unlink(missing_ok=True)
+        (self.tmp / 'outputs' / 'system_log.sqlite').unlink(missing_ok=True)  # each test starts with an empty system log
         env = {k: v for k, v in os.environ.items() if not k.startswith(('TWILIO_', 'ALERT_TO', 'ADMIN_PASSWORD'))}
         env['ADMIN_PASSWORD'] = ADMIN_TEST_PASSWORD
         self.env = patch.dict(os.environ, env, clear=True); self.env.start(); self.addCleanup(self.env.stop)
@@ -263,36 +276,51 @@ class DashboardApp(unittest.TestCase):
     def button(self, at, label):
         return next(b for b in at.button if b.label == label)
 
+    def go(self, at, section):
+        """Navigate with the top navigation bar (sections keep their internal names, e.g. 'Safety Advice')."""
+        target = next(o for o in SECTIONS if o.endswith(section))
+        if target in TOP_SECTIONS:
+            next(g for g in at.button_group if g.key == 'top_nav').set_value(target).run()
+        else:  # Alerts, Forecast, Historical Data and About are in the side (☰) menu
+            label = {'🌦️ Live Forecast': 'Forecast'}.get(target, target.split(' ', 1)[1])
+            next(b for b in at.button if b.key == 'menu_' + label).click().run()
+        return at
+
     def digest(self):
         return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(self.model.glob('*.csv'))}
 
     def login(self, at):
-        at.text_input[0].input(ADMIN_TEST_PASSWORD)
+        next(t for t in at.text_input if t.label == 'Administrator Password').input(ADMIN_TEST_PASSWORD)
         self.button(at, 'Unlock Admin Controls').click().run()
         self.assertTrue(at.session_state['admin_authenticated'])
 
+
+class DashboardApp(DashboardHarness):
     def test_public_view_is_resident_first_without_admin_controls(self):
         self.write_prediction(.05)
         at = self.app().run()
         self.assertFalse(at.exception)
         page = self.html(at)
-        self.assertLess(page.index('resident-card tone-green'), page.index('class="kpi'))
-        self.assertIn('Low storm risk (model estimate)', page)
+        self.assertNotIn('class="kpi', page)  # technical status cards live in About, not on Home
+        self.assertIn('LOW RISK', page)
         self.assertIn('not a guarantee', page)
+        self.assertIn('Model risk score — not a calibrated probability', page)
+        self.assertNotIn('chance of a storm', page)
         self.assertIn('Be prepared', page)
-        self.assertIn('not been independently validated', page)
+        self.assertIn('not been independently validated', self.html(self.go(at, 'Risk Analysis')))  # full caveat: Risk Analysis
         self.assertNotIn('SIMULATION', page)
         self.assertFalse([e for e in at.expander if 'Administrator Access' in e.label])
         self.assertFalse([b for b in at.button if 'Test SMS' in b.label or 'Unlock' in b.label])
-        self.assertEqual(len(at.toggle), 0)
+        self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         self.assertEqual(len(at.code), 0)
 
     def test_stale_prediction_is_flagged_for_residents(self):
         self.write_prediction(.41, fresh=False)
         at = self.app(inference_ok=False).run()
         page = self.html(at)
-        self.assertIn(rv.STALE_HEADLINE, page)
-        self.assertIn('Last estimate: 41%', page)
+        self.assertIn('OUT OF DATE', page)
+        self.assertIn('Last risk score: 41% (out of date)', page)
+        self.assertIn('NO DECISION', page)
         self.assertNotIn('take precautions now', page)
         self.assertIn('If you see signs of a storm', page)
 
@@ -304,9 +332,9 @@ class DashboardApp(unittest.TestCase):
         self.button(at, 'Unlock Admin Controls').click().run()
         self.assertFalse(at.session_state['admin_authenticated'])
         self.assertIn('Incorrect password.', [e.value for e in at.error])
-        self.assertEqual(len(at.toggle), 0)
+        self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         self.login(at)
-        self.assertEqual([t.label for t in at.toggle], ['🧪 Warning simulation (on screen only)'])
+        self.assertEqual([t.label for t in at.toggle if t.key == 'presentation_test_mode'], ['Warning simulation (on screen only)'])
 
     def test_simulation_is_on_screen_only_and_reverts(self):
         self.write_prediction(.05)
@@ -317,9 +345,11 @@ class DashboardApp(unittest.TestCase):
         page = self.html(at)
         self.assertIn(rv.SIMULATION_LABEL, page)
         self.assertIn('Simulated model output: 60%', page)
-        self.assertIn('Storm warning (model): take precautions now', page)
+        self.assertIn('SIMULATED WARNING', page)
+        self.assertNotIn('WARNING TRIGGERED', page.replace('SIMULATED WARNING', ''))
         self.assertIn('Act now', page)
-        self.assertIn('5.0% probability', page)  # technical cards keep the genuine output
+        self.assertIn('>5.0%<', self.html(self.go(at, 'Risk Analysis')))  # Risk Analysis keeps the genuine output
+        self.go(at, 'Dashboard')
         self.assertEqual(len(at.code), 1)
         self.assertIn('Storm risk 60%', at.code[0].value)
         self.assertFalse([b for b in at.button if 'Test SMS' in b.label])
@@ -329,14 +359,15 @@ class DashboardApp(unittest.TestCase):
         at.toggle(key='presentation_test_mode').set_value(False).run()
         page = self.html(at)
         self.assertNotIn(rv.SIMULATION_LABEL, page)
-        self.assertIn('Low storm risk (model estimate)', page)
+        self.assertIn('LOW RISK', page)
         self.assertEqual(len(at.code), 0)
         self.assertEqual(self.digest(), before)
 
     def test_dashboard_clock_is_frozen(self):
         self.write_prediction(.05)
         at = self.app().run()
-        self.assertIn('30 October 2026 &nbsp; 10:20 SAST', self.html(at))
+        page = self.html(at)
+        self.assertIn('Fri, 30 Oct 2026</small><b class="bn-time">10:20<span class="bn-sec">:00</span></b>', page)  # the banner clock
         self.assertIn('30 Oct 11:00 - 12:00 (SAST)', self.html(at))
 
     def test_settings_are_test_only(self):
@@ -346,7 +377,7 @@ class DashboardApp(unittest.TestCase):
         self.assertFalse(sms_alert.sms_is_configured())
 
     def navigate(self, at, label):
-        self.button(at, label).click().run()
+        self.go(at, label)
 
     def test_url_parameters_alone_never_grant_admin_or_simulation(self):
         self.write_prediction(.05)
@@ -355,7 +386,7 @@ class DashboardApp(unittest.TestCase):
             with self.subTest(query=query):
                 at = self.app(**query).run()
                 self.assertFalse(at.session_state['admin_authenticated'])
-                self.assertEqual(len(at.toggle), 0)
+                self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
                 page = self.html(at) + '\n'.join(m.value for m in at.markdown)
                 self.assertNotIn(rv.SIMULATION_LABEL, page)
                 self.assertFalse([b for b in at.button if 'Test SMS' in b.label])
@@ -374,7 +405,7 @@ class DashboardApp(unittest.TestCase):
         signed_in.toggle(key='presentation_test_mode').set_value(True).run()
         signed_in.query_params['view'] = 'text'
         signed_in.run()
-        self.assertEqual(len(signed_in.toggle), 0)
+        self.assertEqual([t for t in signed_in.toggle if t.key == 'presentation_test_mode'], [])
         self.assertFalse([e for e in signed_in.expander if 'Administrator Access' in e.label])
         self.assertNotIn(rv.SIMULATION_LABEL, '\n'.join(m.value for m in signed_in.markdown))
 
@@ -386,17 +417,33 @@ class DashboardApp(unittest.TestCase):
                 at.text_input[0].input(attempt)
                 self.button(at, 'Unlock Admin Controls').click().run()
                 self.assertFalse(at.session_state['admin_authenticated'])
-                self.assertEqual(len(at.toggle), 0)
+                self.assertEqual([t for t in at.toggle if t.key == 'presentation_test_mode'], [])
         at.session_state['presentation_test_mode'] = True
         at.run()
         self.assertNotIn(rv.SIMULATION_LABEL, self.html(at))
 
+    def test_repeated_wrong_passwords_lock_sign_in_for_every_session(self):
+        self.write_prediction(.05)
+        at = self.app(admin='1').run()
+        for _ in range(10):
+            next(t for t in at.text_input if t.label == 'Administrator Password').input('wrong-password')
+            self.button(at, 'Unlock Admin Controls').click().run()
+        fresh = self.app(admin='1').run()  # a new browser session shares the server-wide limit
+        next(t for t in fresh.text_input if t.label == 'Administrator Password').input(ADMIN_TEST_PASSWORD)
+        self.button(fresh, 'Unlock Admin Controls').click().run()
+        self.assertFalse(fresh.session_state['admin_authenticated'])
+        self.assertIn('Too many failed sign-in attempts. Try again in 15 minutes.', [e.value for e in fresh.error])
+
     def test_operational_information_is_admin_only(self):
         self.write_prediction(.05)
         at = self.app(admin='1').run()
-        self.navigate(at, 'Alerts & Notifications')
+        self.navigate(at, 'Alerts')
         public = self.html(at)
-        self.assertIn('How storm warnings reach you', '\n'.join(m.value for m in at.markdown) + public)
+        about = self.html(self.go(at, 'About'))  # how warnings reach people: one diagram, on About
+        for step in ('External forecast', 'Random Forest', '35% warning decision', 'Warning information', 'SMS communication'):
+            self.assertIn(f'<b>{step}</b>', about)
+        self.assertIn('Optional · not enabled', about)  # SMS state shown honestly (registration is off in tests)
+        self.navigate(at, 'Alerts')
         for operational in ('MANAGED BY GITHUB ACTIONS', 'ACTIONS ONLY'):
             self.assertNotIn(operational, public)
         self.assertNotIn('Operational status (administrators)', '\n'.join(m.value for m in at.markdown))
@@ -427,18 +474,18 @@ class DashboardApp(unittest.TestCase):
         at = self.app(view='text').run()
         self.assertFalse(at.exception)
         text = '\n'.join(m.value for m in at.markdown)
-        for part in ('Low storm risk (model estimate)', 'Forecast period', 'Last update', 'Safety advice: Be prepared', '**Rivers:**'):
+        for part in ('Low storm risk (model estimate)', 'Prediction period', 'warning threshold: 35%', 'Last update', 'Safety advice: Be prepared', '**Rivers:**'):
             self.assertIn(part, text)
         self.assertEqual(len(at.get('deck_gl_json_chart')), 0)
-        self.assertEqual(len(at.get('arrow_vega_lite_chart')), 0)
+        self.assertEqual(len(at.get('vega_lite_chart')), 0)
         self.assertNotIn('class="kpi', self.html(at))
 
     def test_genuine_prediction_file_is_preserved(self):
         self.write_prediction(.27)
         written = (self.model / 'dashboard_forecast_prediction.csv').read_bytes()
         at = self.app().run()
-        self.assertIn('Raised storm risk: stay alert (model estimate)', self.html(at))
-        self.assertIn('Model estimate: 27% chance of a storm', self.html(at))
+        self.assertIn('MODERATE RISK', self.html(at))
+        self.assertIn('<div class="risk-value">27%</div>', self.html(at))
         self.assertEqual((self.model / 'dashboard_forecast_prediction.csv').read_bytes(), written)
         history = pd.read_csv(self.model / 'prediction_history.csv')
         self.assertEqual(history['storm_probability'].tolist(), [.27])  # genuine value, never 0.60

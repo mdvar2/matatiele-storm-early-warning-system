@@ -1,0 +1,43 @@
+{
+ "header_image": {
+  "css": true,
+  "loaded_bytes": 139393,
+  "title": "Illustrative Matatiele storm landscape artwork \u2014 not current weather.",
+  "height": 128
+ },
+ "pulse_animation": "ring",
+ "pulse_ring_changes": true,
+ "countdown": [
+  "Next refresh in 14:37",
+  "Next refresh in 14:34",
+  true
+ ],
+ "clock": [
+  "01:53:53",
+  "01:53:56",
+  true
+ ],
+ "gauge_sweep_on_first_load": false,
+ "reduced_motion": [
+  "none",
+  "none"
+ ],
+ "stale": null,
+ "back_online": {
+  "status": "Sun, 01 Nov 2026 01:54:30 SAST (UTC+2) System online Next refresh in 13:59",
+  "pulse": "ring"
+ },
+ "phone": {
+  "banner": 130,
+  "risk_bottom": 509,
+  "decision_bottom": 725,
+  "viewport": 800,
+  "no_overflow": true,
+  "small_image": true
+ },
+ "offline": {
+  "net": "No connection: showing the last saved information. Saved 01 Nov 2026 01:00 SAST.",
+  "numbers": true,
+  "decision": true
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "1440_home": {
+  "no_overflow": true,
+  "risk_card_top": 326,
+  "risk_value_bottom": 549,
+  "risk_value_visible_without_scrolling": true,
+  "decision_top": 326,
+  "viewport_height": 900,
+  "risk_value_text": "3%",
+  "risk_value_font_px": 58,
+  "gauge_alt": "Model risk score 3%, warning threshold 35%",
+  "decision": "NO WARNING TRIGGERED"
+ },
+ "820_home": {
+  "no_overflow": true,
+  "risk_card_top": 329,
+  "risk_value_bottom": 553,
+  "risk_value_visible_without_scrolling": true,
+  "decision_top": 329,
+  "viewport_height": 900,
+  "risk_value_text": "3%",
+  "risk_value_font_px": 40,
+  "gauge_alt": "Model risk score 3%, warning threshold 35%",
+  "decision": "NO WARNING TRIGGERED"
+ },
+ "390_home": {
+  "no_overflow": true,
+  "risk_card_top": 505,
+  "risk_value_bottom": 726,
+  "risk_value_visible_without_scrolling": true,
+  "decision_top": 898,
+  "viewport_height": 800,
+  "risk_value_text": "3%",
+  "risk_value_font_px": 46,
+  "gauge_alt": "Model risk score 3%, warning threshold 35%",
+  "decision": "NO WARNING TRIGGERED"
+ }
+}

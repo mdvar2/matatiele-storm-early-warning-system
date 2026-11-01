@@ -1,0 +1,44 @@
+{
+ "1440_map": {
+  "map_top": 566,
+  "map_height": 360,
+  "viewport": 900,
+  "map_visible_without_scrolling": 334,
+  "page_height": 1269,
+  "no_overflow": true
+ },
+ "1440_about": {
+  "diagram_top": 415,
+  "diagram_height": 137,
+  "page_height": 961,
+  "no_overflow": true
+ },
+ "820_map": {
+  "map_top": 796,
+  "map_height": 360,
+  "viewport": 900,
+  "map_visible_without_scrolling": 104,
+  "page_height": 1560,
+  "no_overflow": true
+ },
+ "820_about": {
+  "diagram_top": 596,
+  "diagram_height": 347,
+  "page_height": 1682,
+  "no_overflow": true
+ },
+ "390_map": {
+  "map_top": 860,
+  "map_height": 360,
+  "viewport": 800,
+  "map_visible_without_scrolling": 0,
+  "page_height": 1617,
+  "no_overflow": true
+ },
+ "390_about": {
+  "diagram_top": 638,
+  "diagram_height": 398,
+  "page_height": 1695,
+  "no_overflow": true
+ }
+}

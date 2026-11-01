@@ -1,0 +1,44 @@
+{
+ "1440_home": {
+  "no_overflow": true,
+  "risk_card_top": 346,
+  "risk_value_bottom": 564,
+  "risk_value_visible_without_scrolling": true,
+  "decision_top": 346,
+  "viewport_height": 900,
+  "risk_value_text": "0%",
+  "risk_value_font_px": 58,
+  "gauge_alt": "Model risk score 0%, warning threshold 35%",
+  "sidebar_open": "true",
+  "topbar_visible": false,
+  "decision": "NO WARNING TRIGGERED"
+ },
+ "820_home": {
+  "no_overflow": true,
+  "risk_card_top": 421,
+  "risk_value_bottom": 630,
+  "risk_value_visible_without_scrolling": true,
+  "decision_top": 421,
+  "viewport_height": 900,
+  "risk_value_text": "0%",
+  "risk_value_font_px": 40,
+  "gauge_alt": "Model risk score 0%, warning threshold 35%",
+  "sidebar_open": "true",
+  "topbar_visible": false,
+  "decision": "NO WARNING TRIGGERED"
+ },
+ "390_home": {
+  "no_overflow": true,
+  "risk_card_top": 466,
+  "risk_value_bottom": 718,
+  "risk_value_visible_without_scrolling": true,
+  "decision_top": 889,
+  "viewport_height": 800,
+  "risk_value_text": "0%",
+  "risk_value_font_px": 46,
+  "gauge_alt": "Model risk score 0%, warning threshold 35%",
+  "sidebar_open": "false",
+  "topbar_visible": true,
+  "decision": "NO WARNING TRIGGERED"
+ }
+}

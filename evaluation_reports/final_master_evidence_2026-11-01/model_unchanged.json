@@ -1,0 +1,12 @@
+{
+ "random_forest_live_model.pkl identical to origin/main": true,
+ "live_model_features.txt identical to origin/main": true,
+ "live_selected_threshold.txt identical to origin/main": true,
+ "rows re-scored": 30455,
+ "max |recomputed - saved probability|": 1.1102230246251565e-16,
+ "class predictions identical to saved (scikit-learn predict)": true,
+ "threshold": 0.35,
+ "saved threshold-decision file reproduced exactly at": [
+  0.4
+ ]
+}

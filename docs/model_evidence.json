@@ -1,0 +1,308 @@
+{
+ "generated_by": "25_build_model_evidence.py",
+ "inputs_sha256": {
+  "outputs/model_live/random_forest_live_model.pkl": "bb0b85d21ded4e78b1dd67f104188c55a76a71a359bf683982ad92ab3fb94e4c",
+  "docs/evidence/held_out_test_set.csv.gz": "c80b60cf5851ba849fb7d3360eeaec2a95408363ade92db947cfc42e076886b6",
+  "evaluation_reports/ml_evaluation_2026-10-29/test_metrics.csv": "840ddfd92241aba700ddb7d8f0e4f1e606902c6e8a041e1ada69b98adf406fc0"
+ },
+ "software": {
+  "scikit-learn": "1.9.0",
+  "numpy": "2.5.3",
+  "pandas": "3.0.6"
+ },
+ "features": [
+  "latitude",
+  "longitude",
+  "t2m",
+  "d2m",
+  "msl",
+  "sp",
+  "tp",
+  "cape",
+  "cp",
+  "tcc",
+  "u10",
+  "v10",
+  "i10fg",
+  "hour",
+  "month",
+  "day_of_year",
+  "wind_speed",
+  "previous_t2m",
+  "previous_d2m",
+  "previous_msl",
+  "previous_sp",
+  "previous_tp",
+  "previous_cape",
+  "previous_cp",
+  "previous_tcc",
+  "previous_u10",
+  "previous_v10",
+  "previous_i10fg",
+  "previous_wind_speed"
+ ],
+ "threshold_in_use": 0.35,
+ "threshold_rule": "warning when the estimate is at or above the threshold (the comparison the hourly worker uses)",
+ "labels": "ERA5-derived proxy storm labels (03_create_labels.py), not observed storm reports",
+ "held_out": {
+  "rows": 30455,
+  "storm_hours": 860,
+  "first_utc": "2025-08-25 17:00",
+  "last_utc": "2026-08-07 22:00",
+  "note": "Most recent 20% of the chronological record, held out from training (script 14). The 35% threshold was chosen by comparing F1 on this same period (script 15), so figures at 35% are optimistic."
+ },
+ "threshold_comparison": [
+  {
+   "threshold": 0.3,
+   "precision": 0.48712288447387786,
+   "recall": 0.7697674418604651,
+   "f1": 0.5966651644885083,
+   "TP": 662,
+   "FP": 697,
+   "FN": 198,
+   "TN": 28898,
+   "warnings": 1359
+  },
+  {
+   "threshold": 0.35,
+   "precision": 0.5158333333333334,
+   "recall": 0.7197674418604652,
+   "f1": 0.6009708737864078,
+   "TP": 619,
+   "FP": 581,
+   "FN": 241,
+   "TN": 29014,
+   "warnings": 1200
+  },
+  {
+   "threshold": 0.4,
+   "precision": 0.5451977401129944,
+   "recall": 0.6732558139534883,
+   "f1": 0.6024973985431842,
+   "TP": 579,
+   "FP": 483,
+   "FN": 281,
+   "TN": 29112,
+   "warnings": 1062
+  },
+  {
+   "threshold": 0.45,
+   "precision": 0.5607180570221753,
+   "recall": 0.6174418604651163,
+   "f1": 0.5877144438295518,
+   "TP": 531,
+   "FP": 416,
+   "FN": 329,
+   "TN": 29179,
+   "warnings": 947
+  },
+  {
+   "threshold": 0.5,
+   "precision": 0.5917602996254682,
+   "recall": 0.5511627906976744,
+   "f1": 0.5707405177603854,
+   "TP": 474,
+   "FP": 327,
+   "FN": 386,
+   "TN": 29268,
+   "warnings": 801
+  }
+ ],
+ "persistence_baseline": {
+  "precision": 0.5593023255813954,
+  "recall": 0.5593023255813954,
+  "f1": 0.5593023255813954,
+  "TP": 481,
+  "FP": 379,
+  "FN": 379,
+  "TN": 29216,
+  "warnings": 860
+ },
+ "brier_score": 0.016335447198963862,
+ "reliability_bins": [
+  {
+   "range": "0%-5%",
+   "rows": 26933,
+   "mean_estimate": 0.0030641468335004148,
+   "observed_storm_fraction": 0.0009282293097686852
+  },
+  {
+   "range": "5%-10%",
+   "rows": 1012,
+   "mean_estimate": 0.0696772068511199,
+   "observed_storm_fraction": 0.03260869565217391
+  },
+  {
+   "range": "10%-20%",
+   "rows": 745,
+   "mean_estimate": 0.13892170022371364,
+   "observed_storm_fraction": 0.09664429530201342
+  },
+  {
+   "range": "20%-35%",
+   "rows": 565,
+   "mean_estimate": 0.26691445427728616,
+   "observed_storm_fraction": 0.19646017699115045
+  },
+  {
+   "range": "35%-50%",
+   "rows": 399,
+   "mean_estimate": 0.4236758563074352,
+   "observed_storm_fraction": 0.3634085213032581
+  },
+  {
+   "range": "50%-70%",
+   "rows": 418,
+   "mean_estimate": 0.5962838915470494,
+   "observed_storm_fraction": 0.4784688995215311
+  },
+  {
+   "range": "70%-100%",
+   "rows": 383,
+   "mean_estimate": 0.8039947780678851,
+   "observed_storm_fraction": 0.7154046997389034
+  }
+ ],
+ "feature_importance_groups": [
+  {
+   "group": "Rainfall (total and convective)",
+   "importance": 0.5931474339087006,
+   "inputs": [
+    "Convective precipitation",
+    "Total precipitation"
+   ]
+  },
+  {
+   "group": "Atmospheric instability (CAPE)",
+   "importance": 0.13767213140532158,
+   "inputs": [
+    "CAPE (instability)"
+   ]
+  },
+  {
+   "group": "Wind and gusts",
+   "importance": 0.07811012774293115,
+   "inputs": [
+    "Wind gusts (10 m)",
+    "Wind speed (10 m)",
+    "Wind, east-west (10 m)",
+    "Wind, north-south (10 m)"
+   ]
+  },
+  {
+   "group": "Cloud cover",
+   "importance": 0.0653106424385464,
+   "inputs": [
+    "Total cloud cover"
+   ]
+  },
+  {
+   "group": "Temperature and humidity",
+   "importance": 0.06256432219470631,
+   "inputs": [
+    "Dew point (2 m)",
+    "Temperature (2 m)"
+   ]
+  },
+  {
+   "group": "Air pressure",
+   "importance": 0.037377281713133474,
+   "inputs": [
+    "Sea-level pressure",
+    "Surface pressure"
+   ]
+  },
+  {
+   "group": "Time of day and season",
+   "importance": 0.024747797311129967,
+   "inputs": [
+    "Day of year",
+    "Hour of day",
+    "Month"
+   ]
+  },
+  {
+   "group": "Grid-cell position",
+   "importance": 0.0010702632855306873,
+   "inputs": [
+    "Latitude",
+    "Longitude"
+   ]
+  }
+ ],
+ "feature_importance_top10": [
+  {
+   "feature": "tp",
+   "importance": 0.21155754091610293
+  },
+  {
+   "feature": "cp",
+   "importance": 0.1903495168599754
+  },
+  {
+   "feature": "previous_cp",
+   "importance": 0.09976171521679
+  },
+  {
+   "feature": "previous_tp",
+   "importance": 0.09147866091583226
+  },
+  {
+   "feature": "cape",
+   "importance": 0.07013331962139731
+  },
+  {
+   "feature": "previous_cape",
+   "importance": 0.06753881178392429
+  },
+  {
+   "feature": "tcc",
+   "importance": 0.03833613701758939
+  },
+  {
+   "feature": "previous_tcc",
+   "importance": 0.026974505420957005
+  },
+  {
+   "feature": "previous_d2m",
+   "importance": 0.018264870242546423
+  },
+  {
+   "feature": "previous_t2m",
+   "importance": 0.015856080397341824
+  }
+ ],
+ "chronological_evaluation": {
+  "source": "evaluation_reports/ml_evaluation_2026-10-29 (train Jan 2018-Aug 2024, validation Aug 2024-Aug 2025, test Aug 2025-Aug 2026, 7-day gaps; threshold chosen on validation only)",
+  "test_rows": 30428,
+  "rows": [
+   {
+    "model": "Same settings retrained on the training years only, threshold chosen on validation (0.46)",
+    "precision": 0.5644796380090498,
+    "recall": 0.5802325581395349,
+    "f1": 0.5722477064220184,
+    "FP": 385,
+    "FN": 361,
+    "warnings": 884
+   },
+   {
+    "model": "Deployed model at the threshold chosen on the validation year (0.46)",
+    "precision": 0.5675381263616558,
+    "recall": 0.6058139534883721,
+    "f1": 0.5860517435320585,
+    "FP": 397,
+    "FN": 339,
+    "warnings": 918
+   },
+   {
+    "model": "Persistence baseline",
+    "precision": 0.5593023255813954,
+    "recall": 0.5593023255813954,
+    "f1": 0.5593023255813954,
+    "FP": 379,
+    "FN": 379,
+    "warnings": 860
+   }
+  ]
+ }
+}

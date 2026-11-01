@@ -1,0 +1,16 @@
+{
+ "home_outlook_text": "Storm-risk outlook\nNext 12 hours \u00b7 model outlook, unvalidated beyond one hour\nNo raised storm risk in the next 12 hours\n23:00\n00:00\n01:00\n02:00\n03:00\n04:00\n05:00\n06:00\n07:00\n08:00\n09:00\n0\n20\n40\n60\n80\n100\nModel risk score (%)\nBelow 35%\nAt or above 35%\n\nHours 2 ",
+ "online": {
+  "net": "Connected. Saved 31 Oct 2026 21:00 SAST.",
+  "controlled": true,
+  "registered": {}
+ },
+ "controlled_after_reload": true,
+ "offline": {
+  "net": "No connection: showing the last saved information. Saved 31 Oct 2026 21:00 SAST.",
+  "has_score": true,
+  "has_numbers": true
+ },
+ "relay_option": true,
+ "announcement": "TEST, NOT A REAL WARNING. Storm warning for Matatiele from the Matatiele Storm Early Warning research system. A storm is possible 31 Oct 2026 21:00 - 22:00 SAST (model risk score 62%; this is not certain). Go indoors when you hear thunder. Keep away from rivers, streams and flooded roads, and do not cross them. Move animals to safety early, before lightning starts. This is not an official South African Weather Service warning: follow official warnings. In an emergency call 10111, 10177, or 112 from a cellphone."
+}

@@ -1,0 +1,65 @@
+{
+ "1440_home": {
+  "no_overflow": true,
+  "contacts_on_home": false
+ },
+ "1440_safety_via_shortcut": {
+  "contacts_top_in_view": true,
+  "contacts_top": 583,
+  "scrollY": 0,
+  "tel_links": [
+   "tel:10111",
+   "tel:10177",
+   "tel:112"
+  ],
+  "no_overflow": true
+ },
+ "1440_about": {
+  "link_colour": "rgb(107, 47, 0)",
+  "threshold_card": true,
+  "no_overflow": true
+ },
+ "1440_alerts_sms_no_overflow": true,
+ "820_home": {
+  "no_overflow": true,
+  "contacts_on_home": false
+ },
+ "820_safety_via_shortcut": {
+  "contacts_top_in_view": true,
+  "contacts_top": 509,
+  "scrollY": 0,
+  "tel_links": [
+   "tel:10111",
+   "tel:10177",
+   "tel:112"
+  ],
+  "no_overflow": true
+ },
+ "820_about": {
+  "link_colour": "rgb(107, 47, 0)",
+  "threshold_card": true,
+  "no_overflow": true
+ },
+ "820_alerts_sms_no_overflow": true,
+ "390_home": {
+  "no_overflow": true,
+  "contacts_on_home": false
+ },
+ "390_safety_via_shortcut": {
+  "contacts_top_in_view": true,
+  "contacts_top": 175,
+  "scrollY": 0,
+  "tel_links": [
+   "tel:10111",
+   "tel:10177",
+   "tel:112"
+  ],
+  "no_overflow": true
+ },
+ "390_about": {
+  "link_colour": "rgb(107, 47, 0)",
+  "threshold_card": true,
+  "no_overflow": true
+ },
+ "390_alerts_sms_no_overflow": true
+}

@@ -1,0 +1,4 @@
+Clean clone of research-dashboard-ui-redesign at 2a8acca into an empty folder (outputs/model_live contained only the three tracked files).
+Command: python -I 25_build_model_evidence.py --check
+CHECK PASSED: docs/model_evidence.json is reproduced from the committed inputs
+exit=0

@@ -1,0 +1,2 @@
+362 passed, 274 subtests passed in 209.04s (0:03:29)
+Run with a process-wide network guard (sitecustomize blocking non-local sockets); outbound attempts logged: 0

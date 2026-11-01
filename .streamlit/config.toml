@@ -1,0 +1,9 @@
+# Streamlit's own widgets start from the light base theme; the visitor's light/dark choice is applied on top
+# by the dashboard's design tokens (dashboard_theme.py), so every page follows one theme system.
+[theme]
+base = "light"
+primaryColor = "#1d4ed8"
+
+# Serves ./static at /app/static: the offline page (offline.html, its service worker and the last status).
+[server]
+enableStaticServing = true
