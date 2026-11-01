@@ -1,0 +1,118 @@
+{
+ "width": 390,
+ "theme": "light",
+ "state": {
+  "exception": [],
+  "script_state": "notRunning",
+  "css_has_bottom_nav_rules": false,
+  "css_has_connection_watch": true,
+  "top_nav_visible": false,
+  "bottom_nav_present": true,
+  "bottom_nav_visible": true,
+  "bottom_nav_position": "fixed",
+  "bottom_nav_box": [
+   737,
+   800,
+   63
+  ],
+  "viewport": [
+   390,
+   800
+  ],
+  "more_button": {
+   "bg": "rgba(0, 0, 0, 0)",
+   "h": 54,
+   "w": 75
+  },
+  "burger_visible": true,
+  "testids": {
+   "layoutWrapper": true,
+   "mainBlock": true,
+   "expandSidebar": true,
+   "collapsedControl": false,
+   "stKeyClasses": 32
+  },
+  "overflow_x": false,
+  "text_head": "Skip to main content\nnotifications\n\nAlerts\n\npartly_cloudy_day\n\nForecast\n\ninsert_chart\n\nHistorical Data\n\ninfo\n\nAbout\n\ndownload\n\nSave for offline use\n\nsms\n\nSMS service\n\nResearch prototype \u00b7 not an official SAWS service\nLow-data text version\nrefresh\n\nRefresh weather and model\n\nAutomatic refresh every 15 minutes while open.\n\nProtecting Matatiele through earlier warnings\nSmart \u00b7 resilient \u00b7 low-connectivity storm early warning\n\nLast attempt: 01 Nov 10:00 SAST\n\nkeyboard_double_arrow_right\nFork\nMatatie"
+ },
+ "risk_active": [
+  "tertiary",
+  "primary",
+  "tertiary",
+  "tertiary",
+  "secondary"
+ ],
+ "more_sheet": {
+  "items": [
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About",
+   "Save for offline use",
+   "Save for offline use",
+   "SMS service"
+  ],
+  "w": 208,
+  "h": 392
+ },
+ "more_choice": {
+  "about": true,
+  "closed": true
+ },
+ "drawer_open": {
+  "open": false,
+  "items": [
+   "keyboard_double_arrow_left",
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About",
+   "Save for offline use",
+   "SMS service",
+   "Refresh weather and model"
+  ]
+ },
+ "drawer_after_choice": {
+  "open": false,
+  "items": [
+   "keyboard_double_arrow_left",
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About",
+   "Save for offline use",
+   "SMS service",
+   "Refresh weather and model"
+  ]
+ },
+ "drawer_after_escape": {
+  "open": false,
+  "items": [
+   "keyboard_double_arrow_left",
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About",
+   "Save for offline use",
+   "SMS service",
+   "Refresh weather and model"
+  ]
+ },
+ "drawer_after_outside_tap": {
+  "open": false,
+  "items": [
+   "keyboard_double_arrow_left",
+   "Alerts",
+   "Forecast",
+   "Historical Data",
+   "About",
+   "Save for offline use",
+   "SMS service",
+   "Refresh weather and model"
+  ]
+ },
+ "scrolled_bottom_nav_box": [
+  737,
+  800
+ ]
+}

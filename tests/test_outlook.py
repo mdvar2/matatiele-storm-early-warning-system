@@ -560,5 +560,9 @@ class StreamlitCloudNavigationHotfix(DashboardHarness):
                      '.st-key-menu_phone_extras {display:flex!important}', '[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar)'):
             self.assertIn(rule, css)
         self.assertIn('.st-key-bottom_nav,.st-key-menu_phone_extras {display:none!important}\n@media (max-width:640px)', css)   # desktop and tablet: no phone bar
+        # Streamlit Community Cloud marks the open sidebar with data-collapsed, local 1.64 with aria-expanded: both are handled.
+        self.assertIn("s.getAttribute('data-collapsed') === 'false'", dashboard_theme.CONNECTION_WATCH)
+        self.assertIn('body:has([data-testid=stSidebar][data-collapsed="false"]) .st-key-top_nav_bar', css)
+        self.assertIn('[data-testid=stSidebar] [data-testid=stDownloadButton] button {background:transparent!important', css)
         for behaviour in ("e.key === 'Escape' && drawer()", "if (!s.contains(e.target))", "b.closest('[class*=\"st-key-menu_\"]')"):
             self.assertIn(behaviour, dashboard_theme.CONNECTION_WATCH)
