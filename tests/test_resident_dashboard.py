@@ -217,6 +217,7 @@ class DashboardHarness(unittest.TestCase):
         (cls.tmp / 'docs').mkdir()
         shutil.copy(ROOT / 'docs' / 'model_evidence.json', cls.tmp / 'docs' / 'model_evidence.json')
         shutil.copytree(ROOT / 'components', cls.tmp / 'components')
+        shutil.copytree(ROOT / 'static', cls.tmp / 'static', ignore=shutil.ignore_patterns('status.json'))
         (cls.tmp / '12_live_forecast_and_predict.py').write_text('# placeholder: subprocess.run is patched\n')
         cls.model = cls.tmp / 'outputs' / 'model_live'
         cls.model.mkdir(parents=True)

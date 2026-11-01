@@ -59,3 +59,20 @@ def write(path, data):
         json.dump(data, out, indent=1)
     os.replace(temporary, path)
     return True
+
+
+TEMPLATE = Path(__file__).resolve().parent / 'static' / 'offline.html'
+EMBED_SLOT = '<script type="application/json" id="embedded-status">null</script>'
+
+
+def download_html(data, template=TEMPLATE):
+    """A self-contained copy of the offline page with `data` embedded, for residents to save on their phone.
+
+    It needs no server, service worker or browser storage, so it opens from the phone's files with no connection on
+    any hosting. '<' is escaped so saved text can never close the data block.
+    """
+    page = Path(template).read_text(encoding='utf-8')
+    if EMBED_SLOT not in page:
+        raise ValueError('offline page template has no data slot')
+    payload = json.dumps(data, ensure_ascii=False).replace('<', '\\u003c')  # JSON escape for '<'
+    return page.replace(EMBED_SLOT, EMBED_SLOT.replace('>null<', '>' + payload + '<'), 1)

@@ -78,7 +78,7 @@ Details: [docs/MODEL_EVALUATION.md](docs/MODEL_EVALUATION.md).
 
 | Section | Content |
 |---|---|
-| **Dashboard** | Header with the live clock, system status and refresh countdown. Row 1: weather forecast · **model-estimated storm risk** (gauge, 35% marker) · prediction period · **warning decision** (NO WARNING TRIGGERED, THRESHOLD REACHED, WARNING TRIGGERED only with a genuine record, NO DECISION). Then actions (View warnings, Safety advice, Emergency contacts, SMS service, Offline access), the 12-hour outlook beside the 6-hour chart, key weather variables, recent predictions and the communication status. |
+| **Dashboard** | Header with the live clock, system status and refresh countdown. Row 1: weather forecast · **model-estimated storm risk** (gauge, 35% marker) · prediction period · **warning decision** (NO WARNING TRIGGERED, THRESHOLD REACHED, WARNING TRIGGERED only with a genuine record, NO DECISION). Then actions (View warnings, Safety advice, Emergency contacts, SMS service, Save for offline use), the 12-hour outlook beside the 6-hour chart, key weather variables, recent predictions and the communication status. |
 | **Risk Analysis** | The examiner page: current score and 35% threshold, patterns learned (feature importance), why a Random Forest, precision, recall and F1, the persistence comparison, threshold trade-offs, calibration and confidence |
 | **Map** | ECMWF forecast rainfall at 25 grid cells around Matatiele, and the one-location model risk estimate. No spatial risk zones are fabricated. |
 | **Safety** | Compact "Be prepared" tiles, full "Act now" advice, and tap-to-call emergency numbers (10111, 10177, 112) |
@@ -103,7 +103,8 @@ The same unchanged model is applied to each forecast hour, 2 to 12 hours ahead, 
 |---|---|
 | **Data freshness** | "System online" with a live pulse only while the latest retrieved forecast and model result are current. Otherwise it shows "Saved data · last update …" and no pulse, and no warning decision is made from out-of-date data. |
 | **Low-data view** (`?view=text`) | Plain text: score, decision, freshness, safety advice and emergency numbers. It loads no images. |
-| **Offline access** (`/app/static/offline.html`) | Opened once while connected, it keeps the last warning information, safety advice and emergency numbers, and reopens with no connection ("No connection: showing the last saved information"). It **cannot receive new warnings while offline**. |
+| **Save for offline use** (button on the Dashboard) | Saves a small page (about 11 KB) with the latest warning information embedded: risk score, warning decision, target period, last-saved time, safety advice and emergency numbers. Opened from the phone's files, it works with **no connection** on any hosting. It shows "Offline — saved information" and the last-saved time, and flags older information as possibly out of date. **It stores the latest warning information after being saved while connected; it cannot receive new warnings while fully offline.** Save again when there is signal. |
+| Hosted offline page (`static/offline.html`) | For self-hosted or local deployments only. Opened once while connected, a service worker keeps it and the last valid status, so it reopens with no connection ("No connection: showing the last saved information"). Streamlit Community Cloud does not serve `static/` as a standalone page, so the deployed dashboard uses **Save for offline use** instead. |
 | **Warning records** | Reserved in the public ledger before any SMS, so an SMS failure never removes a warning |
 | **SMS** | Simulation implemented; see below |
 | **Community relays** | See below |
@@ -173,7 +174,7 @@ Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.
 - **No live SMS:** tests never send SMS or contact external services.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
 - **Model integrity:** the model, feature list and threshold match the approved files, and the held-out probabilities are reproduced exactly.
-- **Real-browser checks:** live pulse, countdown, clock, stale state, reduced motion, phone first screen and the offline page. See `evaluation_reports/final_master_evidence_2026-11-01/`.
+- **Real-browser checks:** live pulse, countdown, clock, stale state, reduced motion, phone first screen and the offline page. See `evaluation_reports/final_master_evidence_2026-11-01/` and `evaluation_reports/offline_hotfix_evidence_2026-11-01/`.
 
 ## Reproducibility
 
@@ -193,7 +194,7 @@ Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.
 | Storm risk | Next-hour model risk score | Not a calibrated probability |
 | Early warning | 35% decision and warning record; exploratory 12-hour outlook | Outlook unvalidated beyond 1 h |
 | Resilient | Stale-data handling, offline saved information, warning records independent of SMS | No new alerts while fully offline |
-| Low connectivity | Low-data view, offline page, SMS simulation, relay support | Public SMS disabled; relays not field validated |
+| Low connectivity | Low-data view, saved offline copy, SMS simulation, relay support | Public SMS disabled; relays not field validated |
 | Matatiele case study | Matatiele model location, map and interface | One model location |
 
 ## Limitations
@@ -203,7 +204,7 @@ Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.
 - The validated target is the next hour; the 2–12 hour outlook is unvalidated.
 - There is one model location: Matatiele town and its immediate surroundings.
 - The backend needs Internet access to retrieve forecasts.
-- The offline page shows the last saved information and cannot receive new alerts.
+- The saved offline copy shows the last saved information and cannot receive new alerts; residents must save it again while connected.
 - Public SMS is disabled, and community relays have not been field validated.
 - There are no deployed sensors, no physical LoRa links, no Cell Broadcast and no sirens.
 

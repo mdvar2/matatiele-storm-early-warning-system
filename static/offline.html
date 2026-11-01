@@ -1,105 +1,153 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-matatiele-offline="1">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Matatiele storm warnings (offline page)</title>
-<meta name="description" content="Last known storm-risk information, safety advice and emergency numbers for Matatiele. Works without a connection once saved.">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Matatiele storm warnings (saved information)</title>
+<meta name="description" content="Last saved storm-risk information, safety advice and emergency numbers for Matatiele. Readable without a connection.">
 <meta name="theme-color" content="#1d4ed8">
 <style>
   :root {--bg:#f5f7fb;--card:#fff;--text:#14243a;--muted:#4a5b70;--border:#d9e1ec;--green:#2f855a;--amber:#b45309;--red:#c81e33;--gray:#5b6b80;--link:#1d4ed8}
   @media (prefers-color-scheme: dark) {:root {--bg:#0b1626;--card:#16233a;--text:#e6edf6;--muted:#a9b8cc;--border:#2a3a52;--link:#93c5fd}}
   * {box-sizing:border-box}
   body {margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
-  main {max-width:640px;margin:0 auto;padding:16px}
-  h1 {font-size:20px;margin:0 0 4px}
-  h2 {font-size:15px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
-  .card {background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin:12px 0}
-  .net {font-size:13px;font-weight:700;padding:8px 12px;border-radius:10px;margin:8px 0;background:#dcfce7;color:#14532d}
-  .net.offline {background:#fef3c7;color:#713f12}
-  .badge {display:inline-block;color:#fff;font-weight:800;letter-spacing:.4px;padding:8px 12px;border-radius:10px;margin:4px 0}
-  .green {background:var(--green)} .amber {background:var(--amber)} .red {background:var(--red)} .gray {background:var(--gray)}
-  .score {font-size:40px;font-weight:800;line-height:1}
+  main {max-width:640px;margin:0 auto;padding:14px}
+  header {background:#1e3a8a;color:#fff;border-radius:14px;padding:12px 14px}
+  header b {display:block;font-size:20px}header span {font-size:14px;color:#dbe8ff}
+  h2 {font-size:14px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .card {background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin:10px 0}
+  .status {font-weight:700;padding:10px 12px;border-radius:10px;margin:10px 0;background:#fef3c7;color:#713f12}
+  .status.connected {background:#dcfce7;color:#14532d}
+  .saved {font-size:15px;font-weight:700}
+  .badge {display:inline-block;color:#fff;font-weight:800;letter-spacing:.3px;padding:6px 10px;border-radius:9px;margin:4px 0}
+  .green {background:var(--green)}.amber {background:var(--amber)}.red {background:var(--red)}.gray {background:var(--gray)}
+  .score {font-size:38px;font-weight:800;line-height:1}
   .muted {color:var(--muted);font-size:13px}
-  ul {padding-left:20px;margin:6px 0} li {margin:4px 0}
+  ul {padding-left:20px;margin:6px 0} li {margin:3px 0}
   a {color:var(--link)}
-  .call {display:flex;justify-content:space-between;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;margin:6px 0;text-decoration:none;color:var(--text)}
+  .call {display:flex;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;margin:6px 0;text-decoration:none;color:var(--text)}
   .call b {font-size:20px}
 </style>
 </head>
 <body>
 <main>
-  <h1>Matatiele storm warnings</h1>
-  <div class="muted">Offline page of the Matatiele Smart Resilient Storm Early Warning System (academic research prototype)</div>
-  <div id="net" class="net" role="status">Checking connection…</div>
-  <div id="content"><div class="card">Loading the last saved information…</div></div>
-  <div class="card">
-    <h2>Keep this page</h2>
-    Open this page once while you have signal. Your phone then keeps it and shows the last saved information,
-    safety advice and emergency numbers even with no connection. New warnings need a connection or an SMS.
+  <header><b>Matatiele</b><span>Storm Early Warning System · saved information</span></header>
+
+  <!-- Everything below is plain HTML, so the page is readable even if the script cannot run. The script only fills in
+       saved warning information where it exists; it never invents any. -->
+  <div id="status" class="status" role="status">No saved warning information yet</div>
+  <div id="saved" class="card">
+    <div class="saved" id="saved-time">No saved warning information yet</div>
+    <div class="muted" id="saved-note">Open this offline page once while connected to save the latest warning information for later use.</div>
   </div>
+  <div id="content"></div>
+
+  <div class="card" id="basic-advice">
+    <h2>If a storm comes</h2>
+    <ul>
+      <li><b>Lightning:</b> if you hear thunder, go inside a solid building or a closed car.</li>
+      <li><b>Flooding:</b> never walk or drive through flood water; move to higher ground.</li>
+      <li><b>Roads:</b> do not cross flooded roads, low bridges or causeways.</li>
+      <li><b>Rivers:</b> stay away from rivers and streams; they can rise suddenly.</li>
+      <li><b>Livestock:</b> move animals early; do not go out once lightning starts.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Emergency numbers</h2>
+    <a class="call" href="tel:10111"><b>10111</b><span>Police (SAPS)</span></a>
+    <a class="call" href="tel:10177"><b>10177</b><span>Ambulance and fire</span></a>
+    <a class="call" href="tel:112"><b>112</b><span>Any emergency from a cellphone</span></a>
+    <div class="muted">Calls connect to emergency services, not to the Matatiele Storm Early Warning System. Calls need mobile network coverage.</div>
+  </div>
+
   <p class="muted">Academic research prototype, not an official weather warning service. Follow official warnings
-    (South African Weather Service) and local emergency guidance.</p>
+    (South African Weather Service) and local emergency guidance. This page shows saved information only: it cannot
+    receive new warnings without a connection.</p>
 </main>
+<!-- In a downloaded copy, the dashboard replaces null below with the genuine status at the time of saving. -->
+<script type="application/json" id="embedded-status">null</script>
 <script>
 (function () {
   var KEY = 'matatiele-offline-status';
-  function esc(text) {
-    return String(text == null ? '' : text).replace(/[&<>"']/g, function (c) {
+  var STALE_HOURS = 2;
+  function $(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
       return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
     });
   }
-  function hoursOld(iso) { var t = Date.parse(iso); return isNaN(t) ? null : (Date.now() - t) / 3600000; }
-  function render(s, fromNetwork) {
-    var age = hoursOld(s.generated_utc);
-    var net = document.getElementById('net');
-    var old = age !== null && age > 2;
-    net.className = 'net' + (fromNetwork && !old ? '' : ' offline');
-    net.textContent = (fromNetwork ? 'Connected. ' : 'No connection: showing the last saved information. ') +
-      'Saved ' + esc(s.generated_sast) + (old ? ' (over 2 hours ago, may be out of date).' : '.');
-    var html = '<div class="card"><h2>Storm risk now</h2>' +
-      '<div class="score">' + esc(s.risk_score) + '</div>' +
-      '<span class="badge ' + esc(s.risk_tone) + '">' + esc(s.risk_level) + '</span>' +
-      '<div class="muted">Model risk score for ' + esc(s.period) + '. Not a calibrated probability, not a guarantee.</div>' +
-      '<p><span class="badge ' + esc(s.decision_tone) + '">' + esc(s.decision) + '</span><br>' + esc(s.decision_detail) + '</p></div>';
-    if (s.warnings && s.warnings.length) {
-      html += '<div class="card"><h2>Warnings in effect</h2><ul>' + s.warnings.map(function (w) {
-        return '<li><b>' + esc(w.title) + '</b>: ' + esc(w.period) + '</li>';
+  // A saved status is usable only if it is an object with a generation time and a risk score (older or partial
+  // records are shown field by field; anything else is ignored, so corrupted data can never blank the page).
+  function valid(s) { return !!s && typeof s === 'object' && typeof s.generated_utc === 'string' && 'risk_score' in s; }
+  function readStored() {
+    try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); return valid(s) ? s : null; } catch (e) { return null; }
+  }
+  function store(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+  function tone(t) { return ({green: 1, amber: 1, red: 1, gray: 1})[t] ? t : 'gray'; }
+  function setStatus(text, connected) { var el = $('status'); el.textContent = text; el.className = 'status' + (connected ? ' connected' : ''); }
+
+  function render(s) {
+    var age = (Date.now() - Date.parse(s.generated_utc)) / 3600000;
+    $('saved-time').textContent = 'Last saved: ' + (s.generated_sast || s.generated_utc);
+    $('saved-note').textContent = (isFinite(age) && age > STALE_HOURS) ? 'Saved information may be out of date.' : 'Saved warning information from the Matatiele system.';
+    var html = '<div class="card"><h2>Storm risk (saved)</h2>' +
+      (s.risk_score != null ? '<div class="score">' + esc(s.risk_score) + '</div>' : '') +
+      (s.risk_level ? '<span class="badge ' + tone(s.risk_tone) + '">' + esc(s.risk_level) + '</span>' : '') +
+      '<div class="muted">Model risk score' + (s.period ? ' for ' + esc(s.period) : '') + '. Not a calibrated probability, not a guarantee.</div>';
+    if (s.decision) {
+      html += '<p><span class="badge ' + tone(s.decision_tone) + '">' + esc(s.decision) + '</span>' +
+        (s.decision_detail ? '<br>' + esc(s.decision_detail) : '') + '</p>';
+    }
+    html += '</div>';
+    if (Array.isArray(s.warnings) && s.warnings.length) {
+      html += '<div class="card"><h2>Warnings in effect when saved</h2><ul>' + s.warnings.map(function (w) {
+        return '<li><b>' + esc(w && w.title) + '</b>' + (w && w.period ? ': ' + esc(w.period) : '') + '</li>';
       }).join('') + '</ul></div>';
     }
     if (s.early_alert) {
-      html += '<div class="card"><h2>Early alert (model outlook)</h2><span class="badge amber">' + esc(s.early_alert) +
+      html += '<div class="card"><h2>Early alert when saved (model outlook)</h2><span class="badge amber">' + esc(s.early_alert) +
         '</span><div class="muted">Unvalidated beyond one hour ahead; not certain.</div></div>';
     }
-    html += '<div class="card"><h2>' + esc(s.advice_title) + '</h2><ul>' + (s.advice || []).map(function (a) {
-      return '<li><b>' + esc(a[0]) + ':</b> ' + esc(a[1]) + '</li>';
-    }).join('') + '</ul></div>';
-    html += '<div class="card"><h2>Emergency numbers</h2>' + (s.emergency || []).map(function (c) {
-      return '<a class="call" href="tel:' + esc(c[0]) + '"><b>' + esc(c[0]) + '</b><span>' + esc(c[1]) + '</span></a>';
-    }).join('') + '<div class="muted">' + esc(s.emergency_note) + ' Calls need mobile network coverage.</div></div>';
-    document.getElementById('content').innerHTML = html;
+    if (Array.isArray(s.advice) && s.advice.length) {
+      html += '<div class="card"><h2>' + esc(s.advice_title || 'What to do') + '</h2><ul>' + s.advice.map(function (a) {
+        return Array.isArray(a) ? '<li><b>' + esc(a[0]) + ':</b> ' + esc(a[1]) + '</li>' : '';
+      }).join('') + '</ul></div>';
+    }
+    $('content').innerHTML = html;
   }
-  function fromStorage() {
-    try { var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+
+  function showSaved(s, statusText, connected) {
+    if (s) { render(s); setStatus(statusText, connected); }
+    else { setStatus(statusText.indexOf('No connection') === 0 ? 'No connection, and no saved warning information yet' : 'No saved warning information yet', false); }
   }
-  fetch('status.json', {cache: 'no-store'}).then(function (r) {
-    if (!r.ok) throw new Error('status ' + r.status);
-    var live = !r.headers.get('X-Offline-Copy') && navigator.onLine !== false;  // the service worker marks saved copies
-    return r.json().then(function (s) { return [s, live]; });
-  }).then(function (result) {
-    if (result[1]) { try { localStorage.setItem(KEY, JSON.stringify(result[0])); } catch (e) {} }
-    render(result[0], result[1]);
-  }).catch(function () {
-    var s = fromStorage();
-    if (s) { render(s, false); return; }
-    document.getElementById('net').className = 'net offline';
-    document.getElementById('net').textContent = 'No connection, and no saved information yet. Open this page once while you have signal.';
-    document.getElementById('content').innerHTML = '';
-  });
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
+
+  try {
+    // 1. A downloaded copy carries its own saved status.
+    var embedded = null;
+    try { embedded = JSON.parse($('embedded-status').textContent || 'null'); } catch (e) { embedded = null; }
+    if (valid(embedded)) { showSaved(embedded, 'Offline — saved information', false); return; }
+    // 2. On the hosted page: the latest status, saved on this device once it has been read correctly.
+    if (!window.fetch || location.protocol === 'file:') { showSaved(readStored(), 'Offline — saved information', false); return; }
+    fetch('status.json', {cache: 'no-store'}).then(function (r) {
+      if (r.headers.get('X-Offline-Copy')) return r.json().then(function (s) { return {s: s, kind: 'cached'}; });
+      if (!r.ok) return {s: null, kind: 'unreachable'};
+      return r.json().then(function (s) { return {s: s, kind: 'live'}; }, function () { return {s: null, kind: 'unreachable'}; });
+    }, function () { return {s: null, kind: 'offline'}; }).then(function (result) {
+      if (result.kind === 'live' && valid(result.s) && navigator.onLine !== false) {
+        store(result.s);  // replaced only after a valid new status was read
+        showSaved(result.s, 'Connected — latest information saved on this device', true);
+      } else if (result.kind === 'cached' && valid(result.s)) {
+        showSaved(result.s, 'No connection: showing the last saved information', false);
+      } else if (result.kind === 'offline' || navigator.onLine === false) {
+        showSaved(readStored(), 'No connection: showing the last saved information', false);
+      } else {
+        showSaved(readStored(), 'Warning service not reachable: showing the last saved information', false);
+      }
+    }).catch(function () { showSaved(readStored(), 'No connection: showing the last saved information', false); });
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+  } catch (e) {
+    // Never blank: the plain-HTML page above stays visible.
   }
 })();
 </script>

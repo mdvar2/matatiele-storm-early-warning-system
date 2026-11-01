@@ -1,0 +1,69 @@
+{
+ "button": [
+  {
+   "tag": "BUTTON",
+   "disabled": false,
+   "testid": "stBaseButton-secondary",
+   "href": null
+  },
+  {
+   "tag": "BUTTON",
+   "disabled": false,
+   "testid": "stBaseButton-secondary",
+   "href": null
+  }
+ ],
+ "browser_download_behavior": {
+  "id": 1,
+  "result": {}
+ },
+ "media_requests_after_mouse_click": [
+  "http://127.0.0.1:8599/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2",
+  "http://127.0.0.1:8599/static/media/MaterialSymbols-Rounded.DNTVdXI7.woff2",
+  "http://127.0.0.1:8599/media/ffa4701b4f046cca834f8173ff303644.html",
+  "http://127.0.0.1:8599/media/0ed5ec6097201480203432f89c334c2c.html"
+ ],
+ "js_click": "clicked",
+ "media_requests_after_js_click": [
+  "http://127.0.0.1:8599/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2",
+  "http://127.0.0.1:8599/static/media/MaterialSymbols-Rounded.DNTVdXI7.woff2",
+  "http://127.0.0.1:8599/media/ffa4701b4f046cca834f8173ff303644.html",
+  "http://127.0.0.1:8599/media/0ed5ec6097201480203432f89c334c2c.html",
+  "http://127.0.0.1:8599/media/79df688281729daea56a349995325a13.html"
+ ],
+ "served_file": {
+  "url": "http://127.0.0.1:8599/media/79df688281729daea56a349995325a13.html",
+  "status": 200,
+  "type": "text/html; charset=utf-8",
+  "disposition": "attachment; filename=\"matatiele-storm-info-20261101-0250.html\""
+ },
+ "dashboard_score": "3%",
+ "dashboard_decision": "NO WARNING TRIGGERED",
+ "file_size_kb": 10.8,
+ "F_saved_file_opened_offline": {
+  "status": "Offline \u2014 saved information",
+  "saved": "Last saved: 01 Nov 2026 02:50 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ },
+ "F2_reopened_offline": {
+  "status": "Offline \u2014 saved information",
+  "saved": "Last saved: 01 Nov 2026 02:50 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "3%",
+  "decision": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "numbers": true,
+  "advice": true,
+  "blank": false
+ }
+}

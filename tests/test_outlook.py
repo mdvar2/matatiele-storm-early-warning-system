@@ -224,7 +224,10 @@ class HomeOutlookAndOfflineStatus(DashboardHarness):
         at.toggle(key='demo_offline').set_value(True).run()            # demonstration outage for this session
         data = self.status_file()
         self.assertEqual((data['risk_score'], data['risk_level']), ('5%', 'LOW RISK'))  # neither reaches the shared file
-        self.assertIn('Offline access', self.html(self.app().run()))
+        home = self.app().run()
+        self.assertIn('Save for offline use', self.html(home))
+        saved = next(b for b in home.get('download_button') if b.proto.label == 'Save for offline use')
+        self.assertFalse(saved.proto.disabled)
 
 
 class ReferenceLayout(DashboardHarness):
@@ -306,3 +309,75 @@ class StylesheetSurvivesTheSanitiser(unittest.TestCase):
             self.assertEqual(re.findall(r'<[/\w]', css), [], mode)
             self.assertFalse([c for c in css if ord(c) < 32 and c not in '\n\r\t'], mode)
         self.assertIn("syntax:'\\3C number>'", dashboard_theme.CHROME_CSS)
+
+
+
+class OfflineHotfix(unittest.TestCase):
+    """The offline page never renders blank, and the downloaded copy works with no server at all."""
+
+    def page(self):
+        return (ROOT / 'static' / 'offline.html').read_text(encoding='utf-8')
+
+    def visible_without_script(self, page):
+        import re
+        return re.sub(r'<script.*?</script>', '', page, flags=re.S)
+
+    def test_plain_html_shell_is_visible_even_without_javascript(self):
+        shell = ' '.join(self.visible_without_script(self.page()).split())  # whitespace normalised
+        for text in ('Matatiele', 'Storm Early Warning System', 'No saved warning information yet',
+                     'Open this offline page once while connected to save the latest warning information for later use.',
+                     'href="tel:10111"', 'href="tel:10177"', 'href="tel:112"', 'Lightning', 'Flooding', 'Roads', 'Rivers', 'Livestock',
+                     'cannot receive new warnings without a connection'):
+            self.assertIn(text, shell)
+        self.assertNotRegex(self.page(), r'(src|href)="https?://')        # nothing to download: no CDN, fonts or images
+        self.assertNotIn('matatiele_storm_banner', self.page())          # the header artwork is not loaded
+
+    def test_script_handles_missing_and_corrupt_data_without_blanking(self):
+        page = self.page()
+        self.assertIn("try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); return valid(s) ? s : null; } catch (e) { return null; }", page)
+        self.assertIn("function valid(s) { return !!s && typeof s === 'object' && typeof s.generated_utc === 'string' && 'risk_score' in s; }", page)
+        self.assertIn('No connection: showing the last saved information', page)
+        self.assertIn('Saved information may be out of date.', page)
+        self.assertIn('store(result.s);  // replaced only after a valid new status was read', page)
+        self.assertIn('Never blank', page)
+        worker = (ROOT / 'static' / 'sw.js').read_text(encoding='utf-8')
+        self.assertIn("text.indexOf('data-matatiele-offline')", worker)   # never caches a platform or error page as this page
+        self.assertIn("typeof data.generated_utc !== 'string'", worker)    # never caches an invalid status
+
+    def test_downloaded_copy_embeds_genuine_safe_data(self):
+        import offline_page
+        import resident_view as rv
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        t = datetime(2026, 11, 1, 2, 16, tzinfo=ZoneInfo('Africa/Johannesburg'))
+        data = offline_page.build(rv.resident_status(.27, t, t, t, False), .27, {'state': 'none'}, [])
+        data['period'] = 'x</script><script>alert(1)</script>'          # hostile text cannot escape the data block
+        page = offline_page.download_html(data, ROOT / 'static' / 'offline.html')
+        self.assertIn('"risk_score": "27%"', page)
+        self.assertIn('NO WARNING TRIGGERED', page)
+        self.assertNotIn('</script><script>alert', page)
+        self.assertEqual(page.count('id="embedded-status">null<'), 0)
+        self.assertNotRegex(page, r'\+27\d|0[6-8]\d{8}')              # no personal phone numbers
+        for private in ('subscriber', 'phone_encrypted', 'TWILIO', 'password', 'token'):
+            self.assertNotIn(private, page)
+        self.assertLess(len(page.encode('utf-8')), 20_000)               # small enough for any phone and connection
+
+
+
+class SaveForOfflineOnHome(DashboardHarness):
+    def test_home_offers_a_genuine_saved_copy_and_survives_a_missing_template(self):
+        self.write_prediction(.27)
+        at = self.app().run()
+        saved = next(b for b in at.get('download_button') if b.proto.label == 'Save for offline use')
+        self.assertFalse(saved.proto.disabled)
+        self.assertTrue(saved.proto.url)
+        template = self.tmp / 'static' / 'offline.html'
+        hidden = template.with_suffix('.hidden')
+        template.rename(hidden)
+        try:
+            at = self.app().run()
+            self.assertFalse(at.exception)                               # Home still renders in full
+            self.assertIn('NO WARNING TRIGGERED', self.html(at))
+            self.assertTrue(next(b for b in at.get('download_button') if b.proto.label == 'Save for offline use').proto.disabled)
+        finally:
+            hidden.rename(template)
