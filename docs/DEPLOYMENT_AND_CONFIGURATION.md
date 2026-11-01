@@ -72,6 +72,7 @@ The **same two values** must go into Streamlit secrets and into GitHub Actions s
 | `SUBSCRIBER_ENCRYPTION_KEY`, `SUBSCRIBER_HASH_KEY` | ✔ | **secrets** | from §3 |
 | `SUBSCRIBER_STORE_FILE`, `SUBSCRIBER_STORE_BRANCH` | optional | – | defaults `subscribers.json`, `main` |
 | `SUBSCRIBER_ALERTS_ENABLED` | – | **repository variable** | `true` to send warnings to subscribers |
+| `SMS_LIVE_TEST_ENABLED`, `SMS_TEST_RECIPIENT` | ✔ (only while testing) | – | `true`, and one E.164 test number: the only number the administrator's controlled live test can message. Keep it private; set the switch back to `false` afterwards |
 | `ADMIN_PASSWORD` | ✔ (existing) | – | administrator sign-in |
 | `OFFICIAL_ACCOUNTS` | ✔ | – | one `username:pbkdf2_sha256$...` line per official, from `23_create_official_account.py` |
 | `OPERATIONS_STORE_FILE` | optional | – | default `operations.json` (acknowledgements and officials' records, same private repository) |

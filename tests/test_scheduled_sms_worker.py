@@ -123,6 +123,30 @@ class WorkerTests(unittest.TestCase):
                     self.assertEqual(send.call_count,1);self.assertEqual(len(ledger),1)
                     self.assertNotIn('SECRET',' '.join(comments))
 
+    def test_warning_pipeline_order_and_the_warning_survives_a_provider_failure(self):
+        # Genuine forecast -> model score (>= 35%) -> warning record (ledger) -> duplicate check -> SMS attempt -> state recorded.
+        order=[];ledger=[];comments=[]
+        def github(method,endpoint,**kwargs):
+            if method=='GET':order.append('duplicate_check');return list(ledger)
+            if 'label' in endpoint:order.append('reservation_lock');return {}
+            if endpoint=='issues':
+                order.append('warning_record');ledger.append({'number':7,'title':kwargs['json']['title'],'state':'open'});return ledger[-1]
+            order.append('state_recorded');comments.append(kwargs['json']['body']);return {}
+        def provider_down(**kwargs):
+            order.append('sms_attempt');return {'status':'failed','sent':False,'message':'provider unavailable'}
+        with patch.object(self.worker,'github',side_effect=github),patch('sms_alert.sms_is_configured',return_value=True), \
+             patch('sms_alert.send_storm_sms',side_effect=provider_down) as send:
+            with self.assertRaises(self.worker.WorkerError):self.run_main(args=['--live'])   # failure reported, never hidden
+            self.assertEqual(order[:5],['duplicate_check','reservation_lock','warning_record','sms_attempt','state_recorded'])
+            self.assertEqual(set(order[5:]),{'state_recorded'})  # then the manual-review note: nothing is deleted or resent
+            self.assertEqual(len(ledger),1)                                                     # the warning record remains
+            self.assertIn('**failed**',comments[0])
+            self.assertEqual(send.call_args.kwargs['threshold'],.35)
+            second=load_worker()
+            with patch.object(second,'github',side_effect=github):
+                self.run_main(second,['--live'])                                                # repeated run: no duplicate send
+            self.assertEqual(send.call_count,1);self.assertEqual(len(ledger),1)
+
     def test_ledger_pagination_includes_closed_reservations(self):
         title='[SMS-LEDGER] key'
         with patch.object(self.worker,'github',side_effect=[[{'title':'other'}]*100,[{'title':title,'state':'closed'}]]) as gh:

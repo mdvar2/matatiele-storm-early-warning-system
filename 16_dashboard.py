@@ -34,7 +34,8 @@ from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
                              interval_label, timestamp_labels, next_complete_hour_endpoint,
                              is_next_complete_prediction,
                              TARGET_LABEL, GENERATED_LABEL)
-from sms_alert import sms_is_configured, send_test_sms
+from sms_alert import sms_is_configured
+import sms_alert
 from subscriptions import delivery_mode
 import model_evidence
 import offline_page
@@ -496,9 +497,7 @@ with sidebar:
         demo_offline=st.toggle('Connectivity-failure demonstration (this session only)',key='demo_offline',value=False,
                                help='Treats the forecast service as unreachable for this browser session: the last known information is shown, labelled out of date, and no warning decision is made. Other users are not affected.')
         if test_mode:st.html('<div style="background:#4a0f6b;color:#ffffff;border:3px solid #ffd23f;border-radius:10px;padding:10px 12px;font-weight:700;font-size:13px;line-height:1.5">Simulation on: on screen only. No SMS can be sent and no records change.</div>')
-        if not test_mode and sms_is_configured() and st.button('Send Test SMS',icon=':material/sms:',width='stretch'):
-            outcome=send_test_sms()
-            (st.success if outcome.get('sent') else st.error)('SMS accepted by provider.' if outcome.get('sent') else 'SMS request failed. Review private server logs.')
+        if not test_mode:st.caption('Controlled SMS test and provider health: Administration.')
     else:test_mode=demo_offline=False
     if is_admin and st.button('Administration',icon=':material/admin_panel_settings:',key='nav_admin',width='stretch',
                               type='primary' if page=='🛠️ Administration' else 'secondary'):
@@ -519,8 +518,12 @@ if not text_view and not portal_mode:
     st.session_state.top_nav=page if page in navigation else None
     def _go_to_section():
         if st.session_state.get('top_nav'):st.session_state.dashboard_page=st.session_state.top_nav
-    with st.container(key='top_nav_bar'):
+    with st.container(key='top_nav_bar'):  # tablets; hidden on phones, which use the bottom navigation
         st.segmented_control('Section',navigation,key='top_nav',format_func=lambda item:NAV_LABELS.get(item,item),on_change=_go_to_section,label_visibility='collapsed')
+    bottom_nav=st.container(key='bottom_nav')  # phones only (CSS): fixed at the bottom, filled once the data are known
+    if not (show_admin_login or st.session_state.admin_authenticated):
+        # Every section is in the bottom navigation, so phones need no side-menu button (it stays for administrator sign-in).
+        st.html('<style>@media (max-width:640px){[data-testid=stExpandSidebarButton],[data-testid=stSidebarCollapsedControl]{display:none!important}}</style>')
 
 st.session_state.refresh_clock_count=0
 refresh_clock()
@@ -531,7 +534,7 @@ with sidebar:
 previous_attempt=refresh_state().last_attempt
 if demo_offline:state=refresh_state()  # demonstration: no retrieval this session
 elif refresh_due(refresh_state(),datetime.now(SAST),manual_refresh):
-    with st.spinner('Retrieving ECMWF forecasts and running the existing Random Forest…'):
+    with st.spinner('Retrieving ECMWF forecasts and running the existing Random Forest… (at most about 2½ minutes; if it fails, the last saved information is shown, marked out of date)'):
         state=refresh_sources(force=manual_refresh)
 else:state=refresh_state()
 if manual_refresh and state.last_attempt==previous_attempt:
@@ -791,21 +794,37 @@ except Exception:logging.exception('System log could not be updated.')  # loggin
 # The banner and officials always use the genuine estimate; only the resident card shows the simulation.
 genuine_status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,stale,False)
 
+def forecast_snapshot() -> list:
+    """The next hours of the ECMWF forecast for Matatiele, compact, for the saved offline dashboard (genuine values only)."""
+    hours=six_hour_forecast(state.regional,datetime.now(SAST),complete_intervals=True)
+    return [{'hour':f"{row['time']:%H:%M}",'rain':weather_value(number(row,'precipitation'),'mm'),'wind':weather_value(number(row,'wind_speed_10m'),'m/s'),
+             'temperature':weather_value(number(row,'temperature_2m'),chr(176)+'C')} for _,row in hours.iterrows()]
+
 def offline_status() -> dict:
     """The resident-safe saved status, from the genuine output and the real data state (never a demonstration)."""
     status=resident_view.resident_status(real_prob,input_time,valid,generated_time or retrieved_time,data_stale,False)
     events,error=resident_alerts.load_events(secret)
     active=[e for e in events if e['source']==warning_events.GENUINE and warning_events.is_active(e)]
-    early=None
+    early,rows=None,[]
     if not data_stale:
-        hit=storm_outlook.first_exceedance(outlook_scores(f'{datetime.now(UTC):%Y-%m-%dT%H}')[0])
+        rows=outlook_scores(f'{datetime.now(UTC):%Y-%m-%dT%H}')[0]
+        hit=storm_outlook.first_exceedance(rows)
         if hit:early=f"Raised storm risk from about {pd.Timestamp(hit['target_end_utc']).tz_convert(SAST)-pd.Timedelta(hours=1):%H:%M} SAST"
-    return offline_page.build(status,real_prob,warning_record(events,error),active,early)
+    weather={k:v for k,v in weather_summary().items() if k!='icon'}
+    return offline_page.build(status,real_prob,warning_record(events,error),active,early,outlook=rows,weather=weather,
+                              forecast=[] if state.regional_error else forecast_snapshot())
 
-try:offline_data=offline_status();offline_page.write(BASE/'static'/'status.json',offline_data)
+SNAPSHOT=BASE/'static'/'status.json'
+try:
+    fresh=offline_status()
+    if offline_page.current(fresh):  # only a valid, current result replaces the saved snapshot
+        offline_page.write(SNAPSHOT,fresh);offline_data=fresh
+    else:offline_data=offline_page.read_saved(SNAPSHOT) or fresh  # the last good snapshot; otherwise this one, labelled out of date
 except Exception:
     offline_data=None
     logging.exception('Offline status could not be written.')  # never interrupts the dashboard
+try:offline_file=offline_page.download_html(offline_data,BASE/'static'/'offline.html') if offline_data else None
+except (OSError,ValueError):offline_file=None  # a missing template must never break the dashboard: saving is disabled instead
 if portal_mode:
     official=official_portal.sign_in(secret,failed_official_logins(),LOGIN_WINDOW_SECONDS,MAX_FAILED_LOGINS)
     if official:
@@ -829,9 +848,16 @@ MODEL_STEPS=[
 ]
 LOW_CONNECTIVITY=[
     ('Low-data view.','Essential storm-risk information as plain text, without maps, charts or images.'),
-    ('SMS warnings.','When enabled, a warning can reach a basic phone without opening the dashboard; an SMS needs only mobile signal.'),
-    ('Low-data map.','The map can be shown without downloading map tiles.'),
-    ('Not claimed.','The system needs a connection to update; it does not run offline, and sensors or LoRa links are future research, not implemented.'),
+    ('Saved offline dashboard.','While connected, Save for offline use keeps the latest genuine dashboard state on the phone: risk score, warning '
+     'decision, 12-hour model outlook, alerts, weather snapshot, safety advice and emergency numbers. It opens with no data connection, '
+     'shows when it was saved, and warns when it may be out of date.'),
+    ('SMS warnings.','When enabled, a warning can reach a basic phone without mobile data or the dashboard: the phone needs only SMS '
+     'coverage. The sending system still needs its own connection to the SMS provider; SMS cannot be sent from a system that is offline.'),
+    ('Two different channels.','The saved offline dashboard helps a resident keep the last known warning and safety information after '
+     'data connectivity is lost. SMS can reach a phone without mobile data, but only while the sending system is connected.'),
+    ('Low-data map.','The map can be shown without downloading map tiles. It is not available offline.'),
+    ('Not claimed.','New forecasts, model results and warnings need a connection: the system does not run offline, a disconnected phone '
+     'receives no new forecasts or predictions, and sensors or LoRa links are future research, not implemented.'),
 ]
 
 PHASES=[
@@ -840,15 +866,54 @@ PHASES=[
 ]
 RO3_STATUS=[
     ('Smart: Random Forest storm-risk assessment','Implemented','ECMWF forecast inputs, the trained Random Forest (29 inputs), model-estimated risk score; evidence on Risk Analysis'),
-    ('Early warning: 35% threshold decision','Implemented','Warning decision, public warning record, Alerts page'),
-    ('Resilient: degraded operation','Implemented','Fresh or out-of-date status, last-known information, offline saved-information page, warning records kept if SMS fails'),
-    ('Low connectivity: dashboard alerts, low-data view, saved offline copy','Implemented','Plain-text view; Save for offline use keeps the last warning, advice and emergency numbers on the phone'),
-    ('Low connectivity: SMS and community relays','Implemented as simulation','SMS simulation and controlled test; relay role and announcement scripts (not field-tested with relays)'),
-    ('Early: 2 to 12 hour storm-risk outlook','Exploratory, unvalidated','Same model on later forecast hours; evaluated one hour ahead only'),
+    ('Early warning: next-hour risk and 35% decision','Implemented','Evaluated next-hour estimate, warning decision, public warning record, Alerts page'),
+    ('Earlier preparedness: 2 to 12 hour outlook','Exploratory, unvalidated','Same model on later forecast hours; evaluated one hour ahead only'),
+    ('Resilience: last-known information and stale handling','Implemented','Out-of-date data labelled, no warning decision from it; a saved snapshot replaced only by a valid result; warning records kept if SMS fails'),
+    ('Resilience: saved offline dashboard','Implemented','Save for offline use: Home, Outlook, Alerts, Safety and More with no connection; connection-lost banner opens it'),
+    ('Low connectivity: low-data view and mobile layout','Implemented','Plain-text view; phone bottom navigation'),
+    ('Low connectivity: SMS','Simulation implemented; controlled live test ready; public delivery disabled','Simulation by default; one real SMS to a configured test phone (administrator, confirmed); subscriber delivery off by default'),
+    ('Low connectivity: community relays','Implemented as simulation','Relay role and announcement scripts (not field-tested with relays)'),
     ('Public SMS, sensors, LoRa, sirens, Cell Broadcast, field validation','Future / deployment-dependent','Not implemented'),
 ]
 
 HISTORY_RANGES=('Last 24 hours','Last 7 days','All saved')
+
+def sms_provider_panel() -> None:
+    """Administrators only: SMS provider health and the controlled live test (one real SMS to the configured test phone).
+
+    The number is never entered or shown here; it comes from SMS_TEST_RECIPIENT. Nothing is sent without a second,
+    explicit confirmation, and never while the warning simulation is on.
+    """
+    st.markdown('**SMS provider health and controlled live test**')
+    health_now=sms_alert.provider_health()
+    last=health_now['last_test']
+    rows=[('SMS provider (Twilio)',health_now['provider']),
+          ('Account type',st.session_state.get('sms_account_type','Not checked (use Check provider account)')),
+          ('Controlled live test',sms_alert.CONTROLLED_STATES[health_now['controlled_test']]),
+          ('Public subscriber delivery',health_now['public_delivery']+' (SUBSCRIBER_ALERTS_ENABLED; the scheduled worker uses its own GitHub Actions setting)'),
+          ('Last controlled test',f"{pd.Timestamp(last['at']).tz_convert(SAST):%d %b %Y %H:%M} SAST · {last['label']}" if last and last['at'] else 'None recorded')]
+    st.html(dashboard_theme.table_html(pd.DataFrame(rows,columns=['Item','Status']),caption='SMS provider health (no secrets shown)'))
+    st.caption('Accepted by provider is not delivery: an SMS is reported as delivered to the handset only when the provider confirms it.')
+    check,refresh=st.columns(2)
+    if check.button('Check provider account',key='sms_check_account',disabled=health_now['provider']!='Configured',width='stretch'):
+        st.session_state.sms_account_type=sms_alert.provider_account_type();st.rerun()
+    if refresh.button('Refresh test delivery status',key='sms_refresh_test',disabled=not (last and last['has_sid']),width='stretch'):
+        sms_alert.refresh_controlled_test_status();st.rerun()
+    ready=health_now['controlled_test']=='ready' and not test_mode
+    if st.button('Send controlled SMS test',icon=':material/sms:',key='sms_test_ask',disabled=not ready,
+                 help='Sends one real SMS, to the configured test recipient only. Requires SMS_LIVE_TEST_ENABLED=true and SMS_TEST_RECIPIENT.'):
+        st.session_state.sms_test_confirm=True
+    if test_mode:st.caption('Switch the warning simulation off to use the controlled live test.')
+    if ready and st.session_state.get('sms_test_confirm'):
+        st.warning('This will send one real SMS to the configured test recipient. Continue?')
+        yes,no=st.columns(2)
+        if yes.button('Yes, send one SMS',key='sms_test_yes',type='primary',width='stretch'):
+            st.session_state.sms_test_confirm=False
+            st.session_state.sms_test_outcome=sms_alert.send_controlled_test_sms(confirmed=True)['message']
+            st.rerun()
+        if no.button('Cancel',key='sms_test_no',width='stretch'):
+            st.session_state.sms_test_confirm=False;st.rerun()
+    if st.session_state.get('sms_test_outcome'):st.info('Controlled test: '+st.session_state.sms_test_outcome)
 
 def more_safety_advice() -> None:
     st.session_state.dashboard_page='🛟 Safety Advice'
@@ -858,6 +923,14 @@ def open_contacts() -> None:
 
 def go_to(section: str) -> None:
     st.session_state.dashboard_page=section
+
+OFFLINE_HELP=('Saves the latest dashboard information (risk score, warning decision, 12-hour model outlook, alerts, weather snapshot, '
+              'safety advice and emergency numbers) as one small page on your phone. Open it any time, even with no connection. '
+              'It cannot receive new forecasts or warnings: save again when you have signal.')
+
+def save_offline_button(where: Any, key: str) -> None:
+    where.download_button('Save for offline use',offline_file or '',file_name=f'matatiele-storm-info-{datetime.now(SAST):%Y%m%d-%H%M}.html',
+                          mime='text/html',icon=':material/download:',width='stretch',key=key,disabled=not offline_file,help=OFFLINE_HELP)
 
 # Each piece of information has one place: Home summarises; every other section adds detail not shown on Home.
 if page=='🏠 Dashboard':
@@ -884,14 +957,9 @@ if page=='🏠 Dashboard':
         actions[2].button('Emergency contacts',key='home_contacts',on_click=open_contacts,icon=':material/call:',width='stretch')
         actions[3].button('SMS service',key='cta_sms_alerts',on_click=open_sms_alerts,icon=':material/sms:',width='stretch',
                           help='SMS warning service: research prototype. Public SMS delivery is not active.')
-        # A self-contained page with the genuine latest status embedded: saved once, it opens with no connection on any
-        # hosting (Streamlit Community Cloud does not serve ./static as a standalone page).
-        try:offline_file=offline_page.download_html(offline_data,BASE/'static'/'offline.html') if offline_data else None
-        except (OSError,ValueError):offline_file=None  # a missing template must never break Home: the button is disabled instead
-        actions[4].download_button('Save for offline use',offline_file or '',
-                                   file_name=f'matatiele-storm-info-{datetime.now(SAST):%Y%m%d-%H%M}.html',mime='text/html',
-                                   icon=':material/download:',width='stretch',key='save_offline',disabled=not offline_file,
-                                   help='Saves the latest warning information, safety advice and emergency numbers as a small page on your phone. Open it any time, even with no connection. It cannot receive new warnings: save again when you have signal.')
+        # A self-contained offline dashboard with the genuine latest snapshot embedded: saved once, it opens with no
+        # connection on any hosting (Streamlit Community Cloud does not serve ./static as a standalone page).
+        save_offline_button(actions[4],'save_offline')
     outlook_column,chart_column=st.columns([1,1.35],gap='medium')
     with outlook_column:outlook_card()
     with chart_column:six_hour_chart()
@@ -902,8 +970,8 @@ if page=='🏠 Dashboard':
     if not genuine_active:
         st.html(resident_view.quick_actions_html(advice))
     st.html('<div class="lowdata-link">Low connectivity: <a href="?view=text">Low-data view</a> (plain text) · '
-            '<b>Save for offline use</b> (above): keeps the latest warning information, safety advice and emergency numbers on '
-            'your phone for when the network is down.</div>')
+            '<b>Save for offline use</b> (above): keeps the latest dashboard information (risk, warning decision, outlook, alerts, '
+            'safety advice and emergency numbers) on your phone for when the network is down. It cannot receive new warnings offline.</div>')
     if simulated:
         st.markdown('**SMS preview (simulation): this is the text a warning would contain. It has NOT been sent.**')
         st.code(resident_view.sms_preview(valid.isoformat() if valid is not None else ''),language=None,wrap_lines=True)
@@ -1108,6 +1176,7 @@ if page=='🛠️ Administration' and is_admin:
             'Last refresh attempt':f'{state.last_attempt:%d %b %H:%M} SAST' if state.last_attempt else 'Not yet',
             'Random Forest model file':model_status,'Warning threshold':f'{threshold:.0%}'}
     resident_pages.render_admin(secret,health)
+    sms_provider_panel()
 if page=='ℹ️ About':
     st.html('<div class="section-title">About <small>How a storm warning reaches residents</small></div>')
     st.html(dashboard_theme.flow_html(delivery_mode(secret)))
@@ -1131,6 +1200,31 @@ if page=='ℹ️ About':
         st.caption(f'Weather forecast retrieved: {retrieved_time.strftime("%d %b %Y %H:%M:%S SAST") if retrieved_time is not None else "Unknown (legacy saved record)"} · Forecast input hour: {input_time.strftime("%d %b %Y %H:%M SAST") if input_time is not None else "Unknown"} · Forecast target (hour ending): {valid.strftime("%d %b %Y %H:%M SAST") if valid is not None else "Unknown"}')
         st.caption(f'Prediction generated: {generated_time.strftime("%d %b %Y %H:%M:%S SAST") if generated_time is not None else "Unknown (legacy saved record)"}. Target interval: {interval_label(valid)}. Fixed hourly target, not a rolling 60-minute window. Instantaneous conditions are valid at their timestamp; rainfall covers the preceding hour.')
         st.caption('ECMWF run issue time is not supplied by this API response; retrieval time is recorded separately.')
+
+# Phones: fixed bottom navigation (Home, Risk, Map, Safety, More). Desktop and tablet keep the side menu and top bar.
+BOTTOM_NAV=[('🏠 Dashboard','Home','home'),('📈 Risk Analysis','Risk','monitoring'),('🗺️ Weather Map','Map','map'),('🛟 Safety Advice','Safety','health_and_safety')]
+MORE_NAV=[('🚨 Alerts','Alerts','notifications'),('🌦️ Live Forecast','Forecast','partly_cloudy_day'),('🕒 Historical Data','Historical Data','insert_chart'),('ℹ️ About','About','info')]
+if not text_view and not portal_mode:
+    # A badge only for a genuine warning in effect (never a count, never a development test).
+    warning_now=any(e['source']==warning_events.GENUINE and warning_events.is_active(e) for e in resident_alerts.load_events(secret)[0])
+    with bottom_nav:
+        cells=st.columns(5,gap=None)
+        for cell,(item,label,nav_icon) in zip(cells,BOTTOM_NAV):
+            cell.button(label,icon=f':material/{nav_icon}:',key='bnav_'+label,on_click=go_to,args=(item,),width='stretch',
+                        type='primary' if page==item else 'tertiary')
+        with cells[4],st.container(key='bnav_more_alert' if warning_now else 'bnav_more'):
+            with st.popover('More',icon=':material/menu:',width='stretch'):
+                for item,label,nav_icon in MORE_NAV:
+                    alert=warning_now and item=='🚨 Alerts'
+                    st.button(label+(' · warning in effect' if alert else ''),icon=':material/notification_important:' if alert else f':material/{nav_icon}:',
+                              key='more_'+label,on_click=go_to,args=(item,),width='stretch',type='primary' if page==item or alert else 'secondary')
+                st.caption('Offline access')
+                save_offline_button(st,'save_offline_more')
+                st.button('SMS service',icon=':material/sms:',key='more_sms',on_click=open_sms_alerts,width='stretch')
+    # Losing the connection while the dashboard is open: a clear banner, and the saved offline dashboard, which this page
+    # already holds (it opens with no server). Live updates resume, and "Connection restored" appears, only after a new
+    # successful retrieval.
+    components.html(dashboard_theme.connection_watch_html(offline_file),height=0)
 
 st.divider()
 st.caption('Academic research prototype, not an official warning service · Official warnings: South African Weather Service (weathersa.co.za) · Times in SAST (UTC+2)')

@@ -12,7 +12,7 @@ import sms_alert as sms
 ROOT = Path(__file__).resolve().parents[1]
 VALUES = {'ADMIN_PASSWORD':'test-only-password','TWILIO_ACCOUNT_SID':'test-only-sid',
           'TWILIO_AUTH_TOKEN':'test-only-token','TWILIO_FROM_NUMBER':'+15555550100',
-          'ALERT_TO_NUMBERS':'+15555550101,+15555550102'}
+          'ALERT_TO_NUMBERS':'+15555550101,+15555550102','SMS_LIVE_TEST_ENABLED':'false','SMS_TEST_RECIPIENT':'+15555550109'}
 
 
 class ConfigTests(unittest.TestCase):
@@ -99,23 +99,16 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(set(values),set(VALUES))
         self.assertTrue(all(value=='' for value in values.values()))
 
-    def test_configured_admin_sees_test_button_only_with_preview_off(self):
-        self.write(VALUES)
+    def test_sidebar_sends_nothing_and_the_controlled_test_is_disabled_with_preview_on(self):
+        from tests.test_sms_alert import run_sms_panel
         tree=ast.parse((ROOT/'16_dashboard.py').read_text(encoding='utf-8'))
-        sidebar=next(n for n in tree.body if isinstance(n,ast.With)
-                     and any(isinstance(c,ast.Call) and isinstance(c.func,ast.Name)
-                             and c.func.id=='send_test_sms' for c in ast.walk(n)))
-        guard=next(n for n in sidebar.body if isinstance(n,ast.If)
-                   and any(isinstance(c,ast.Call) and isinstance(c.func,ast.Name)
-                           and c.func.id=='send_test_sms' for c in ast.walk(n)))
-        for admin,preview in [(False,False),(True,True),(True,False)]:
-            st=Mock();st.toggle.return_value=preview;st.button.return_value=False
-            send=Mock()
-            namespace={'st':st,'is_admin':admin,'sms_is_configured':sms.sms_is_configured,'send_test_sms':send}
-            exec(compile(ast.Module(body=[guard],type_ignores=[]),'<configured admin controls>','exec'),namespace)
-            buttons=[call.args[0] for call in st.button.call_args_list]
-            self.assertEqual(any('Send Test SMS' in label for label in buttons),admin and not preview)
-            send.assert_not_called()
+        sidebar=[n for n in tree.body if isinstance(n,ast.With) and 'sidebar' in ast.unparse(n.items[0].context_expr)]
+        for block in sidebar:
+            self.assertNotRegex(ast.unparse(block),r'send_\w*sms')  # no SMS can be sent from the side menu
+        for preview in (False,True):
+            _,st,_=run_sms_panel('ready',preview,set())
+            asked=[c for c in st.button.call_args_list if c.kwargs.get('key')=='sms_test_ask']
+            self.assertEqual(asked[0].kwargs['disabled'],preview)
 
 
 if __name__=='__main__':unittest.main()

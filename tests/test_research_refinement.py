@@ -164,10 +164,10 @@ class FinalRefinements(DashboardHarness):
         for number in ('10111', '10177', '112'):
             self.assertIn(f'href="tel:{number}"', page)
         self.assertIn(emergency_contacts.NOTE, page)
-        self.assertEqual(len(at.get('iframe')), 2)  # the header clock, and the scroll-to-contacts helper (once)
+        self.assertEqual(len(at.get('iframe')), 3)  # the header clock, the connection watcher, and the scroll-to-contacts helper (once)
         self.assertNotIn('scroll_to_contacts', at.session_state)
         self.go(at, 'Dashboard'); self.go(at, 'Safety Advice')
-        self.assertEqual(len(at.get('iframe')), 1)  # only the header clock: opening Safety normally does not jump down
+        self.assertEqual(len(at.get('iframe')), 2)  # the header clock and connection watcher: opening Safety normally does not jump down
 
     def test_low_data_view_lists_emergency_numbers_as_plain_text(self):
         self.write_prediction(.05)

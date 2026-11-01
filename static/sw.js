@@ -2,7 +2,7 @@
 // page address). It keeps the page and the last valid status so they reopen without a connection.
 // Safety: a response is stored only if it really is this page or a valid status file, so a hosting platform's own page,
 // an error page or a "waking up" screen can never replace the saved copy. The previous copy stays until a valid one arrives.
-var CACHE = 'matatiele-offline-v4';
+var CACHE = 'matatiele-offline-v5';
 var PAGE = ['offline.html', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', function (event) {

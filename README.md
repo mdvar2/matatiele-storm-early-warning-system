@@ -26,7 +26,7 @@ ECMWF forecast inputs → Random Forest storm-risk assessment → 35% warning de
 | **External forecasts** | ECMWF IFS forecasts retrieved hourly through Open-Meteo. The system **does not produce weather forecasts**. |
 | **Random Forest risk assessment** | The trained model turns the forecast variables into a **next-hour model risk score** for Matatiele |
 | **Warning decision** | A warning is decided when the score reaches the **35% warning-decision threshold**, and the warning is recorded publicly |
-| **Resilient communication** | Dashboard warnings, a low-data view, an offline saved-information page, SMS (simulation; public delivery disabled) and community-relay support |
+| **Resilient communication** | Dashboard warnings, a low-data view, a saved offline dashboard, SMS (simulation and a controlled live test; public delivery disabled) and community-relay support |
 
 A model risk score is **not a calibrated probability**, and 35% is a warning-decision threshold, not a confidence level or an accuracy figure.
 
@@ -103,21 +103,49 @@ The same unchanged model is applied to each forecast hour, 2 to 12 hours ahead, 
 |---|---|
 | **Data freshness** | "System online" with a live pulse only while the latest retrieved forecast and model result are current. Otherwise it shows "Saved data · last update …" and no pulse, and no warning decision is made from out-of-date data. |
 | **Low-data view** (`?view=text`) | Plain text: score, decision, freshness, safety advice and emergency numbers. It loads no images. |
-| **Save for offline use** (button on the Dashboard) | Saves a small page (about 11 KB) with the latest warning information embedded: risk score, warning decision, target period, last-saved time, safety advice and emergency numbers. Opened from the phone's files, it works with **no connection** on any hosting. It shows "Offline — saved information" and the last-saved time, and flags older information as possibly out of date. **It stores the latest warning information after being saved while connected; it cannot receive new warnings while fully offline.** Save again when there is signal. |
+| **Saved offline dashboard** (**Save for offline use**, on Home and in More) | Residents save the latest genuine dashboard state while connected and can access that saved snapshot without data connectivity. New weather forecasts, model inference and warning updates still require connectivity. One self-contained page (about 20 KB; no Streamlit, scripts, fonts, maps or images from the Internet) that opens from the phone's files on any hosting. See [Offline dashboard](#offline-dashboard). |
 | Hosted offline page (`static/offline.html`) | For self-hosted or local deployments only. Opened once while connected, a service worker keeps it and the last valid status, so it reopens with no connection ("No connection: showing the last saved information"). Streamlit Community Cloud does not serve `static/` as a standalone page, so the deployed dashboard uses **Save for offline use** instead. |
+| **Connection lost while open** | The open dashboard shows **Connection lost — live updates paused** with **Open saved offline dashboard**, which opens the snapshot this page already holds (no server needed). "Connection restored · latest data retrieved" appears only after a new successful retrieval. A retrieval that fails ends the loading state (bounded timeout), keeps the last data, labels it out of date and makes no warning decision. |
 | **Warning records** | Reserved in the public ledger before any SMS, so an SMS failure never removes a warning |
 | **SMS** | Simulation implemented; see below |
 | **Community relays** | See below |
 
 ![Mobile and offline](docs/screenshots/mobile_offline.png)
 
+### Offline dashboard
+
+**Residents save the latest genuine dashboard state while connected and can access that saved snapshot without data connectivity. New weather forecasts, model inference and warning updates still require connectivity.**
+
+```
+Connected system creates genuine latest state  ->  resident device saves that state
+  ->  offline dashboard preserves access to it  ->  new data resumes only after connectivity returns
+```
+
+| Offline tab | What it shows (all as saved; nothing is recalculated offline) |
+|---|---|
+| **Home** | "OFFLINE — SAVED INFORMATION", last-saved time (SAST), data age, model risk score, risk category, 35% threshold, warning decision and forecast period. Older than 2 hours: "Saved information may be out of date." |
+| **Outlook** | The saved 12-hour model outlook ("Saved model outlook — unvalidated beyond one hour") with the 35% reference. Hours that have passed are faded and marked historical. |
+| **Alerts** | The saved warning and any early alert, with the time saved. With none: "No storm warning was active when this information was saved." (never "no storm warning now"). |
+| **Safety** | Lightning, flooding, road, river and livestock advice; tap-to-call 10111, 10177 and 112 (calls still need cellular coverage). |
+| **More** | Saved weather and forecast snapshot, data source, offline limits, "Map unavailable offline — reconnect to view forecast rainfall map.", and a link to the live dashboard. |
+
+- **Snapshot preparation.** While connected, the dashboard keeps a resident-safe snapshot ready (`static/status.json`). It is replaced only by a valid, current result: a failed retrieval, out-of-date or partial data never overwrites it, and **Save for offline use** then offers the last good snapshot.
+- **Content.** Saved time, forecast period, risk score and category, threshold, warning decision, genuine warning record and early alert, the outlook, a weather and forecast snapshot, safety advice and emergency numbers. **Never** subscriber records, residents' phone numbers, credentials, API keys, officials' information or private logs.
+- **Robustness.** Missing, partial, corrupt or older-format snapshots still render a readable page; it is never blank, even without JavaScript.
+- **Hosted page.** On self-hosted or local deployments the same page is also served at `/app/static/offline.html` with a service worker. Streamlit Community Cloud does not serve `static/` as a standalone page, so the deployed dashboard uses **Save for offline use**.
+
 ### SMS
 
 | Mode | Status |
 |---|---|
-| Simulation (`SMS_DELIVERY_MODE=outbox`) | Implemented: messages are labelled TEST ONLY and written to a local outbox, never sent. Reproducible with `python 26_sms_simulation_demo.py`. |
-| Controlled test (`twilio`, trial account) | Only when deliberately configured: verified numbers only |
-| Public subscriber delivery | **Disabled by default.** It needs a non-trial provider, POPIA compliance, ethics clearance and the project owner's authorisation. |
+| 1. Simulation (default; `SMS_DELIVERY_MODE=outbox`) | Implemented: no provider request; messages are labelled **TEST ONLY — NOT A REAL WARNING** and written to a local outbox. Reproducible with `python 26_sms_simulation_demo.py`. |
+| 2. Controlled live test | **Ready for controlled verification.** Administrator-only **Send controlled SMS test** (Administration page), with a confirmation step: one real SMS, to the single allowlisted number in `SMS_TEST_RECIPIENT`, only when `SMS_LIVE_TEST_ENABLED=true`. No phone number can be typed in; the number is never logged or shown. |
+| 3. Public subscriber delivery | **Disabled by default** (`SUBSCRIBER_ALERTS_ENABLED`). It needs a non-trial provider, POPIA compliance, ethics clearance and the project owner's authorisation. |
+
+- **Provider health** (administrators): provider configured or not, trial or full account (checked on request), controlled-test readiness, public-delivery state and the last controlled test. **Accepted by provider** is reported separately from **delivered to handset**, which is shown only when the provider confirms it.
+- **Warning pipeline.** Genuine valid forecast → Random Forest → score ≥ 35% → warning record → duplicate check → SMS attempt (if enabled) → delivery state recorded. A provider failure never deletes the warning, and a repeated worker run never sends twice for the same warning and recipient.
+- **SMS needs a connected sender.** SMS can reach a phone with no mobile data (only SMS coverage), but the sending system must reach the SMS provider. SMS cannot be sent from a system that is itself offline.
+- **SMS and the offline dashboard are different channels.** The saved offline dashboard keeps the last known warning and safety information on the resident's phone after data connectivity is lost; SMS can deliver a new warning to a phone without mobile data, while the backend is connected.
 
 Duplicate prevention: one ledger record per warning hour and one delivery record per warning and subscriber, both reserved before sending. A message accepted by the provider is not proof of delivery.
 
@@ -131,8 +159,14 @@ These are **implemented in software, not field validated**:
 ## User interface
 
 - Responsive (desktop, tablet, phone), with light and dark themes, outline icons and keyboard-accessible controls.
-- On desktop the sidebar is open: Dashboard, Risk Analysis, Map, Safety, Alerts, Forecast, Historical Data, About. On phones it sits behind ☰ and the top bar is shown.
-- **Live state:** the clock and refresh countdown tick on the device, with no server reruns. "Updated just now", or "Connection restored · data updated", appears only when a genuinely newer result arrives. The gauge sweeps only when the genuine score changes.
+
+### Mobile resident experience
+
+- **Phones (up to 640 px):** a fixed **bottom navigation bar**: **Home · Risk · Map · Safety · More**, with icons, short labels, a clear active state, 54 px tap targets, high contrast and safe-area support. It stays visible while scrolling, and every page has bottom padding so the last content is never hidden.
+- **More** opens a small sheet: Alerts, Forecast, Historical Data, About, **Offline access** (Save for offline use) and SMS service. Tap outside it or press Escape to close. When a genuine warning is in effect, More shows a red dot and Alerts reads "warning in effect" (no counts are invented).
+- Phones have no top tab row and no ☰ button (it returns only for administrator sign-in, `?admin=1`). The first screen is the compact header, the model risk and the warning decision. Home's quick actions form a compact grid; Safety, already a bottom tab, is not repeated there.
+- **Desktop and tablet:** unchanged. The sidebar lists Dashboard, Risk Analysis, Map, Safety, Alerts, Forecast, Historical Data and About; tablets also keep the top bar.
+- **Live state:** the clock and refresh countdown tick on the device, with no server reruns. "Updated just now", or "Connection restored · latest data retrieved", appears only when a genuinely newer result arrives. The gauge sweeps only when the genuine score changes.
 - **Reduced motion:** with `prefers-reduced-motion`, all animation stops and the text status is unchanged.
 
 ### Visual artwork
@@ -157,6 +191,7 @@ Open `http://localhost:8501`. Internet access is needed to retrieve forecasts.
 | Setting | Purpose |
 |---|---|
 | `SMS_DELIVERY_MODE` | `disabled` (default), `outbox` (simulation), `twilio` (controlled test) |
+| `SMS_LIVE_TEST_ENABLED`, `SMS_TEST_RECIPIENT` | Controlled live test: `true`, and one E.164 test number (secret; never committed, logged or shown) |
 | `SUBSCRIBER_ALERTS_ENABLED` | `true` lets the worker message subscribers (repository variable; default off) |
 | `OUTLOOK_ALERTS_ENABLED` | `true` creates early-alert records from the outlook (repository variable; default off) |
 | `SUBSCRIBER_STORE`, `SUBSCRIBER_STORE_REPO`, `SUBSCRIBER_STORE_TOKEN`, `SUBSCRIBER_ENCRYPTION_KEY`, `SUBSCRIBER_HASH_KEY` | Encrypted subscriber store |
@@ -170,11 +205,11 @@ Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.
 ## Testing
 
 - **Command:** `python -m pytest tests/`.
-- **Final run:** **393 passed, 0 failed, 0 skipped** (287 subtests). It was repeated with a process-wide network guard, which logged 0 outbound connection attempts.
+- **Final run:** **410 passed, 0 failed, 0 skipped** (300 subtests). It was repeated with a process-wide network guard, which logged 0 outbound connection attempts.
 - **No live SMS:** tests never send SMS or contact external services.
 - **Worker equivalence:** with subscriber alerts off, the hourly worker behaves identically to the approved version (21/21 scenarios).
 - **Model integrity:** the model, feature list and threshold match the approved files, and the held-out probabilities are reproduced exactly.
-- **Real-browser checks:** live pulse, countdown, clock, stale state, reduced motion, phone first screen and the offline page. See `evaluation_reports/final_master_evidence_2026-11-01/` and `evaluation_reports/offline_hotfix_evidence_2026-11-01/`.
+- **Real-browser checks:** live pulse, countdown, clock, stale state, reduced motion, phone first screen, the phone bottom navigation (360 and 390 px), the offline dashboard (scenarios A–G, fully offline), the connection-lost banner and the administrator SMS panel. See `evaluation_reports/final_master_evidence_2026-11-01/`, `evaluation_reports/offline_hotfix_evidence_2026-11-01/` and `evaluation_reports/mobile_offline_sms_evidence_2026-11-01/`.
 
 ## Reproducibility
 
@@ -193,8 +228,9 @@ Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.
 | Smart | Random Forest trained on ERA5 (29 inputs) | Validated against proxy labels only |
 | Storm risk | Next-hour model risk score | Not a calibrated probability |
 | Early warning | 35% decision and warning record; exploratory 12-hour outlook | Outlook unvalidated beyond 1 h |
-| Resilient | Stale-data handling, offline saved information, warning records independent of SMS | No new alerts while fully offline |
-| Low connectivity | Low-data view, saved offline copy, SMS simulation, relay support | Public SMS disabled; relays not field validated |
+| Early preparedness | 2–12 hour model outlook (also saved for offline use) | Exploratory; unvalidated beyond 1 h |
+| Resilient | Last-known valid information, stale-state handling, saved offline dashboard, connection-lost banner, warning records independent of SMS | No new forecasts, predictions or warnings while offline |
+| Low connectivity | Low-data view, phone bottom navigation, saved offline dashboard, SMS (simulation; controlled live test ready), relay support | Public SMS disabled; relays not field validated |
 | Matatiele case study | Matatiele model location, map and interface | One model location |
 
 ## Limitations
@@ -204,7 +240,8 @@ Private settings go in `.streamlit/secrets.toml` (template: `.streamlit/secrets.
 - The validated target is the next hour; the 2–12 hour outlook is unvalidated.
 - There is one model location: Matatiele town and its immediate surroundings.
 - The backend needs Internet access to retrieve forecasts.
-- The saved offline copy shows the last saved information and cannot receive new alerts; residents must save it again while connected.
+- The saved offline dashboard shows the last saved information only: a disconnected phone receives no new ECMWF forecasts, model predictions or warnings. Residents save it again while connected.
+- SMS needs the sending system to be connected to the SMS provider.
 - Public SMS is disabled, and community relays have not been field validated.
 - There are no deployed sensors, no physical LoRa links, no Cell Broadcast and no sirens.
 

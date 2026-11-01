@@ -1,14 +1,16 @@
-"""The status file behind the offline page (static/offline.html, served at /app/static/offline.html).
+"""The resident-safe snapshot behind the offline dashboard (static/offline.html).
 
-The dashboard writes static/status.json from the genuine model output (never the administrator's on-screen
-simulation): risk score and level, prediction period, warning decision, warnings in effect, any early alert, safety
-advice and emergency numbers. The page's service worker keeps the last copy so it opens with no connection.
+While connected, the dashboard builds this snapshot from the genuine model output (never the administrator's on-screen
+simulation): risk score and level, the 35% threshold, prediction period, warning decision, warnings in effect, any
+early alert, the saved 12-hour model outlook, a weather snapshot, safety advice and emergency numbers. It is kept in
+static/status.json (only after a valid, current result) and embedded in the copy residents save with "Save for
+offline use", which opens from the phone's files with no connection. Nothing is computed offline.
 No personal data. The file is rewritten only when its content changes.
 """
 import json
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -19,19 +21,46 @@ import warning_events as we
 SAST = ZoneInfo('Africa/Johannesburg')
 
 
-def build(status, probability, record, active_genuine, early_alert=None, now=None):
-    """status: genuine resident_status(); record: as for resident_view.warning_state; active_genuine: genuine events in effect."""
+SCHEMA = 2
+THRESHOLD = .35
+DASHBOARD_URL = 'https://matatiele-storm-early-warning-system-jykpxurtek3zejgqfk5xvr.streamlit.app/'
+
+
+def outlook_rows(rows, threshold=THRESHOLD):
+    """Saved outlook hours (lead 2-12) from outlook.score() rows: start hour (SAST), end (UTC), score. Never recomputed offline."""
+    saved = []
+    for row in rows or []:
+        try:
+            if row['lead_hours'] < 2:
+                continue
+            end = datetime.fromisoformat(str(row['target_end_utc']).replace('Z', '+00:00')).astimezone(timezone.utc)
+            score = float(row['score'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        saved.append({'hour': f'{end.astimezone(SAST) - timedelta(hours=1):%H:%M}', 'end_utc': end.isoformat(timespec='seconds'),
+                      'score': resident_view.score_text(score), 'pct': round(100 * score, 1), 'above': score >= threshold})
+    return saved
+
+
+def build(status, probability, record, active_genuine, early_alert=None, now=None, outlook=None, weather=None, forecast=None):
+    """status: genuine resident_status(); record: as for resident_view.warning_state; active_genuine: genuine events in effect.
+
+    outlook: outlook.score() rows; weather: {temperature, rain, wind, gust, source} strings; forecast: compact
+    [{hour, rain, wind, temperature}] rows. Each is saved as given (or left out), never invented.
+    """
     now = now or datetime.now(timezone.utc)
     decision, decision_tone, _, decision_detail = resident_view.warning_state(status, record)
     in_effect = bool(active_genuine)
     advice = resident_view.guidance('WARNING' if in_effect else status['guidance_level'])
     usable = status['level'] != 'UNAVAILABLE'
     return {
+        'schema': SCHEMA,
         'generated_utc': now.astimezone(timezone.utc).isoformat(timespec='seconds'),
         'generated_sast': f'{now.astimezone(SAST):%d %b %Y %H:%M} SAST',
         'risk_score': resident_view.score_text(probability) if usable else 'n/a',
         'risk_level': 'OUT OF DATE' if status['stale'] else resident_view.RISK_BADGES[status['level']],
         'risk_tone': status['tone'] if status['tone'] in ('green', 'amber', 'red') else 'gray',
+        'threshold': f'{THRESHOLD:.0%}',
         'period': status['period'],
         'decision': decision, 'decision_tone': decision_tone, 'decision_detail': decision_detail,
         'warnings': [{'title': 'Storm warning', 'period': we.period_text(event)} for event in active_genuine],
@@ -40,7 +69,26 @@ def build(status, probability, record, active_genuine, early_alert=None, now=Non
         'advice': [[topic, text] for topic, text in advice['items']],
         'emergency': [[number, f'{label}: {detail}'] for number, label, detail in emergency_contacts.CONTACTS],
         'emergency_note': emergency_contacts.NOTE,
+        'outlook': outlook_rows(outlook),
+        'weather': {k: str(v) for k, v in (weather or {}).items() if k in ('temperature', 'rain', 'wind', 'gust', 'source')},
+        'forecast': [{k: str(v) for k, v in row.items() if k in ('hour', 'rain', 'wind', 'temperature')} for row in (forecast or [])[:6]],
+        'dashboard_url': DASHBOARD_URL,
     }
+
+
+def current(data):
+    """True for a snapshot of a valid, current result: the only kind that may replace the saved one."""
+    return (isinstance(data, dict) and isinstance(data.get('generated_utc'), str) and data.get('risk_score') not in (None, 'n/a')
+            and data.get('risk_level') != 'OUT OF DATE' and data.get('decision') != 'NO DECISION')
+
+
+def read_saved(path):
+    """The last saved snapshot at `path`, or None if it is missing, unreadable or not a valid current result."""
+    try:
+        data = json.loads(Path(path).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    return data if current(data) else None
 
 
 def write(path, data):

@@ -317,3 +317,162 @@ def send_simulated_storm_sms(prediction_for, storm_probability=0.60,
     )
     return _send_warning(key, storm_probability, body,
                          duplicate_label="Simulated warning")
+
+
+# ------------------------------------------------------------------ controlled live provider test
+# Three SMS modes: simulation (default, no provider request, labelled TEST ONLY), this controlled live test (one real
+# SMS to one allowlisted test phone, administrator-only, explicitly confirmed), and public subscriber delivery
+# (subscriber_alerts, SUBSCRIBER_ALERTS_ENABLED, disabled by default). The test number comes only from configuration:
+# it is never entered on screen, logged, shown or returned.
+LIVE_TEST_SWITCH = 'SMS_LIVE_TEST_ENABLED'
+TEST_RECIPIENT = 'SMS_TEST_RECIPIENT'
+PROVIDER_VARS = ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER')
+CONTROLLED_KEY_PREFIX = 'CONTROLLED-TEST-'
+CONTROLLED_TEST_BODY = 'MATATIELE SMS PROVIDER TEST. Controlled check only. NOT A WEATHER WARNING.'
+TEST_LOG_RECIPIENT = 'configured-test-recipient'  # written to the log instead of the number
+ACCEPTED_STATES = {'accepted', 'scheduled', 'queued', 'sending'}
+FAILED_STATES = {'failed', 'undelivered', 'canceled'}
+CONTROLLED_STATES = {
+    'disabled': 'Controlled live test disabled (SMS_LIVE_TEST_ENABLED is not true).',
+    'not_configured': 'SMS provider not configured (Twilio account, token and sender number are required).',
+    'invalid_recipient': 'No valid test recipient configured (SMS_TEST_RECIPIENT must be one E.164 number).',
+    'ready': 'Ready: one real SMS can be sent to the configured test recipient.',
+}
+
+
+def delivery_label(status):
+    """What a provider status means. Only 'delivered' (reported by the provider) means delivered to the handset."""
+    status = (status or '').lower()
+    if status == 'delivered':
+        return 'Delivered to handset (confirmed by the provider)'
+    if status == 'sent':
+        return 'Accepted by provider and passed to the mobile network (handset delivery not confirmed)'
+    if status in ACCEPTED_STATES:
+        return 'Accepted by provider (not yet delivered)'
+    if status in FAILED_STATES or status == 'test_failed':
+        return 'Failed'
+    if status in ('submission_unknown', 'reserved'):
+        return 'Outcome uncertain: check the provider console before trying again'
+    return CONTROLLED_STATES.get(status, 'Unknown')
+
+
+def provider_configured():
+    return all(get_setting(key) for key in PROVIDER_VARS) and bool(_E164.fullmatch(get_setting('TWILIO_FROM_NUMBER')))
+
+
+def controlled_test_state():
+    """'disabled', 'not_configured', 'invalid_recipient' or 'ready'. Never reveals the number."""
+    if get_setting(LIVE_TEST_SWITCH).lower() != 'true':
+        return 'disabled'
+    if not provider_configured():
+        return 'not_configured'
+    if not _E164.fullmatch(get_setting(TEST_RECIPIENT)):
+        return 'invalid_recipient'
+    return 'ready'
+
+
+def _provider_client():
+    try:
+        from twilio.rest import Client
+        return Client(get_setting('TWILIO_ACCOUNT_SID'), get_setting('TWILIO_AUTH_TOKEN'))
+    except (ImportError, ValueError):
+        return None
+
+
+def send_controlled_test_sms(confirmed=False, client=None):
+    """Send ONE real SMS to the allowlisted test recipient only, after explicit confirmation.
+
+    No storm-warning text, no other recipient and no number entered on screen. The attempt is reserved in the SMS log
+    before the provider call, so an interrupted request is reported as uncertain, never silently repeated.
+    """
+    state = controlled_test_state()
+    if state != 'ready':
+        return {'status': state, 'sent': False, 'message': CONTROLLED_STATES[state] + ' Nothing was sent.'}
+    if confirmed is not True:
+        return {'status': 'not_confirmed', 'sent': False, 'message': 'Confirmation required. Nothing was sent.'}
+    with _SEND_LOCK:
+        key = CONTROLLED_KEY_PREFIX + datetime.now(timezone.utc).isoformat(timespec='seconds')
+        try:
+            _log_attempt(key, TEST_LOG_RECIPIENT, None, 'reserved')
+        except OSError:
+            return {'status': 'failed', 'sent': False, 'message': 'The test record could not be saved. Nothing was sent.'}
+        client = client or _provider_client()
+        if client is None:
+            _log_attempt(key, TEST_LOG_RECIPIENT, None, 'test_failed', error='client_unavailable')
+            return {'status': 'failed', 'sent': False, 'message': 'SMS provider library unavailable. Nothing was sent.'}
+        try:
+            message = client.messages.create(body=CONTROLLED_TEST_BODY, from_=get_setting('TWILIO_FROM_NUMBER'),
+                                             to=get_setting(TEST_RECIPIENT))
+            sid = str(getattr(message, 'sid', '') or '')
+            status = str(getattr(message, 'status', 'queued') or 'queued').lower()
+            if not sid:
+                raise RuntimeError('no message identifier')
+        except Exception as exc:
+            http_status = getattr(exc, 'status', None)
+            definite = isinstance(http_status, int) and 400 <= http_status < 500 and http_status != 408
+            status = 'failed' if definite else 'submission_unknown'
+            code = getattr(exc, 'code', None)
+            _log_attempt(key, TEST_LOG_RECIPIENT, None, status,
+                         error=f'provider_error_{code}' if code else ('rejected' if definite else 'uncertain'))
+            return {'status': status, 'sent': False, 'message': delivery_label(status) + '.'}
+        _log_attempt(key, TEST_LOG_RECIPIENT, None, status, message_sid=sid)
+        return {'status': status, 'sent': status not in FAILED_STATES, 'message': delivery_label(status) + '.'}
+
+
+def _controlled_rows():
+    try:
+        return [r for r in _read_log() if (r.get('prediction_key') or '').startswith(CONTROLLED_KEY_PREFIX)]
+    except OSError:
+        return []
+
+
+def last_controlled_test():
+    """The latest controlled test attempt: {'at', 'status', 'label', 'has_sid'}, or None. No number, no identifier."""
+    rows = _controlled_rows()
+    if not rows:
+        return None
+    row = rows[-1]
+    return {'at': row.get('logged_at_utc', ''), 'status': row.get('status', ''), 'label': delivery_label(row.get('status')),
+            'has_sid': bool((row.get('message_sid') or '').strip())}
+
+
+def refresh_controlled_test_status(client=None):
+    """Ask the provider for the latest controlled test's status and record a change. Returns the status, or None."""
+    rows = _controlled_rows()
+    if not rows or not (rows[-1].get('message_sid') or '').strip():
+        return None
+    row = rows[-1]
+    if (row.get('status') or '').lower() in FAILED_STATES | {'delivered'}:
+        return row['status']
+    client = client or (_provider_client() if provider_configured() else None)
+    if client is None:
+        return None
+    try:
+        message = client.messages(row['message_sid']).fetch()
+        status = str(getattr(message, 'status', '') or '').lower()
+    except Exception:
+        return None
+    if status and status != (row.get('status') or '').lower():
+        code = getattr(message, 'error_code', None)
+        _log_attempt(row['prediction_key'], TEST_LOG_RECIPIENT, None, status, message_sid=row['message_sid'],
+                     error=f'provider_error_{code}' if code else '')
+    return status or None
+
+
+def provider_account_type(client=None):
+    """'Trial', 'Full' or 'Unknown', from the provider's account record (one request; administrator action only)."""
+    if not provider_configured():
+        return 'Not configured'
+    client = client or _provider_client()
+    try:
+        return str(client.api.v2010.accounts(get_setting('TWILIO_ACCOUNT_SID')).fetch().type or 'Unknown').title()
+    except Exception:
+        return 'Unknown'
+
+
+def provider_health():
+    """Administrator status: provider, controlled test, public delivery and the last test attempt. Never a secret."""
+    return {'provider': 'Configured' if provider_configured() else 'Not configured',
+            'controlled_test': controlled_test_state(),
+            'public_delivery': 'Enabled' if get_setting('SUBSCRIBER_ALERTS_ENABLED').lower() == 'true' else 'Disabled',
+            'last_test': last_controlled_test()}

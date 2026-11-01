@@ -2,16 +2,16 @@
 <html lang="en" data-matatiele-offline="1">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Matatiele storm warnings (saved information)</title>
-<meta name="description" content="Last saved storm-risk information, safety advice and emergency numbers for Matatiele. Readable without a connection.">
+<meta name="description" content="Last saved storm-risk information, model outlook, safety advice and emergency numbers for Matatiele. Readable without a connection.">
 <meta name="theme-color" content="#1d4ed8">
 <style>
-  :root {--bg:#f5f7fb;--card:#fff;--text:#14243a;--muted:#4a5b70;--border:#d9e1ec;--green:#2f855a;--amber:#b45309;--red:#c81e33;--gray:#5b6b80;--link:#1d4ed8}
-  @media (prefers-color-scheme: dark) {:root {--bg:#0b1626;--card:#16233a;--text:#e6edf6;--muted:#a9b8cc;--border:#2a3a52;--link:#93c5fd}}
+  :root {--bg:#f5f7fb;--card:#fff;--text:#14243a;--muted:#4a5b70;--border:#d9e1ec;--green:#2f855a;--amber:#b45309;--red:#c81e33;--gray:#5b6b80;--link:#1d4ed8;--bar:#2563eb}
+  @media (prefers-color-scheme: dark) {:root {--bg:#0b1626;--card:#16233a;--text:#e6edf6;--muted:#a9b8cc;--border:#2a3a52;--link:#93c5fd;--bar:#60a5fa}}
   * {box-sizing:border-box}
   body {margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
-  main {max-width:640px;margin:0 auto;padding:14px}
+  main {max-width:640px;margin:0 auto;padding:14px 14px calc(84px + env(safe-area-inset-bottom))}
   header {background:#1e3a8a;color:#fff;border-radius:14px;padding:12px 14px}
   header b {display:block;font-size:20px}header span {font-size:14px;color:#dbe8ff}
   h2 {font-size:14px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
@@ -27,50 +27,99 @@
   a {color:var(--link)}
   .call {display:flex;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;margin:6px 0;text-decoration:none;color:var(--text)}
   .call b {font-size:20px}
+  dl {display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:6px 0}dt {color:var(--muted)}dd {margin:0;font-weight:600}
+  .row {display:grid;grid-template-columns:48px 1fr 44px;gap:8px;align-items:center;font-size:14px;margin:5px 0}
+  .track {position:relative;height:14px;background:var(--border);border-radius:7px}
+  .fill {display:block;height:100%;border-radius:7px;background:var(--bar)}.fill.hot {background:var(--red)}
+  .ref {position:absolute;top:-3px;bottom:-3px;left:35%;border-left:2px dashed var(--red)}
+  .row.past {opacity:.5}.row.past .fill {background:var(--gray)}
+  nav {position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--border);padding:4px 4px env(safe-area-inset-bottom);z-index:5}
+  nav a {flex:1;text-align:center;text-decoration:none;color:var(--muted);font-size:12px;font-weight:600;padding:6px 2px;min-height:52px;border-radius:10px}
+  nav a i {display:block;font-style:normal;font-size:20px;line-height:24px}
+  nav a[aria-selected="true"] {color:var(--link);background:rgba(37,99,235,.12)}
+  .js section[hidden] {display:none}
 </style>
 </head>
 <body>
 <main>
   <header><b>Matatiele</b><span>Storm Early Warning System · saved information</span></header>
 
-  <!-- Everything below is plain HTML, so the page is readable even if the script cannot run. The script only fills in
-       saved warning information where it exists; it never invents any. -->
+  <!-- Everything below is plain HTML, so the page is readable even if the script cannot run (all sections are shown,
+       one after another). The script only fills in saved warning information where it exists; it never invents any
+       and never computes new values. -->
   <div id="status" class="status" role="status">No saved warning information yet</div>
-  <div id="saved" class="card">
-    <div class="saved" id="saved-time">No saved warning information yet</div>
-    <div class="muted" id="saved-note">Open this offline page once while connected to save the latest warning information for later use.</div>
-  </div>
-  <div id="content"></div>
 
-  <div class="card" id="basic-advice">
-    <h2>If a storm comes</h2>
-    <ul>
-      <li><b>Lightning:</b> if you hear thunder, go inside a solid building or a closed car.</li>
-      <li><b>Flooding:</b> never walk or drive through flood water; move to higher ground.</li>
-      <li><b>Roads:</b> do not cross flooded roads, low bridges or causeways.</li>
-      <li><b>Rivers:</b> stay away from rivers and streams; they can rise suddenly.</li>
-      <li><b>Livestock:</b> move animals early; do not go out once lightning starts.</li>
-    </ul>
-  </div>
+  <section id="home" role="tabpanel" aria-label="Home">
+    <div id="saved" class="card">
+      <div class="saved" id="saved-time">No saved warning information yet</div>
+      <div class="muted" id="saved-note">Open this offline page once while connected to save the latest warning information for later use.</div>
+    </div>
+    <div id="content"></div>
+  </section>
 
-  <div class="card">
-    <h2>Emergency numbers</h2>
-    <a class="call" href="tel:10111"><b>10111</b><span>Police (SAPS)</span></a>
-    <a class="call" href="tel:10177"><b>10177</b><span>Ambulance and fire</span></a>
-    <a class="call" href="tel:112"><b>112</b><span>Any emergency from a cellphone</span></a>
-    <div class="muted">Calls connect to emergency services, not to the Matatiele Storm Early Warning System. Calls need mobile network coverage.</div>
-  </div>
+  <section id="outlook" role="tabpanel" aria-label="Outlook">
+    <div class="card"><h2>Saved model outlook — unvalidated beyond one hour</h2>
+      <div id="outlook-body" class="muted">No saved outlook in this copy.</div></div>
+  </section>
+
+  <section id="alerts" role="tabpanel" aria-label="Alerts">
+    <div class="card"><h2>Alerts when saved</h2>
+      <div id="alerts-body" class="muted">No saved warning information yet.</div></div>
+  </section>
+
+  <section id="safety" role="tabpanel" aria-label="Safety">
+    <div id="advice-now"></div>
+    <div class="card" id="basic-advice">
+      <h2>If a storm comes</h2>
+      <ul>
+        <li><b>Lightning:</b> if you hear thunder, go inside a solid building or a closed car.</li>
+        <li><b>Flooding:</b> never walk or drive through flood water; move to higher ground.</li>
+        <li><b>Roads:</b> do not cross flooded roads, low bridges or causeways.</li>
+        <li><b>Rivers:</b> stay away from rivers and streams; they can rise suddenly.</li>
+        <li><b>Livestock:</b> move animals early; do not go out once lightning starts.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Emergency numbers</h2>
+      <a class="call" href="tel:10111"><b>10111</b><span>Police (SAPS)</span></a>
+      <a class="call" href="tel:10177"><b>10177</b><span>Ambulance and fire</span></a>
+      <a class="call" href="tel:112"><b>112</b><span>Any emergency from a cellphone</span></a>
+      <div class="muted">Calls connect to emergency services, not to the Matatiele Storm Early Warning System. Calls need mobile network coverage.</div>
+    </div>
+  </section>
+
+  <section id="more" role="tabpanel" aria-label="More">
+    <div class="card"><h2>Weather snapshot when saved</h2><div id="weather-body" class="muted">No saved weather snapshot in this copy.</div></div>
+    <div class="card"><h2>Map</h2><p>Map unavailable offline — reconnect to view forecast rainfall map.</p></div>
+    <div class="card"><h2>Where this comes from</h2>
+      <p class="muted">While connected, the system retrieves ECMWF weather forecasts (via Open-Meteo), and a Random Forest model trained on
+        historical ERA5 data estimates the storm risk for Matatiele for the next hour. A score at or above 35% is a warning decision.
+        This page keeps a copy of that result, saved on this device.</p></div>
+    <div class="card"><h2>What works offline</h2>
+      <p class="muted">You can read the saved risk score, warning decision, model outlook, alerts, safety advice and emergency numbers.
+        New weather forecasts, new model results and new warnings need a connection: this page cannot receive new warnings without a
+        connection. Save again from the dashboard when you have signal.</p>
+      <p><a id="online-link" href="/">Open the live dashboard</a> <span class="muted">(needs a connection)</span></p></div>
+  </section>
 
   <p class="muted">Academic research prototype, not an official weather warning service. Follow official warnings
     (South African Weather Service) and local emergency guidance. This page shows saved information only: it cannot
     receive new warnings without a connection.</p>
 </main>
+<nav role="tablist" aria-label="Sections">
+  <a href="#home" role="tab"><i aria-hidden="true">&#8962;</i>Home</a>
+  <a href="#outlook" role="tab"><i aria-hidden="true">&#9636;</i>Outlook</a>
+  <a href="#alerts" role="tab"><i aria-hidden="true">&#9888;</i>Alerts</a>
+  <a href="#safety" role="tab"><i aria-hidden="true">&#9742;</i>Safety</a>
+  <a href="#more" role="tab"><i aria-hidden="true">&#8943;</i>More</a>
+</nav>
 <!-- In a downloaded copy, the dashboard replaces null below with the genuine status at the time of saving. -->
 <script type="application/json" id="embedded-status">null</script>
 <script>
 (function () {
   var KEY = 'matatiele-offline-status';
   var STALE_HOURS = 2;
+  var TABS = ['home', 'outlook', 'alerts', 'safety', 'more'];
   function $(id) { return document.getElementById(id); }
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
@@ -85,11 +134,30 @@
   }
   function store(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
   function tone(t) { return ({green: 1, amber: 1, red: 1, gray: 1})[t] ? t : 'gray'; }
+  function list(v) { return Array.isArray(v) ? v : []; }
   function setStatus(text, connected) { var el = $('status'); el.textContent = text; el.className = 'status' + (connected ? ' connected' : ''); }
+
+  // Tabs: one section at a time once the script runs (the address keeps the tab, so reopening returns to it).
+  function show() {
+    var tab = (location.hash || '#home').slice(1);
+    if (TABS.indexOf(tab) < 0) tab = 'home';
+    TABS.forEach(function (t) { $(t).hidden = t !== tab; });
+    var links = document.querySelectorAll('nav a');
+    for (var i = 0; i < links.length; i++) links[i].setAttribute('aria-selected', links[i].getAttribute('href') === '#' + tab ? 'true' : 'false');
+  }
+  try { document.documentElement.className = 'js'; show(); window.addEventListener('hashchange', function () { show(); window.scrollTo(0, 0); }); } catch (e) {}
+
+  function ageText(hours) {
+    if (!isFinite(hours) || hours < 0) return '';
+    if (hours < 1) return Math.max(1, Math.round(hours * 60)) + ' min';
+    if (hours < 48) return Math.floor(hours) + ' h ' + Math.round((hours % 1) * 60) + ' min';
+    return Math.floor(hours / 24) + ' days';
+  }
 
   function render(s) {
     var age = (Date.now() - Date.parse(s.generated_utc)) / 3600000;
-    $('saved-time').textContent = 'Last saved: ' + (s.generated_sast || s.generated_utc);
+    var saved = s.generated_sast || s.generated_utc;
+    $('saved-time').textContent = 'Last saved: ' + saved;
     $('saved-note').textContent = (isFinite(age) && age > STALE_HOURS) ? 'Saved information may be out of date.' : 'Saved warning information from the Matatiele system.';
     var html = '<div class="card"><h2>Storm risk (saved)</h2>' +
       (s.risk_score != null ? '<div class="score">' + esc(s.risk_score) + '</div>' : '') +
@@ -99,26 +167,59 @@
       html += '<p><span class="badge ' + tone(s.decision_tone) + '">' + esc(s.decision) + '</span>' +
         (s.decision_detail ? '<br>' + esc(s.decision_detail) : '') + '</p>';
     }
-    html += '</div>';
-    if (Array.isArray(s.warnings) && s.warnings.length) {
-      html += '<div class="card"><h2>Warnings in effect when saved</h2><ul>' + s.warnings.map(function (w) {
+    html += '<dl>' + (s.threshold ? '<dt>Warning threshold</dt><dd>' + esc(s.threshold) + '</dd>' : '') +
+      (s.period ? '<dt>Forecast period</dt><dd>' + esc(s.period) + '</dd>' : '') +
+      (ageText(age) ? '<dt>Data age</dt><dd>' + ageText(age) + ' since saved</dd>' : '') + '</dl></div>';
+    $('content').innerHTML = html;
+
+    var rows = list(s.outlook), now = Date.now();
+    if (rows.length) {
+      $('outlook-body').className = '';
+      $('outlook-body').innerHTML = rows.map(function (r) {
+        var past = Date.parse(r && r.end_utc) <= now, pct = Math.max(0, Math.min(100, Number(r && r.pct) || 0));
+        return '<div class="row' + (past ? ' past' : '') + '"><span>' + esc(r && r.hour) + '</span><span class="track"><span class="fill' +
+          (r && r.above ? ' hot' : '') + '" style="width:' + pct + '%"></span><span class="ref"></span></span><b>' + esc(r && r.score) + '</b></div>';
+      }).join('') + '<p class="muted">Hour starting (SAST) and the model risk score saved for it. Dashed line: 35% warning threshold. ' +
+        'Faded hours have already passed and are historical. Saved at ' + esc(saved) + '; nothing is recalculated offline.</p>';
+    }
+
+    var alerts = '';
+    if (list(s.warnings).length) {
+      alerts += '<p><b>Storm warning in effect when saved:</b></p><ul>' + list(s.warnings).map(function (w) {
         return '<li><b>' + esc(w && w.title) + '</b>' + (w && w.period ? ': ' + esc(w.period) : '') + '</li>';
-      }).join('') + '</ul></div>';
+      }).join('') + '</ul>';
+    } else {
+      alerts += '<p><b>No storm warning was active when this information was saved.</b></p>';
     }
     if (s.early_alert) {
-      html += '<div class="card"><h2>Early alert when saved (model outlook)</h2><span class="badge amber">' + esc(s.early_alert) +
-        '</span><div class="muted">Unvalidated beyond one hour ahead; not certain.</div></div>';
+      alerts += '<p><span class="badge amber">Early alert: ' + esc(s.early_alert) + '</span><br><span class="muted">Model outlook, unvalidated beyond one hour ahead; not certain.</span></p>';
     }
-    if (Array.isArray(s.advice) && s.advice.length) {
-      html += '<div class="card"><h2>' + esc(s.advice_title || 'What to do') + '</h2><ul>' + s.advice.map(function (a) {
+    $('alerts-body').className = '';
+    $('alerts-body').innerHTML = alerts + '<p class="muted">Saved at ' + esc(saved) + '. This device cannot know the current warning state while offline.</p>';
+
+    if (list(s.advice).length) {
+      $('advice-now').innerHTML = '<div class="card"><h2>' + esc(s.advice_title || 'What to do') + '</h2><ul>' + list(s.advice).map(function (a) {
         return Array.isArray(a) ? '<li><b>' + esc(a[0]) + ':</b> ' + esc(a[1]) + '</li>' : '';
       }).join('') + '</ul></div>';
     }
-    $('content').innerHTML = html;
+
+    var w = s.weather && typeof s.weather === 'object' ? s.weather : null, f = list(s.forecast);
+    if (w || f.length) {
+      var weather = w ? '<dl>' + [['Temperature', w.temperature], ['Rain', w.rain], ['Wind', w.wind], ['Gusts', w.gust]].filter(function (p) { return p[1]; })
+        .map(function (p) { return '<dt>' + p[0] + '</dt><dd>' + esc(p[1]) + '</dd>'; }).join('') + '</dl>' + (w.source ? '<p class="muted">' + esc(w.source) + '</p>' : '') : '';
+      if (f.length) {
+        weather += '<p class="muted">Forecast saved for the next hours (ECMWF; hour ending, SAST):</p><dl>' + f.map(function (r) {
+          return '<dt>' + esc(r && r.hour) + '</dt><dd>' + esc(r && r.rain) + ' rain · ' + esc(r && r.wind) + ' wind' + (r && r.temperature ? ' · ' + esc(r.temperature) : '') + '</dd>';
+        }).join('') + '</dl>';
+      }
+      $('weather-body').className = '';
+      $('weather-body').innerHTML = weather + '<p class="muted">Forecast values when saved, not observations.</p>';
+    }
+    if (typeof s.dashboard_url === 'string' && /^https:\/\//.test(s.dashboard_url)) $('online-link').href = s.dashboard_url;
   }
 
   function showSaved(s, statusText, connected) {
-    if (s) { render(s); setStatus(statusText, connected); }
+    if (s) { try { render(s); } catch (e) {} setStatus(statusText, connected); }
     else { setStatus(statusText.indexOf('No connection') === 0 ? 'No connection, and no saved warning information yet' : 'No saved warning information yet', false); }
   }
 
@@ -126,9 +227,9 @@
     // 1. A downloaded copy carries its own saved status.
     var embedded = null;
     try { embedded = JSON.parse($('embedded-status').textContent || 'null'); } catch (e) { embedded = null; }
-    if (valid(embedded)) { showSaved(embedded, 'Offline — saved information', false); return; }
+    if (valid(embedded)) { showSaved(embedded, 'OFFLINE — SAVED INFORMATION', false); return; }
     // 2. On the hosted page: the latest status, saved on this device once it has been read correctly.
-    if (!window.fetch || location.protocol === 'file:') { showSaved(readStored(), 'Offline — saved information', false); return; }
+    if (!window.fetch || location.protocol === 'file:') { showSaved(readStored(), 'OFFLINE — SAVED INFORMATION', false); return; }
     fetch('status.json', {cache: 'no-store'}).then(function (r) {
       if (r.headers.get('X-Offline-Copy')) return r.json().then(function (s) { return {s: s, kind: 'cached'}; });
       if (!r.ok) return {s: null, kind: 'unreachable'};

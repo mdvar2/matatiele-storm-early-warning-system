@@ -26,14 +26,18 @@ Open the dashboard link in any web browser, on a phone or a computer. The main p
 | **Warning decision** | NO WARNING TRIGGERED (score below 35%); THRESHOLD REACHED (score at or above 35%, but no warning has been recorded yet); WARNING TRIGGERED (a warning record exists for this hour); NO DECISION (the information is out of date). **Why 35%?** explains the threshold. This is the research system's decision, not an official SAWS warning. |
 | **Weather forecast** | The ECMWF forecast temperature, conditions, rain, wind and gusts for Matatiele. It is a forecast, not an observation. |
 | **Warning communication** | Whether dashboard alerts and the SMS simulation are available, and that public SMS delivery is disabled. |
-| **View warnings · Safety advice · Emergency contacts · SMS service** | Shortcuts. Emergency contacts opens the numbers on the Safety page. |
+| **View warnings · Safety advice · Emergency contacts · SMS service · Save for offline use** | Shortcuts. Emergency contacts opens the numbers on the Safety page. Save for offline use keeps the latest information on your phone (see below). |
 | **Prediction period** | The hour the risk score is for, when the model last updated, and whether the data is fresh. |
 | **Next 6 hours** | A chart of forecast rain and wind for the coming hours. These are weather forecasts, not storm-risk scores. |
 | **Key weather variables** | The forecast values the model used for the current score: rain, wind, temperature, dew point, CAPE (storm energy) and pressure. |
 | **Recent predictions** | The model's last hourly results: the hour, the forecast hour it used, its risk score and the decision. "Warning" appears only when a real warning was recorded. |
 | **Be prepared / Act now** | A few short safety actions that match the current risk. |
 
-The bar under the title has **Home, Risk Analysis, Map** and **Safety**. Tap the **☰** button (top left) for **Alerts, Forecast, Historical Data** and **About**.
+**On a phone**, the bar at the bottom of the screen has **Home, Risk, Map, Safety** and **More**. **More** opens a small menu with **Alerts, Forecast, Historical Data, About**, **Save for offline use** and **SMS service**; tap outside it to close it. A red dot on More means a storm warning is in effect: open **Alerts**.
+
+**On a computer or tablet**, the side menu lists every page (tablets also show Home, Risk Analysis, Map and Safety under the title).
+
+**No signal coming?** While you have a connection, tap **Save for offline use**. It saves one small page on your phone with the latest risk score, warning decision, 12-hour outlook, alerts, weather, safety advice and emergency numbers. Open it from your phone's downloads at any time, even with no data. It says when it was saved, and warns you if the information may be out of date. It **cannot** receive new forecasts or warnings: save it again when you have signal. If your connection drops while the dashboard is open, a banner says *Connection lost — live updates paused*; tap **Open saved offline dashboard**.
 
 When a storm warning is in effect, a **banner** appears at the top of the homepage, with **Open the warning** and **Safety and emergency contacts** buttons.
 
@@ -44,10 +48,10 @@ When a storm warning is in effect, a **banner** appears at the top of the homepa
 ### Other pages
 
 - **Safety:** what to do before a storm, and when a storm is close, followed by the **emergency contacts** (tap a number to call; calls need mobile network coverage). The numbers are also in the low-data version.
-- **Alerts** (☰ menu): current and past storm warnings, warning details, and **SMS alerts** (register, check or cancel; see below). Who received an SMS is never shown.
-- **Forecast** (☰ menu): a 36-hour temperature and rain chart, and the storm ingredients the model uses.
+- **Alerts** (More, or the side menu): current and past storm warnings, warning details, and **SMS alerts** (register, check or cancel; see below). Who received an SMS is never shown.
+- **Forecast** (More, or the side menu): a 36-hour temperature and rain chart, and the storm ingredients the model uses.
 - **Map:** the storm map, with a slider through the coming forecast hours.
-- **Risk Analysis** (top bar): the model estimate against the 35% warning threshold. **Historical Data** (☰ menu): past predictions. **About** (☰ menu): how warnings work, as one diagram.
+- **Risk Analysis** (Risk on phones): the model estimate against the 35% warning threshold. **Historical Data** (More): past predictions. **About** (More): how warnings work, as one diagram.
 
 ## 3. Registering for SMS warnings
 

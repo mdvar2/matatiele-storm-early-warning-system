@@ -22,7 +22,9 @@ ECMWF forecast (Open-Meteo) → Random Forest estimate → 35% threshold → war
 |---|---|---|---|
 | **A: Simulation** | `outbox` with the local file store | Messages go to a local outbox file and are labelled TEST ONLY. Refused against the real subscriber store. | Default for demonstrations |
 | **B: Controlled test** | `twilio` (trial account) | Only numbers verified on the trial account. The `--test-sms` workflow sends a labelled "NO WEATHER WARNING" connectivity message. | One test SMS received (run #4) |
-| **C: Public** | — | Not enabled. It needs an upgraded provider account, POPIA compliance and ethics clearance, a private subscriber store, and the project owner's approval. | Disabled |
+| **C: Public** | `SUBSCRIBER_ALERTS_ENABLED` | Not enabled. It needs an upgraded provider account, POPIA compliance and ethics clearance, a private subscriber store, and the project owner's approval. | Disabled by default |
+
+**Controlled live test (dashboard, administrators only).** With `SMS_LIVE_TEST_ENABLED=true` and one E.164 number in `SMS_TEST_RECIPIENT` (both private settings), **Administration → Send controlled SMS test** sends one real SMS, *NOT A WEATHER WARNING*, to that number only, after an explicit confirmation. No number can be typed in, and the number is never logged or shown. The provider health panel separates **accepted by provider** from **delivered to handset** (shown only when the provider confirms it). It replaces the earlier dashboard-local test button, which messaged `ALERT_TO_NUMBERS`. See the administrator manual, §3. Status: ready for controlled verification; no real test SMS was sent while it was built.
 
 The Home page shows three indicators, each derived from configuration and the code present (`resident_alerts.communication_status`):
 
@@ -61,8 +63,11 @@ It never touches the model, the threshold, the public ledger or any real store. 
 | Last known information | If a refresh fails, the last saved estimate is shown labelled "Outdated data" / "OUT OF DATE", and the warning decision reads "No warning decision: the information is out of date". | Implemented |
 | No warnings from stale data | Worker freshness checks (`stale_forecast`) | Implemented, tested |
 | Low-data map | Basemap without tiles | Implemented |
-| SMS | Needs no mobile data or smartphone on the recipient's side, only network signal. The sending gateway (GitHub Actions and the provider) needs Internet access. | Simulated / controlled test |
-| Offline operation, local sensors, LoRa, MQTT | No code exists. They are mentioned in documents as future research only. | Not implemented |
+| SMS | Needs no mobile data or smartphone on the recipient's side, only network signal. The sending gateway (GitHub Actions and the provider) needs Internet access: SMS cannot be sent from a system that is offline. | Simulated / controlled test |
+| Saved offline dashboard | **Save for offline use** keeps the latest genuine dashboard state (risk, decision, 12-hour outlook, alerts, weather snapshot, safety advice, emergency numbers) on the phone; it opens with no data connection. While the dashboard is open, losing the connection shows *Connection lost — live updates paused* and **Open saved offline dashboard**. | Implemented |
+| Offline forecasting or inference, local sensors, LoRa, MQTT | Not implemented: new forecasts, model results and warnings need a connection. Sensors and radio links are future research only. | Not implemented |
+
+**Two channels, two jobs.** The saved offline dashboard helps a resident keep the last known warning and safety information after their data connection is lost. SMS can bring a *new* warning to a phone with no mobile data, but only while the sending system is connected.
 
 **Connectivity-failure demonstration:**
 - `tests/test_research_refinement.py::RiskAnalysisAndHome::test_connectivity_failure_then_recovery` runs normal (fresh, 41%, warning condition met), then failure (refresh fails: last estimate flagged, no decision), then recovery (fresh again).

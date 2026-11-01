@@ -278,7 +278,10 @@ class RedesignedDashboard(rd.DashboardHarness):
         self.assertIn('not an independently validated optimum', text)  # no claim that 35% is optimal
         self.assertEqual((rd.ROOT / 'outputs' / 'model_live' / 'live_selected_threshold.txt').read_text().strip(), '0.35')
         about = self.html(self.go(at, 'About'))
-        self.assertEqual(about.count('<li><b>'), 9 + 4 + 2)  # nine model steps, four low-connectivity points, two phases
+        self.assertEqual(about.count('<li><b>'), 9 + 6 + 2)  # nine model steps, six low-connectivity points, two phases
+        for phrase in ('Saved offline dashboard.', 'SMS cannot be sent from a system that is offline',
+                       'a disconnected phone receives no new forecasts or predictions', 'Two different channels.'):
+            self.assertIn(phrase, about)  # SMS and the offline dashboard are different channels, with honest limits
         about += ' '.join(m.value for m in at.markdown)
         for phrase in ('RO3:', 'Implemented as simulation', 'Exploratory, unvalidated', 'Future / deployment-dependent', 'not an official weather warning service',
                        'Follow official warnings and local emergency guidance', 'weathersa.co.za'):

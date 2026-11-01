@@ -495,7 +495,7 @@ def banner_html(clock, status_ok, refresh, last_update=None, update_state=None, 
         chip = '<span class="bn-chip ok"><i></i>System online</span>'
     else:
         chip = f'<span class="bn-chip stale"><i></i>Saved data · last update {e(last_update or "unknown")}</span>'
-    note = {'updated': 'Updated just now', 'restored': 'Connection restored · data updated'}.get(update_state)
+    note = {'updated': 'Updated just now', 'restored': 'Connection restored · latest data retrieved'}.get(update_state)
     updated = f'<span class="bn-updated">{note}</span>' if note else ''
     timer = (f' data-next="{int(next_refresh_ms)}"' if next_refresh_ms else '') + (f' data-now="{int(now_ms)}"' if now_ms else '')
     return (f'<div class="banner{" just-updated" if update_state else ""}" title="{e(BANNER_LABEL)}">'
@@ -593,6 +593,29 @@ body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {dis
   .advice-grid.compact {grid-template-columns:repeat(2,minmax(0,1fr))!important}.advice-card {padding:10px 12px!important}
   .st-key-home_actions [data-testid=stHorizontalBlock] {flex-wrap:wrap!important;gap:8px!important}
   .st-key-home_actions [data-testid=stColumn] {flex:1 1 calc(50% - 8px)!important;min-width:calc(50% - 8px)!important;width:calc(50% - 8px)!important}
+}
+/* Zero-height helpers (clock and connection scripts, the phone navigation) take no space in the page flow. */
+[data-testid=stElementContainer]:has(> iframe[data-testid=stIFrame]),[data-testid=stLayoutWrapper]:has(> .st-key-bottom_nav) {position:absolute!important}
+/* Phones: fixed bottom navigation instead of the top bar and side menu (tablets and desktop keep those). */
+.st-key-bottom_nav {display:none!important}
+@media (max-width:640px) {
+  .st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar),[data-testid=stElementContainer]:has(.status-strip) {display:none!important}
+  .st-key-bottom_nav {display:flex!important;position:fixed!important;left:0;right:0;bottom:0;z-index:999990;margin:0!important;width:100%!important;
+    background:var(--card);border-top:1px solid var(--card-border);box-shadow:0 -4px 18px rgba(15,23,42,.14);padding:4px 4px calc(4px + env(safe-area-inset-bottom))!important}
+  .st-key-bottom_nav [data-testid=stHorizontalBlock] {flex-wrap:nowrap!important;gap:2px!important;width:100%}
+  .st-key-bottom_nav [data-testid=stColumn] {flex:1 1 0!important;min-width:0!important;width:auto!important}
+  .st-key-bottom_nav button {min-height:54px!important;width:100%!important;padding:4px 2px!important;border-radius:12px!important;border:0!important;position:relative;
+    background:transparent!important;color:var(--muted)!important;box-shadow:none!important}
+  .st-key-bottom_nav button > div {flex-direction:column!important;gap:1px!important;justify-content:center!important}
+  .st-key-bottom_nav button p {font-size:12px!important;font-weight:700!important;white-space:nowrap!important;margin:0!important;color:inherit!important}
+  .st-key-bottom_nav button [data-testid=stIconMaterial] {font-size:23px!important;margin:0!important;color:inherit!important}
+  .st-key-bottom_nav button[kind=primary] {background:#1d4ed8!important;color:#fff!important}
+  .st-key-bottom_nav button[kind=primary] p,.st-key-bottom_nav button[kind=primary] [data-testid=stIconMaterial] {color:#fff!important}
+  .st-key-bottom_nav button:focus-visible {outline:3px solid var(--accent)!important;outline-offset:-3px}
+  .st-key-bottom_nav [data-testid=stPopoverButton] div[aria-hidden="true"] {display:none!important}  /* no dropdown chevron */
+  .st-key-bnav_more_alert button::after {content:'';position:absolute;top:7px;right:calc(50% - 18px);width:11px;height:11px;border-radius:50%;background:#dc2626;border:2px solid var(--card)}
+  [data-testid=stMainBlockContainer],.block-container {padding-bottom:calc(104px + env(safe-area-inset-bottom))!important}  /* last content never hidden */
+  .st-key-home_actions [data-testid=stColumn]:has(.st-key-home_safety) {display:none!important}  /* Safety is a bottom tab on phones */
 }
 @media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.chip .dot,.chip:not(.stale) .dot,.bn-updated,.summary-grid.just-updated,.risk-arc.animate {animation:none!important}}
 """.replace('BANNER_IMAGE_SMALL', BANNER_IMAGE_SMALL).replace('BANNER_IMAGE', BANNER_IMAGE)
@@ -715,3 +738,57 @@ def table_html(frame, bars=None, links=None, caption=''):
         rows.append('<tr>' + ''.join(cells) + '</tr>')
     cap = f'<caption class="sr-only">{e(caption)}</caption>' if caption else ''
     return f'<div class="dtable-wrap"><table class="dtable">{cap}<thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+
+
+# Installed once in the dashboard page itself (not in the component frame), so it keeps working when the server
+# connection drops. It never claims a restored connection: live data return only through a successful retrieval.
+CONNECTION_WATCH = r"""
+(function () {
+  if (window.__matatieleWatch) return; window.__matatieleWatch = 1;
+  var d = document;
+  var bar = d.createElement('div');
+  bar.id = 'connection-lost'; bar.setAttribute('role', 'alert');
+  bar.style.cssText = 'position:fixed;left:8px;right:8px;top:8px;z-index:2147483000;display:none;flex-wrap:wrap;gap:6px 12px;align-items:center;' +
+    'background:#7c2d12;color:#fff;border:2px solid #fdba74;border-radius:12px;padding:10px 12px;font:600 14px/1.4 system-ui,Segoe UI,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+  bar.innerHTML = '<b style="font-size:15px">Connection lost — live updates paused</b>' +
+    '<span style="font-weight:500">The information on screen is the last received. New forecasts and warnings need a connection.</span>' +
+    '<button type="button" style="font:700 14px system-ui,sans-serif;background:#fff;color:#7c2d12;border:0;border-radius:9px;padding:9px 12px;min-height:44px;cursor:pointer">Open saved offline dashboard</button>';
+  d.body.appendChild(bar);
+  function openSaved() {
+    var page = window.__matatieleOffline;
+    if (!page) { bar.querySelector('span').textContent = 'No saved offline dashboard is available in this page yet.'; return; }
+    var old = d.getElementById('saved-offline-view'); if (old) old.remove();
+    var view = d.createElement('div');
+    view.id = 'saved-offline-view';
+    view.style.cssText = 'position:fixed;inset:0;z-index:2147483001;background:#f5f7fb;display:flex;flex-direction:column';
+    var url = URL.createObjectURL(new Blob([page], {type: 'text/html'}));
+    view.innerHTML = '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;background:#1e3a8a;color:#fff;font:600 14px system-ui,sans-serif">' +
+      '<button type="button" style="font:700 14px system-ui,sans-serif;background:#fff;color:#1e3a8a;border:0;border-radius:9px;padding:8px 12px;min-height:44px">Back to live dashboard</button>' +
+      '<a style="color:#fff;font-weight:700" download="matatiele-storm-info.html">Save a copy</a></div>';
+    view.querySelector('a').href = url;
+    var frame = d.createElement('iframe');
+    frame.title = 'Saved offline dashboard'; frame.style.cssText = 'flex:1;border:0;width:100%;background:#f5f7fb';
+    frame.srcdoc = page;
+    view.appendChild(frame);
+    view.querySelector('button').onclick = function () { view.remove(); };
+    d.body.appendChild(view);
+  }
+  bar.querySelector('button').onclick = openSaved;
+  d.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-testid=stPopoverBody] button');
+    if (b) setTimeout(function () { d.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true})); }, 150);
+  }, true);
+  function update() { bar.style.display = navigator.onLine === false ? 'flex' : 'none'; }
+  window.addEventListener('offline', update); window.addEventListener('online', update); update();
+})();
+"""
+
+
+def connection_watch_html(offline_page_html):
+    """Component frame content: keeps the page's saved offline dashboard up to date and installs CONNECTION_WATCH once."""
+    import json
+    safe = lambda text: json.dumps(text).replace('</', '<\\/')  # noqa: E731  (cannot close the script element)
+    return ('<script>(function(){var w=window.parent,d;try{d=w.document;}catch(e){return;}'
+            f'var page={safe(offline_page_html or "")};if(page)w.__matatieleOffline=page;'
+            'if(!w.__matatieleWatch){var s=d.createElement("script");s.textContent=' + safe(CONNECTION_WATCH) + ';d.head.appendChild(s);}'
+            '})();</script>')

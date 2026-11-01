@@ -10,6 +10,31 @@ import sms_alert as sms
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class _State(dict):
+    __getattr__ = dict.get
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+
+def run_sms_panel(state, simulation, clicks, session=None):
+    """Run the dashboard's sms_provider_panel with a mocked Streamlit; returns (send mock, st mock, session)."""
+    import pandas as pd
+    tree = ast.parse((ROOT / '16_dashboard.py').read_text(encoding='utf-8'))
+    panel = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'sms_provider_panel')
+    st = Mock(); st.session_state = session if session is not None else _State()
+    st.button.side_effect = lambda label, key=None, **kw: key in clicks and not kw.get('disabled')
+    column = Mock(); column.button.side_effect = st.button.side_effect
+    st.columns.return_value = (column, column)
+    send = Mock(return_value={'status': 'queued', 'sent': True, 'message': 'Accepted by provider (not yet delivered).'})
+    alert = Mock(CONTROLLED_STATES=sms.CONTROLLED_STATES, send_controlled_test_sms=send,
+                 provider_health=Mock(return_value={'provider': 'Configured', 'controlled_test': state, 'public_delivery': 'Disabled', 'last_test': None}))
+    namespace = {'st': st, 'sms_alert': alert, 'test_mode': simulation, 'pd': pd, 'SAST': None, 'dashboard_theme': Mock()}
+    exec(compile(ast.Module(body=[panel], type_ignores=[]), '<sms provider panel>', 'exec'), namespace)
+    namespace['sms_provider_panel']()
+    return send, st, st.session_state
+
+
 class SmsTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='sms-test-',dir=ROOT/'outputs')
@@ -255,7 +280,9 @@ class SmsTests(unittest.TestCase):
         calls=[n.func.id for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name)]
         self.assertNotIn('send_storm_sms',calls)
         self.assertNotIn('send_simulated_storm_sms',calls)
-        self.assertIn('send_test_sms',calls)
+        self.assertNotIn('send_test_sms',calls)  # the dashboard-local test to the warning recipients was replaced
+        attributes=[n.func.attr for n in ast.walk(tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute)]
+        self.assertIn('send_controlled_test_sms',attributes)  # the only sending call: one SMS to the allowlisted test phone
         imports=[alias.name for n in ast.walk(tree) if isinstance(n,ast.ImportFrom) and n.module=='sms_alert' for alias in n.names]
         self.assertNotIn('send_storm_sms',imports)
 
@@ -279,22 +306,103 @@ class SmsTests(unittest.TestCase):
             self.assertIn('test_scheduled_sms_worker.py',command)
             send.assert_not_called()
 
-    def test_dashboard_test_button_requires_admin_and_disables_simulation_sending(self):
-        tree=ast.parse((ROOT/'16_dashboard.py').read_text(encoding='utf-8'))
-        sidebar=next(n for n in tree.body if isinstance(n,ast.With)
-                     and any(isinstance(c,ast.Call) and isinstance(c.func,ast.Name)
-                             and c.func.id=='send_test_sms' for c in ast.walk(n)))
-        guard=next(n for n in sidebar.body if isinstance(n,ast.If)
-                   and any(isinstance(c,ast.Call) and isinstance(c.func,ast.Name)
-                           and c.func.id=='send_test_sms' for c in ast.walk(n)))
-        for admin,simulation,configured,clicked in [(False,False,True,True),(True,True,True,True),
-                                                    (True,False,False,True),(True,False,True,False),
-                                                    (True,False,True,True)]:
-            st=Mock();st.toggle.return_value=simulation;st.button.return_value=clicked
-            send=Mock(return_value={'sent':True})
-            namespace={'st':st,'is_admin':admin,'sms_is_configured':lambda:configured,'send_test_sms':send}
-            exec(compile(ast.Module(body=[guard],type_ignores=[]),'<dashboard test SMS guard>','exec'),namespace)
-            self.assertEqual(send.call_count,int(admin and not simulation and configured and clicked))
+    def test_controlled_test_needs_ready_configuration_no_simulation_and_a_second_confirmation(self):
+        for state, simulation, clicks, sends in [('ready', False, {'sms_test_ask'}, 0),            # first click only asks
+                                                 ('disabled', False, {'sms_test_ask', 'sms_test_yes'}, 0),
+                                                 ('not_configured', False, {'sms_test_ask', 'sms_test_yes'}, 0),
+                                                 ('invalid_recipient', False, {'sms_test_ask', 'sms_test_yes'}, 0),
+                                                 ('ready', True, {'sms_test_ask', 'sms_test_yes'}, 0),    # simulation on
+                                                 ('ready', False, {'sms_test_ask', 'sms_test_yes'}, 1)]:
+            with self.subTest(state=state, simulation=simulation, clicks=clicks):
+                send, st, _ = run_sms_panel(state, simulation, clicks)
+                self.assertEqual(send.call_count, sends)
+                for call in send.call_args_list:
+                    self.assertEqual(call.kwargs, {'confirmed': True}); self.assertEqual(call.args, ())  # no number, ever
+        _, st, session = run_sms_panel('ready', False, {'sms_test_ask'})
+        self.assertIn('This will send one real SMS to the configured test recipient. Continue?', [c.args[0] for c in st.warning.call_args_list])
+        send, _, _ = run_sms_panel('ready', False, {'sms_test_no'}, session)                # cancelled
+        self.assertEqual(send.call_count, 0); self.assertFalse(session['sms_test_confirm'])
+        self.assertFalse(any(c.args and 'text_input' in str(c) for c in st.mock_calls))     # no phone-number entry
+        st.text_input.assert_not_called()
+
+
+class ControlledLiveTest(unittest.TestCase):
+    """The controlled live test: one real SMS to the allowlisted test recipient only (all mocked here, nothing sent)."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='sms-controlled-', dir=ROOT / 'outputs')
+        self.addCleanup(self.temp.cleanup)
+        self.log = Path(self.temp.name) / 'sms.csv'
+        patcher = patch.object(sms, 'SMS_LOG_FILE', self.log); patcher.start(); self.addCleanup(patcher.stop)
+        self.env = {'TWILIO_ACCOUNT_SID': 'test-only-account', 'TWILIO_AUTH_TOKEN': 'test-only-secret', 'TWILIO_FROM_NUMBER': '+15555550100',
+                    'ALERT_TO_NUMBERS': '+15555550101', 'SMS_LIVE_TEST_ENABLED': 'true', 'SMS_TEST_RECIPIENT': '+15555550109'}
+        self.client = Mock()
+        self.client.messages.create.return_value = Mock(sid='SM-controlled', status='queued')
+
+    def use(self, **changes):
+        env = patch.dict(sms.os.environ, {k: v for k, v in {**self.env, **changes}.items() if v is not None}, clear=True)
+        env.start(); self.addCleanup(env.stop)
+
+    def test_states_and_disabled_or_unconfirmed_never_reach_the_provider(self):
+        for changes, state in [({'SMS_LIVE_TEST_ENABLED': None}, 'disabled'), ({'SMS_LIVE_TEST_ENABLED': 'false'}, 'disabled'),
+                               ({'TWILIO_AUTH_TOKEN': None}, 'not_configured'), ({'SMS_TEST_RECIPIENT': None}, 'invalid_recipient'),
+                               ({'SMS_TEST_RECIPIENT': '+15555550109,+15555550101'}, 'invalid_recipient'),   # one allowlisted number only
+                               ({'SMS_TEST_RECIPIENT': '0821234567'}, 'invalid_recipient'), ({}, 'ready')]:
+            with self.subTest(changes=changes):
+                with patch.dict(sms.os.environ, {k: v for k, v in {**self.env, **changes}.items() if v is not None}, clear=True):
+                    self.assertEqual(sms.controlled_test_state(), state)
+                    if state != 'ready':
+                        self.assertEqual(sms.send_controlled_test_sms(confirmed=True, client=self.client)['status'], state)
+                    self.assertEqual(sms.send_controlled_test_sms(confirmed=False, client=self.client)['sent'], False)
+        self.client.messages.create.assert_not_called()
+
+    def test_sends_once_to_the_test_recipient_only_and_never_logs_the_number(self):
+        self.use()
+        result = sms.send_controlled_test_sms(confirmed=True, client=self.client)
+        self.assertEqual((result['status'], result['sent']), ('queued', True))
+        self.assertEqual(result['message'], 'Accepted by provider (not yet delivered).')   # not "delivered"
+        self.client.messages.create.assert_called_once()
+        call = self.client.messages.create.call_args.kwargs
+        self.assertEqual(call['to'], '+15555550109')
+        self.assertIn('NOT A WEATHER WARNING', call['body'])
+        log = self.log.read_text(encoding='utf-8')
+        for private in ('+15555550109', '+15555550101', 'test-only-secret'):
+            self.assertNotIn(private, log)
+        self.assertNotIn('+15555550109', str(sms.provider_health()))
+        self.assertEqual(sms.last_controlled_test()['status'], 'queued')
+
+    def test_provider_failure_and_uncertainty_are_recorded_honestly(self):
+        self.use()
+        rejected = Exception('rejected'); rejected.status = 400; rejected.code = 21608
+        self.client.messages.create.side_effect = rejected
+        self.assertEqual(sms.send_controlled_test_sms(confirmed=True, client=self.client)['status'], 'failed')
+        self.client.messages.create.side_effect = TimeoutError('timeout')
+        result = sms.send_controlled_test_sms(confirmed=True, client=self.client)
+        self.assertEqual(result['status'], 'submission_unknown')
+        self.assertIn('uncertain', result['message'])
+        self.assertEqual(sms.last_controlled_test()['label'], 'Outcome uncertain: check the provider console before trying again')
+
+    def test_delivery_is_reported_only_when_the_provider_confirms_it(self):
+        self.use()
+        sms.send_controlled_test_sms(confirmed=True, client=self.client)
+        self.client.messages.return_value.fetch.return_value = Mock(status='sent', error_code=None)
+        self.assertEqual(sms.refresh_controlled_test_status(self.client), 'sent')
+        self.assertNotIn('Delivered', sms.last_controlled_test()['label'])
+        self.client.messages.return_value.fetch.return_value = Mock(status='delivered', error_code=None)
+        self.assertEqual(sms.refresh_controlled_test_status(self.client), 'delivered')
+        self.assertEqual(sms.last_controlled_test()['label'], 'Delivered to handset (confirmed by the provider)')
+        for status, label in [('queued', 'Accepted by provider (not yet delivered)'), ('accepted', 'Accepted by provider (not yet delivered)'),
+                              ('undelivered', 'Failed'), ('failed', 'Failed'), ('', 'Unknown')]:
+            self.assertEqual(sms.delivery_label(status), label)
+
+    def test_health_reports_public_delivery_disabled_by_default_and_trial_accounts(self):
+        self.use()
+        health = sms.provider_health()
+        self.assertEqual((health['provider'], health['controlled_test'], health['public_delivery']), ('Configured', 'ready', 'Disabled'))
+        self.client.api.v2010.accounts.return_value.fetch.return_value = Mock(type='Trial')
+        self.assertEqual(sms.provider_account_type(self.client), 'Trial')
+        self.client.api.v2010.accounts.return_value.fetch.side_effect = RuntimeError('network')
+        self.assertEqual(sms.provider_account_type(self.client), 'Unknown')
 
 
 if __name__ == '__main__':
