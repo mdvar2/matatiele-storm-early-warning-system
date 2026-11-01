@@ -26,17 +26,18 @@ Both are off by default.
 - Every display and message says "not certain".
 - The validated next-hour warning (35%, the public ledger) is unchanged and separate.
 
-## 2. Offline page
+## 2. Saved offline dashboard
 
 | Part | What it does |
 |---|---|
-| **Save for offline use** (Dashboard) and `static/offline.html` (template; also served at `/app/static/offline.html` on self-hosted deployments) | A small self-contained page showing the last risk score and level, the warning decision, warnings in effect, any early alert, safety advice and tap-to-call emergency numbers |
+| **Save for offline use** (Dashboard) and `static/offline.html` (template; also served at `/app/static/offline.html` on self-hosted deployments) | A small self-contained offline dashboard (about 20 KB) with five tabs: **Home** (OFFLINE — SAVED INFORMATION, last-saved time, data age, score, category, 35% threshold, decision, period), **Outlook** (the saved 12-hour model outlook; passed hours marked historical), **Alerts** (saved warning and early alert; "No storm warning was active when this information was saved."), **Safety** (advice and tap-to-call numbers) and **More** (weather snapshot, sources, limits, "Map unavailable offline") |
 | `static/sw.js` (service worker), `manifest.webmanifest`, `icon.svg` | After one visit with signal, the phone keeps the page and the last status. With no connection the page still opens, says it is offline, and shows when it was saved. It can be added to the home screen. |
-| `offline_page.py` → `static/status.json` | Written by the dashboard from the **genuine** output and real data state. The administrator's simulation and connectivity demonstration never reach it. It contains no personal data and is ignored by Git. |
+| `offline_page.py` → `static/status.json` | Written by the dashboard from the **genuine** output, **only after a valid, current result**: a failed, out-of-date or partial run never replaces the last good snapshot. The administrator's simulation and connectivity demonstration never reach it. It contains no personal data and is ignored by Git. |
+| Connection-lost banner (`dashboard_theme.CONNECTION_WATCH`) | If the device goes offline while the dashboard is open: *Connection lost — live updates paused*, with **Open saved offline dashboard** (the page already holds it; no server needed). |
 
 **Deployment note:** on Streamlit Community Cloud, `/app/static/offline.html` cannot be opened as a standalone page. The platform answers it with its own page, which is blank, so the Dashboard offers **Save for offline use** instead: a self-contained copy with the latest genuine status embedded, which opens from the phone's files with no connection.
 
-**Limit:** the saved information cannot receive new warnings without a connection. It keeps the last saved status and the advice, and residents save it again when they have signal.
+**Limit:** the saved information cannot receive new warnings without a connection: a disconnected phone gets no new ECMWF forecasts, model predictions or warnings. It keeps the last saved state and the advice, and residents save it again when they have signal.
 
 ## 3. Community relays
 

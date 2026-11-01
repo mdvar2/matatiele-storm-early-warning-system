@@ -274,7 +274,7 @@ class LiveStateChrome(unittest.TestCase):
         self.assertIn('.chip.stale .dot {animation:none}', t.CHROME_CSS)
         self.assertIn('@media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.chip .dot,.chip:not(.stale) .dot,.bn-updated,.summary-grid.just-updated,.risk-arc.animate {animation:none!important}}', t.CHROME_CSS)
         self.assertIn('class="bn-updated">Updated just now', t.banner_html(now, True, 'x', update_state='updated'))
-        self.assertIn('Connection restored · data updated', t.banner_html(now, True, 'x', update_state='restored'))
+        self.assertIn('Connection restored · latest data retrieved', t.banner_html(now, True, 'x', update_state='restored'))
         self.assertNotIn('bn-updated', fresh)                                                  # nothing without new data
         timer = t.banner_html(now, True, 'x', next_refresh_ms=1000, now_ms=500)
         self.assertIn('data-next="1000" data-now="500"', timer)
@@ -340,6 +340,7 @@ class OfflineHotfix(unittest.TestCase):
         self.assertIn('Saved information may be out of date.', page)
         self.assertIn('store(result.s);  // replaced only after a valid new status was read', page)
         self.assertIn('Never blank', page)
+        self.assertIn('if (s) { try { render(s); } catch (e) {} setStatus(statusText, connected); }', page)  # a bad field never hides the status
         worker = (ROOT / 'static' / 'sw.js').read_text(encoding='utf-8')
         self.assertIn("text.indexOf('data-matatiele-offline')", worker)   # never caches a platform or error page as this page
         self.assertIn("typeof data.generated_utc !== 'string'", worker)    # never caches an invalid status
@@ -360,7 +361,7 @@ class OfflineHotfix(unittest.TestCase):
         self.assertNotRegex(page, r'\+27\d|0[6-8]\d{8}')              # no personal phone numbers
         for private in ('subscriber', 'phone_encrypted', 'TWILIO', 'password', 'token'):
             self.assertNotIn(private, page)
-        self.assertLess(len(page.encode('utf-8')), 20_000)               # small enough for any phone and connection
+        self.assertLess(len(page.encode('utf-8')), 25_000)               # five tabs and the saved outlook: still small for any phone
 
 
 
@@ -381,3 +382,129 @@ class SaveForOfflineOnHome(DashboardHarness):
             self.assertTrue(next(b for b in at.get('download_button') if b.proto.label == 'Save for offline use').proto.disabled)
         finally:
             hidden.rename(template)
+
+
+class OfflineDashboard(unittest.TestCase):
+    """The saved copy is a small offline dashboard: five tabs of genuine saved information, nothing recomputed."""
+
+    def page(self):
+        return (ROOT / 'static' / 'offline.html').read_text(encoding='utf-8')
+
+    def snapshot(self, outlook_rows=None, warnings=()):
+        import offline_page
+        import resident_view as rv
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        t = datetime(2026, 11, 1, 3, 15, tzinfo=ZoneInfo('Africa/Johannesburg'))
+        return offline_page.build(rv.resident_status(.12, t, t, t, False), .12, {'state': 'none'}, list(warnings), None,
+                                  now=t, outlook=outlook_rows,
+                                  weather={'temperature': '18.0 °C', 'rain': '0.0 mm', 'wind': '2.0 m/s', 'gust': '3.0 m/s',
+                                           'source': 'ECMWF forecast · 02:00 SAST', 'icon': '<img src="x">'},
+                                  forecast=[{'hour': '04:00', 'rain': '0.1 mm', 'wind': '3.0 m/s', 'temperature': '17.0 °C', 'phone': 'x'}])
+
+    def test_tabs_and_every_section_are_readable_without_javascript(self):
+        import re
+        shell = ' '.join(re.sub(r'<script.*?</script>', '', self.page(), flags=re.S).split())
+        for tab in ('href="#home"', 'href="#outlook"', 'href="#alerts"', 'href="#safety"', 'href="#more"'):
+            self.assertIn(tab, shell)
+        for text in ('Saved model outlook — unvalidated beyond one hour', 'Map unavailable offline — reconnect to view forecast rainfall map.',
+                     'New weather forecasts, new model results and new warnings need a connection', 'env(safe-area-inset-bottom)'):
+            self.assertIn(text, shell)
+        page = self.page()
+        self.assertIn('No storm warning was active when this information was saved.', page)
+        self.assertNotIn('No storm warning now', page)               # the device cannot know the current state
+        self.assertIn("'OFFLINE — SAVED INFORMATION'", page)
+        self.assertIn("past ? ' past' : ''", page)                   # outlook hours that have passed are marked historical
+        self.assertNotRegex(page, r'https?://')
+
+    def test_snapshot_saves_genuine_outlook_threshold_weather_and_nothing_else(self):
+        rows = [{'lead_hours': lead, 'target_end_utc': f'2026-11-01T{lead:02d}:00:00+00:00', 'score': .1 * lead, 'input_hour_utc': 'x'}
+                for lead in range(1, 5)]
+        data = self.snapshot(rows)
+        self.assertEqual(data['schema'], 2)
+        self.assertEqual(data['threshold'], '35%')
+        self.assertEqual([r['hour'] for r in data['outlook']], ['03:00', '04:00', '05:00'])   # lead 2-4 only; start of each hour (SAST)
+        self.assertEqual([r['above'] for r in data['outlook']], [False, False, True])          # 20%, 30%, 40% against 35%
+        self.assertEqual(data['outlook'][2]['score'], '40%')
+        self.assertNotIn('icon', data['weather'])                                               # only the listed text fields
+        self.assertEqual(data['forecast'], [{'hour': '04:00', 'rain': '0.1 mm', 'wind': '3.0 m/s', 'temperature': '17.0 °C'}])
+        self.assertEqual(self.snapshot()['outlook'], [])                                       # no outlook: none saved, none invented
+
+    def test_only_a_valid_current_result_may_replace_the_saved_snapshot(self):
+        import offline_page
+        import resident_view as rv
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        t = datetime(2026, 11, 1, 3, tzinfo=ZoneInfo('Africa/Johannesburg'))
+        good = self.snapshot()
+        stale = offline_page.build(rv.resident_status(.5, t, t, t, True), .5, {'state': 'none'}, [])
+        missing = offline_page.build(rv.resident_status(float('nan'), t, t, t, False), float('nan'), {'state': 'none'}, [])
+        self.assertTrue(offline_page.current(good))
+        self.assertFalse(offline_page.current(stale)); self.assertFalse(offline_page.current(missing))
+        path = Path(tempfile.mkdtemp()) / 'status.json'
+        self.assertIsNone(offline_page.read_saved(path))
+        path.write_text('{not json', encoding='utf-8'); self.assertIsNone(offline_page.read_saved(path))
+        path.write_text(_json.dumps(stale), encoding='utf-8'); self.assertIsNone(offline_page.read_saved(path))
+        offline_page.write(path, good); self.assertEqual(offline_page.read_saved(path)['risk_score'], '12%')
+
+    def test_saved_copy_keeps_warnings_and_contains_no_private_data(self):
+        import offline_page
+        from datetime import datetime, timezone
+        event = {'end': datetime(2026, 11, 1, 3, tzinfo=timezone.utc), 'start': datetime(2026, 11, 1, 2, tzinfo=timezone.utc)}
+        with unittest.mock.patch('warning_events.period_text', return_value='04:00-05:00 SAST'):
+            page = offline_page.download_html(self.snapshot(warnings=[event]), ROOT / 'static' / 'offline.html')
+        self.assertIn('"warnings": [{"title": "Storm warning", "period": "04:00-05:00 SAST"}]', page)
+        for private in ('subscriber', 'phone_encrypted', 'TWILIO', 'password', 'token', 'SMS_TEST_RECIPIENT'):
+            self.assertNotIn(private, page)
+        self.assertNotRegex(page, r'\+27\d|0[6-8]\d{8}')
+
+
+class ConnectionWatch(unittest.TestCase):
+    def test_connection_banner_and_saved_dashboard_need_no_server(self):
+        import dashboard_theme
+        watch = dashboard_theme.CONNECTION_WATCH
+        for text in ('Connection lost — live updates paused', 'Open saved offline dashboard', "addEventListener('offline'",
+                     "addEventListener('online'", 'frame.srcdoc = page', 'Back to live dashboard'):
+            self.assertIn(text, watch)
+        self.assertNotIn('Connection restored', watch)               # only a successful retrieval may say so (the banner)
+        html = dashboard_theme.connection_watch_html('<p>x</p><script>y</script>')
+        self.assertNotIn('</script><', html[:-len('</script>')])      # the saved page cannot end the script early
+        self.assertIn('Connection restored · latest data retrieved', dashboard_theme.banner_html(
+            __import__('datetime').datetime(2026, 11, 1, 9), True, 'x', update_state='restored'))
+
+
+class PhoneNavigationAndSnapshot(DashboardHarness):
+    def test_bottom_navigation_reaches_every_section(self):
+        import dashboard_theme
+        self.write_prediction(.05)
+        at = self.app().run()
+        labels = {b.key: b.label for b in at.button}
+        self.assertEqual([labels[k] for k in ('bnav_Home', 'bnav_Risk', 'bnav_Map', 'bnav_Safety')], ['Home', 'Risk', 'Map', 'Safety'])
+        for key in ('more_Alerts', 'more_Forecast', 'more_Historical Data', 'more_About', 'more_sms'):
+            self.assertIn(key, labels)                                 # inside the More sheet
+        self.assertEqual(sum(b.proto.label == 'Save for offline use' for b in at.get('download_button')), 2)  # Home and More
+        next(b for b in at.button if b.key == 'bnav_Risk').click().run()
+        self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')
+        self.assertEqual(next(b for b in at.button if b.key == 'bnav_Risk').proto.type, 'primary')   # active state
+        next(b for b in at.button if b.key == 'more_About').click().run()
+        self.assertEqual(at.session_state['dashboard_page'], 'ℹ️ About')
+        self.assertFalse(any('warning in effect' in b.label for b in at.button))  # no warning: no badge, no invented count
+        css = dashboard_theme.CHROME_CSS
+        for rule in ('.st-key-bottom_nav {display:none!important}', '.st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar)',
+                     '[data-testid=stPopoverButton] div[aria-hidden="true"] {display:none!important}', 'button[kind=primary] {background:#1d4ed8!important;color:#fff!important}',
+                     'padding-bottom:calc(104px + env(safe-area-inset-bottom))', 'position:fixed!important;left:0;right:0;bottom:0'):
+            self.assertIn(rule, css)
+
+    def test_a_failed_refresh_never_replaces_the_saved_snapshot(self):
+        status = self.tmp / 'static' / 'status.json'
+        status.unlink(missing_ok=True)
+        self.write_prediction(.27)
+        self.app().run()
+        good = _json.loads(status.read_text(encoding='utf-8'))
+        self.assertEqual((good['risk_score'], good['threshold']), ('27%', '35%'))
+        self.write_prediction(.60, fresh=False)                      # the next retrieval fails: out-of-date data
+        at = self.app(inference_ok=False).run()
+        self.assertEqual(_json.loads(status.read_text(encoding='utf-8'))['risk_score'], '27%')   # the good snapshot is kept
+        self.assertIn('Saved forecast / outdated prediction', ' '.join(w.value for w in at.warning))
+        saved = next(b for b in at.get('download_button') if b.proto.label == 'Save for offline use')
+        self.assertFalse(saved.proto.disabled)                       # residents can still save the last good snapshot

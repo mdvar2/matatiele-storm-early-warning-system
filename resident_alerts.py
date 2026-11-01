@@ -133,6 +133,7 @@ def sms_status_html(getter):
     rows = [('Current configuration', SMS_CONFIGURATION[mode]),
             ('Simulation', 'Available: python 26_sms_simulation_demo.py runs the whole warning-to-SMS chain with nothing sent.'),
             ('Public registration', 'Not yet available.' if mode == 'disabled' else 'Development or controlled test only; not open to the public.'),
+            ('Live SMS test', 'Administrators only: one real test SMS to a single configured test phone. Not a resident service.'),
             ('Delivery limitations', 'A message accepted by the SMS provider is not proof of delivery. Delivery is shown only when the '
                                      'provider confirms it. SMS needs mobile network coverage.'),
             ('Research-test restrictions', 'Public SMS needs an upgraded provider account, POPIA compliance, ethics clearance and the '

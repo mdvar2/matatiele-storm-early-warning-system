@@ -235,7 +235,7 @@ class DashboardHarness(unittest.TestCase):
         for name in ('dashboard_forecast_prediction.csv', 'prediction_history.csv', 'regional_ecmwf_forecast.csv'):
             (self.model / name).unlink(missing_ok=True)
         (self.tmp / 'outputs' / 'system_log.sqlite').unlink(missing_ok=True)  # each test starts with an empty system log
-        env = {k: v for k, v in os.environ.items() if not k.startswith(('TWILIO_', 'ALERT_TO', 'ADMIN_PASSWORD'))}
+        env = {k: v for k, v in os.environ.items() if not k.startswith(('TWILIO_', 'ALERT_TO', 'ADMIN_PASSWORD', 'SMS_', 'SUBSCRIBER_'))}
         env['ADMIN_PASSWORD'] = ADMIN_TEST_PASSWORD
         self.env = patch.dict(os.environ, env, clear=True); self.env.start(); self.addCleanup(self.env.stop)
         # Settings come only from this test environment: never the project's real secrets file.
@@ -244,7 +244,8 @@ class DashboardHarness(unittest.TestCase):
         guards = [patch.object(app_config, 'get_setting', env_only), patch.object(sms_alert, 'get_setting', env_only),
                   patch('requests.get', side_effect=requests.ConnectionError('network disabled in tests')),
                   patch.object(sms_alert, '_send_warning', side_effect=AssertionError('SMS send attempted')),
-                  patch.object(sms_alert, '_create_twilio_client', side_effect=AssertionError('Twilio used'))]
+                  patch.object(sms_alert, '_create_twilio_client', side_effect=AssertionError('Twilio used')),
+                  patch.object(sms_alert, '_provider_client', side_effect=AssertionError('Twilio used'))]
         self.mocks = [g.start() for g in guards]
         for g in guards: self.addCleanup(g.stop)
 

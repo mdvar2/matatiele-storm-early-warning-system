@@ -1,0 +1,539 @@
+{
+ "phone_360": {
+  "home": {
+   "width": 360,
+   "bottom_nav_visible": true,
+   "bottom_nav_fixed": "fixed",
+   "bottom_nav_at_bottom": true,
+   "top_tab_row_visible": false,
+   "hamburger_visible": false,
+   "sidebar_open": false,
+   "items": [
+    {
+     "label": "home\n\nHome",
+     "kind": "primary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "monitoring\n\nRisk",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "map\n\nMap",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "health_and_safety\n\nSafety",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "menu\n\nMore",
+     "kind": "secondary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    }
+   ]
+  },
+  "content_not_covered": {
+   "last_content_bottom": 712,
+   "nav_top": 737,
+   "hidden_behind_nav": false
+  },
+  "risk": {
+   "width": 360,
+   "bottom_nav_visible": true,
+   "bottom_nav_fixed": "fixed",
+   "bottom_nav_at_bottom": true,
+   "top_tab_row_visible": false,
+   "hamburger_visible": false,
+   "sidebar_open": false,
+   "items": [
+    {
+     "label": "home\n\nHome",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "monitoring\n\nRisk",
+     "kind": "primary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "map\n\nMap",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "health_and_safety\n\nSafety",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "menu\n\nMore",
+     "kind": "secondary",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    }
+   ]
+  },
+  "risk_page": true,
+  "more_sheet_items": [
+   "notifications\n\nAlerts",
+   "partly_cloudy_day\n\nForecast",
+   "insert_chart\n\nHistorical Data",
+   "info\n\nAbout",
+   "downloadSave for offline use",
+   "download\n\nSave for offline use",
+   "sms\n\nSMS service"
+  ],
+  "more_sheet_dismissed_with_escape": true,
+  "more_alerts_opens_alerts": true,
+  "after_more_alerts_sheet_closed": true,
+  "keyboard_focusable": true
+ },
+ "phone_390": {
+  "home": {
+   "width": 390,
+   "bottom_nav_visible": true,
+   "bottom_nav_fixed": "fixed",
+   "bottom_nav_at_bottom": true,
+   "top_tab_row_visible": false,
+   "hamburger_visible": false,
+   "sidebar_open": false,
+   "items": [
+    {
+     "label": "home\n\nHome",
+     "kind": "primary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "monitoring\n\nRisk",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "map\n\nMap",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "health_and_safety\n\nSafety",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "menu\n\nMore",
+     "kind": "secondary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    }
+   ]
+  },
+  "content_not_covered": {
+   "last_content_bottom": 712,
+   "nav_top": 737,
+   "hidden_behind_nav": false
+  },
+  "risk": {
+   "width": 390,
+   "bottom_nav_visible": true,
+   "bottom_nav_fixed": "fixed",
+   "bottom_nav_at_bottom": true,
+   "top_tab_row_visible": false,
+   "hamburger_visible": false,
+   "sidebar_open": false,
+   "items": [
+    {
+     "label": "home\n\nHome",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "monitoring\n\nRisk",
+     "kind": "primary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "map\n\nMap",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "health_and_safety\n\nSafety",
+     "kind": "tertiary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "menu\n\nMore",
+     "kind": "secondary",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    }
+   ]
+  },
+  "risk_page": true,
+  "more_sheet_items": [
+   "notifications\n\nAlerts",
+   "partly_cloudy_day\n\nForecast",
+   "insert_chart\n\nHistorical Data",
+   "info\n\nAbout",
+   "downloadSave for offline use",
+   "download\n\nSave for offline use",
+   "sms\n\nSMS service"
+  ],
+  "more_sheet_dismissed_with_escape": true,
+  "more_alerts_opens_alerts": true,
+  "after_more_alerts_sheet_closed": true,
+  "keyboard_focusable": true
+ },
+ "tablet_820": {
+  "width": 820,
+  "bottom_nav_visible": false,
+  "bottom_nav_fixed": "static",
+  "bottom_nav_at_bottom": false,
+  "top_tab_row_visible": false,
+  "hamburger_visible": false,
+  "sidebar_open": true,
+  "items": [
+   {
+    "label": "homeHome",
+    "kind": "primary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "monitoringRisk",
+    "kind": "tertiary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "mapMap",
+    "kind": "tertiary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "health_and_safetySafety",
+    "kind": "tertiary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "menuMoreexpand_more",
+    "kind": "secondary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   }
+  ]
+ },
+ "desktop_1366": {
+  "width": 1366,
+  "bottom_nav_visible": false,
+  "bottom_nav_fixed": "static",
+  "bottom_nav_at_bottom": false,
+  "top_tab_row_visible": false,
+  "hamburger_visible": false,
+  "sidebar_open": true,
+  "items": [
+   {
+    "label": "homeHome",
+    "kind": "primary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "monitoringRisk",
+    "kind": "tertiary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "mapMap",
+    "kind": "tertiary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "health_and_safetySafety",
+    "kind": "tertiary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   },
+   {
+    "label": "menuMoreexpand_more",
+    "kind": "secondary",
+    "clipped": false,
+    "h": 0,
+    "w": 0
+   }
+  ]
+ },
+ "A_dashboard_score": "1%",
+ "A_dashboard_decision": "NO WARNING TRIGGERED",
+ "A_media_requests": [
+  "http://127.0.0.1:8599/media/402feee60c124a0b0efacbf6d7c166bc.html"
+ ],
+ "A_served": {
+  "status": 200,
+  "type": "text/html; charset=utf-8",
+  "disposition": "attachment; filename=\"matatiele-storm-info-20261101-0854.html\""
+ },
+ "A_saved_kb": 19.7,
+ "A_page_holds_saved_dashboard": true,
+ "banner_on_connection_loss": "Connection lost \u2014 live updates paused\nThe information on screen is the last received. New forecasts and warnings need a connection.\nOpen saved offline dashboard",
+ "open_saved_while_offline": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "score": "1%"
+ },
+ "back_to_live_dashboard": true,
+ "banner_hidden_after_reconnect": true,
+ "B_opened_offline": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "home",
+  "text": "Last saved: 01 Nov 2026 08:54 SAST\nSaved warning information from the Matatiele system.\nSTORM RISK (SAVED)\n1%\nLOW RISK\nModel risk score for 01 Nov 09:00 - 10:00 (SAST). Not a calibrated probability, not a guarantee.\n\nNO WARNING TRIGGERED\nScore is below the warning threshold.\n\nWarning threshold\n35%\nForecast period\n01 Nov 09:00 - 10:00 (SAST)\nData age\n1 min since saved",
+  "blank": false
+ },
+ "C_tab_outlook": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "outlook",
+  "text": "SAVED MODEL OUTLOOK \u2014 UNVALIDATED BEYOND ONE HOUR\n10:00\n4%\n11:00\n5%\n12:00\n7%\n13:00\n6%\n14:00\n2%\n15:00\n10%\n16:00\n13%\n17:00\n16%\n18:00\n22%\n19:00\n29%\n20:00\n34%\n\nHour starting (SAST) and the model risk score saved for it. Dashed line: 35% warning threshold. Faded hours have already passed and are historical. Saved at 01 Nov 2026 08:54 SAST; nothing is recalculated offline.",
+  "blank": false
+ },
+ "C_tab_alerts": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "alerts",
+  "text": "ALERTS WHEN SAVED\n\nNo storm warning was active when this information was saved.\n\nSaved at 01 Nov 2026 08:54 SAST. This device cannot know the current warning state while offline.",
+  "blank": false
+ },
+ "C_tab_safety": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "safety",
+  "text": "WHAT TO DO: BE PREPARED\nLightning: Know which solid building you would go to if you hear thunder.\nFlooding: Know the higher ground near your home, and keep children away from streams.\nRoads: Plan travel early. Avoid roads that flood or cross low bridges.\nRivers: Avoid crossing rivers later in the day; water can rise quickly after storms upstream.\nLivestock: Plan where animals can shelter away from rivers, lone trees and wire fences.\nIF A STORM COMES\nLightning: if you hear thunder, go inside a solid building or a closed car.\nFlooding: never walk or drive through flood water; move to higher ground.\nRoads: do not cross flooded roads, low bridges or causeways.\nRivers: stay away from rivers and streams; they can rise suddenly.\nLivestock: move animals early; do not go out once lightning starts.\nEMERGENCY NUMBERS\n10111\nPolice (SAPS)\n10177\nAmbulance and fire\n112\nAny emergency from a cellphone\nCa",
+  "blank": false
+ },
+ "C_tab_more": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "more",
+  "text": "WEATHER SNAPSHOT WHEN SAVED\nTemperature\n21.7 \u00b0C\nRain\n0.1 mm\nWind\n1.5 m/s\nGusts\n5.2 m/s\n\nECMWF forecast \u00b7 09:00 SAST\n\nForecast saved for the next hours (ECMWF; hour ending, SAST):\n\n10:00\n0.1 mm rain \u00b7 3.3 m/s wind \u00b7 23.8 \u00b0C\n11:00\n0.1 mm rain \u00b7 4.1 m/s wind \u00b7 25.3 \u00b0C\n12:00\n0.0 mm rain \u00b7 3.3 m/s wind \u00b7 25.5 \u00b0C\n13:00\n0.0 mm rain \u00b7 2.9 m/s wind \u00b7 25.0 \u00b0C\n14:00\n0.0 mm rain \u00b7 3.6 m/s wind \u00b7 23.8 \u00b0C\n15:00\n0.7 mm rain \u00b7 3.8 m/s wind \u00b7 21.8 \u00b0C\n\nForecast values when saved, not observations.\n\nMAP\n\nMap unavailable offline \u2014 reconnect to view forecast rainfall map.\n\nWHERE THIS COMES FROM\n\nWhile connected, the system retrieves ECMWF weather forecasts (via Open-Meteo), and a Random Forest model trained on historical ERA5 data estimates the storm risk for Matatiele for the next hour. A score at or above 35% is a warning decision. This page keeps a copy of that result, saved on this device.\n\nWHAT WORKS OF",
+  "blank": false
+ },
+ "C_tab_home": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "home",
+  "text": "Last saved: 01 Nov 2026 08:54 SAST\nSaved warning information from the Matatiele system.\nSTORM RISK (SAVED)\n1%\nLOW RISK\nModel risk score for 01 Nov 09:00 - 10:00 (SAST). Not a calibrated probability, not a guarantee.\n\nNO WARNING TRIGGERED\nScore is below the warning threshold.\n\nWarning threshold\n35%\nForecast period\n01 Nov 09:00 - 10:00 (SAST)\nData age\n1 min since saved",
+  "blank": false
+ },
+ "D_reopened_offline_same_browser": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "home",
+  "text": "Last saved: 01 Nov 2026 08:54 SAST\nSaved warning information from the Matatiele system.\nSTORM RISK (SAVED)\n1%\nLOW RISK\nModel risk score for 01 Nov 09:00 - 10:00 (SAST). Not a calibrated probability, not a guarantee.\n\nNO WARNING TRIGGERED\nScore is below the warning threshold.\n\nWarning threshold\n35%\nForecast period\n01 Nov 09:00 - 10:00 (SAST)\nData age\n1 min since saved",
+  "blank": false
+ },
+ "D_closed_browser_and_reopened_offline": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:54 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "home",
+  "text": "Last saved: 01 Nov 2026 08:54 SAST\nSaved warning information from the Matatiele system.\nSTORM RISK (SAVED)\n1%\nLOW RISK\nModel risk score for 01 Nov 09:00 - 10:00 (SAST). Not a calibrated probability, not a guarantee.\n\nNO WARNING TRIGGERED\nScore is below the warning threshold.\n\nWarning threshold\n35%\nForecast period\n01 Nov 09:00 - 10:00 (SAST)\nData age\n1 min since saved",
+  "blank": false
+ },
+ "E_older_than_stale_limit": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 30 Oct 2026 03:00 SAST",
+  "note": "Saved information may be out of date.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "home",
+  "text": "Last saved: 30 Oct 2026 03:00 SAST\nSaved information may be out of date.\nSTORM RISK (SAVED)\n1%\nLOW RISK\nModel risk score for 01 Nov 09:00 - 10:00 (SAST). Not a calibrated probability, not a guarantee.\n\nNO WARNING TRIGGERED\nScore is below the warning threshold.\n\nWarning threshold\n35%\nForecast period\n01 Nov 09:00 - 10:00 (SAST)\nData age\n2 days since saved",
+  "blank": false
+ },
+ "E_outlook_hours_marked_past": [
+  11,
+  4
+ ],
+ "F_partial_values": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 2026-11-01T00:00:00+00:00",
+  "note": "Saved information may be out of date.",
+  "score": "3%",
+  "badges": [],
+  "visible_tab": "home",
+  "text": "Last saved: 2026-11-01T00:00:00+00:00\nSaved information may be out of date.\nSTORM RISK (SAVED)\n3%\nModel risk score. Not a calibrated probability, not a guarantee.\nData age\n6 h 55 min since saved",
+  "blank": false
+ },
+ "F_partial_tab_outlook": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 2026-11-01T00:00:00+00:00",
+  "note": "Saved information may be out of date.",
+  "score": "3%",
+  "badges": [],
+  "visible_tab": "outlook",
+  "text": "SAVED MODEL OUTLOOK \u2014 UNVALIDATED BEYOND ONE HOUR\nNo saved outlook in this copy.",
+  "blank": false
+ },
+ "F_partial_tab_alerts": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 2026-11-01T00:00:00+00:00",
+  "note": "Saved information may be out of date.",
+  "score": "3%",
+  "badges": [],
+  "visible_tab": "alerts",
+  "text": "ALERTS WHEN SAVED\n\nNo storm warning was active when this information was saved.\n\nSaved at 2026-11-01T00:00:00+00:00. This device cannot know the current warning state while offline.",
+  "blank": false
+ },
+ "F_partial_tab_more": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 2026-11-01T00:00:00+00:00",
+  "note": "Saved information may be out of date.",
+  "score": "3%",
+  "badges": [],
+  "visible_tab": "more",
+  "text": "WEATHER SNAPSHOT WHEN SAVED\nNo saved weather snapshot in this copy.\nMAP\n\nMap unavailable offline \u2014 reconnect to view forecast rainfall map.\n\nWHERE THIS COMES FROM\n\nWhile connected, the system retrieves ECMWF weather forecasts (via Open-Meteo), and a Random Forest model trained on historical ERA5 data estimates the storm risk for Matatiele for the next hour. A score at or above 35% is a warning decision. This page keeps a copy of that result, saved on this device.\n\nWHAT WORKS OFFLINE\n\nYou can read the saved risk score, warning decision, model outlook, alerts, safety advice and emergency numbers. New weather forecasts, new model results and new warnings need a connection: this page cannot receive new warnings without a connection. Save again from the dashboard when you have signal.\n\nOpen the live dashboard (needs a connection)",
+  "blank": false
+ },
+ "F_corrupt_values": {
+  "status": "No saved warning information yet",
+  "saved": "No saved warning information yet",
+  "note": "Open this offline page once while connected to save the latest warning information for later use.",
+  "score": null,
+  "badges": [],
+  "visible_tab": "home",
+  "text": "No saved warning information yet\nOpen this offline page once while connected to save the latest warning information for later use.",
+  "blank": false
+ },
+ "G_newer_snapshot_offline": {
+  "status": "OFFLINE \u2014 SAVED INFORMATION",
+  "saved": "Last saved: 01 Nov 2026 08:58 SAST",
+  "note": "Saved warning information from the Matatiele system.",
+  "score": "1%",
+  "badges": [
+   "LOW RISK",
+   "NO WARNING TRIGGERED"
+  ],
+  "visible_tab": "home",
+  "text": "Last saved: 01 Nov 2026 08:58 SAST\nSaved warning information from the Matatiele system.\nSTORM RISK (SAVED)\n1%\nLOW RISK\nModel risk score for 01 Nov 09:00 - 10:00 (SAST). Not a calibrated probability, not a guarantee.\n\nNO WARNING TRIGGERED\nScore is below the warning threshold.\n\nWarning threshold\n35%\nForecast period\n01 Nov 09:00 - 10:00 (SAST)\nData age\n1 min since saved",
+  "blank": false
+ },
+ "admin_sms_panel": {
+  "SMS provider health and controlled live test": true,
+  "Not configured": true,
+  "Controlled live test disabled": true,
+  "Public subscriber delivery": true,
+  "Disabled": true,
+  "Accepted by provider is not delivery": true
+ },
+ "admin_send_button_disabled": true,
+ "resident_no_admin_sms_control": true,
+ "resident_comms": {
+  "SMS simulation": true,
+  "Public SMS delivery": true,
+  "Disabled": true
+ }
+}

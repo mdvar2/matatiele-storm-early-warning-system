@@ -69,6 +69,34 @@ Full phone numbers never appear anywhere in the dashboard. Rows show only masked
 
 Delivery statuses are not pushed to the dashboard; there is no webhook. **Refresh delivery statuses** asks Twilio for the latest status of up to 100 `submitted` messages.
 
+### SMS provider health and the controlled live test
+
+The Administration page ends with **SMS provider health and controlled live test**. No secret, token or phone number is shown.
+
+| Row | Meaning |
+|---|---|
+| SMS provider (Twilio) | *Configured* when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and a valid E.164 `TWILIO_FROM_NUMBER` are set. |
+| Account type | *Trial* or *Full*, after **Check provider account** (one request to Twilio). A trial account can message verified numbers only. |
+| Controlled live test | *Disabled* (`SMS_LIVE_TEST_ENABLED` not `true`), *provider not configured*, *no valid test recipient*, or *Ready*. |
+| Public subscriber delivery | `SUBSCRIBER_ALERTS_ENABLED` as this deployment sees it. The hourly worker reads its own GitHub Actions variable. |
+| Last controlled test | Time and result: *Accepted by provider*, *passed to the mobile network*, *Delivered to handset (confirmed by the provider)*, *Failed*, or *Outcome uncertain*. |
+
+**SMS modes.**
+1. **Simulation** (default): no provider request; messages are labelled *TEST ONLY — NOT A REAL WARNING*.
+2. **Controlled live test**: one real SMS, to one allowlisted test phone, by an administrator, after confirmation.
+3. **Public subscriber delivery**: `SUBSCRIBER_ALERTS_ENABLED`, disabled by default (§7).
+
+**To run a controlled live test.**
+1. Set, as private secrets (Streamlit secrets or the environment, never in the repository): `SMS_LIVE_TEST_ENABLED = "true"` and `SMS_TEST_RECIPIENT` = one E.164 number you are authorised to message (on a trial account it must be a verified number). The Twilio secrets must also be set.
+2. Sign in, open **Administration**, check that *Controlled live test* reads *Ready*, and that the warning simulation is off.
+3. Press **Send controlled SMS test**, read *"This will send one real SMS to the configured test recipient. Continue?"*, and press **Yes, send one SMS** (or **Cancel**).
+4. The result shows *Accepted by provider*: this is **not** delivery. After a minute, press **Refresh test delivery status**; only *Delivered to handset (confirmed by the provider)* means the handset received it.
+5. Set `SMS_LIVE_TEST_ENABLED` back to `false` when finished.
+
+The message reads *MATATIELE SMS PROVIDER TEST. Controlled check only. NOT A WEATHER WARNING.* There is no field for typing a number, so a test cannot be sent to anyone else. The SMS log records the attempt as `configured-test-recipient`, never the number. Each attempt is reserved in the log before the provider is called: an interrupted request is shown as *Outcome uncertain*, and is never repeated automatically.
+
+**Duplicate prevention (warnings).** The hourly worker reserves each warning hour in the public ledger before any SMS. A delivery record per warning and subscriber is reserved before sending. A repeated run therefore never sends twice, and a provider failure never deletes the warning record.
+
 ## 4. Handling failed notifications
 
 1. Press **Refresh delivery statuses**.
@@ -147,3 +175,19 @@ Every record carries the official's username and the time. The portal does **not
 | *SMS registration is temporarily unavailable* | Store or Twilio configuration is incomplete in Streamlit secrets. |
 | Alerts says *the public warning record could not be reached* | The GitHub API could not be reached or is rate-limited. It retries after 10 minutes. |
 | A resident received two SMS for one warning | Their number is also in `ALERT_TO_NUMBERS`, the original fixed recipient list. Remove it from one of the two lists. |
+| *Send controlled SMS test* is greyed out | *Controlled live test* is not *Ready* (see the reason in that row), or the warning simulation is on. |
+| Controlled test: *Failed* | The provider rejected it. On a trial account, the test number must be verified in the Twilio console. |
+| Controlled test: *Outcome uncertain* | The request was interrupted. Check the Twilio console before trying again. |
+| Controlled test stays *Accepted by provider* | The handset has not confirmed yet, or the network does not return delivery receipts. It is not reported as delivered. |
+| *Save for offline use* is greyed out | The offline page template (`static/offline.html`) is missing from the deployment. |
+| Saved offline dashboard shows an old time | The last retrievals failed, so the last good snapshot is offered. Fix the forecast connection; the snapshot is refreshed after the next successful run. |
+
+## 10. Offline dashboard (saved snapshot)
+
+- **What residents get.** **Save for offline use** (Home, and in More on phones) downloads one self-contained HTML page with the latest snapshot embedded. It opens from the phone's files with no connection, on any hosting, with tabs Home, Outlook, Alerts, Safety and More. It shows *OFFLINE — SAVED INFORMATION* and the time saved.
+- **How the snapshot is prepared.** Each dashboard run builds a resident-safe snapshot from the genuine model output (never the on-screen simulation or the connectivity demonstration). It is written to `static/status.json` **only after a valid, current result**. A failed retrieval, out-of-date or partial data leaves the last good snapshot in place, and residents are offered that one. No administrator action is needed.
+- **Content rules.** Allowed: saved time, forecast period, risk score and category, 35% threshold, warning decision, genuine warning and early alert, the 12-hour model outlook, a weather and forecast snapshot, safety advice and the national emergency numbers. Never: subscriber records, residents' phone numbers, credentials, API keys, officials' information or private logs. Tests check this.
+- **Stale data.** The page computes the data age on the phone. After 2 hours it adds *Saved information may be out of date*, and outlook hours that have passed are faded and marked historical. Nothing is recalculated offline.
+- **Connection lost while the dashboard is open.** The page shows *Connection lost — live updates paused* with **Open saved offline dashboard**, which needs no server. A failed retrieval ends the loading state, keeps the last data and labels it out of date; no warning decision is made from it. *Connection restored · latest data retrieved* appears only after a new successful retrieval.
+- **Limits.** The offline dashboard does not receive new forecasts, model results or warnings, and the map is not available offline. SMS is a separate channel: it reaches phones without mobile data, but the sending system must be connected to the SMS provider.
+
