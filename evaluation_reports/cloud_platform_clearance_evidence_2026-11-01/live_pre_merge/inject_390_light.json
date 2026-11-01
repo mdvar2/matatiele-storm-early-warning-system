@@ -1,0 +1,168 @@
+{
+ "width": 390,
+ "theme": "light",
+ "mode": "inject",
+ "top_of_page": {
+  "clearance": "52px",
+  "nav": [
+   685,
+   748,
+   "fixed"
+  ],
+  "overlays": [
+   [
+    "viewerBadge",
+    324,
+    754,
+    390,
+    800
+   ],
+   [
+    "appCreatorAvatar",
+    273,
+    761,
+    305,
+    793
+   ]
+  ],
+  "tabs": [
+   {
+    "label": "Home",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "Risk",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "Map",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "Safety",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "More",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   }
+  ],
+  "overflow_x": false,
+  "exceptions": 0
+ },
+ "scrolled_to_end": {
+  "clearance": "52px",
+  "nav": [
+   685,
+   748,
+   "fixed"
+  ],
+  "overlays": [
+   [
+    "viewerBadge",
+    324,
+    754,
+    390,
+    800
+   ],
+   [
+    "appCreatorAvatar",
+    273,
+    761,
+    305,
+    793
+   ]
+  ],
+  "tabs": [
+   {
+    "label": "Home",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "Risk",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "Map",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "Safety",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   },
+   {
+    "label": "More",
+    "top": 690,
+    "bottom": 744,
+    "h": 54,
+    "w": 75,
+    "covered_by_platform": false,
+    "tappable": true,
+    "clipped": false
+   }
+  ],
+  "overflow_x": false,
+  "exceptions": 0
+ },
+ "last_content_clear": [
+  660,
+  685,
+  true
+ ],
+ "more_sheet_opens": true,
+ "hamburger_opens": true
+}

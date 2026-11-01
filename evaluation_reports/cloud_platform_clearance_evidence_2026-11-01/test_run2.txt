@@ -1,0 +1,2 @@
+415 passed, 300 subtests passed in 240.01s (0:04:00)
+Run with a process-wide network guard; outbound attempts logged: 0
