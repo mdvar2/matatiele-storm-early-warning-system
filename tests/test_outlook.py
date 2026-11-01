@@ -492,7 +492,7 @@ class PhoneNavigationAndSnapshot(DashboardHarness):
         css = dashboard_theme.CHROME_CSS
         for rule in ('.st-key-bottom_nav,.st-key-menu_phone_extras {display:none!important}', '.st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar)',
                      '[data-testid=stPopoverButton] div[aria-hidden="true"] {display:none!important}', 'button[kind=primary] {background:#1d4ed8!important;color:#fff!important}',
-                     'padding-bottom:calc(104px + env(safe-area-inset-bottom))', 'position:fixed!important;left:0;right:0;bottom:0'):
+                     'padding-bottom:calc(104px + var(--platform-clearance,0px) + env(safe-area-inset-bottom))', 'position:fixed!important;left:0;right:0;bottom:var(--platform-clearance,0px)'):
             self.assertIn(rule, css)
 
     def test_a_failed_refresh_never_replaces_the_saved_snapshot(self):
@@ -566,3 +566,17 @@ class StreamlitCloudNavigationHotfix(DashboardHarness):
         self.assertIn('[data-testid=stSidebar] [data-testid=stDownloadButton] button {background:transparent!important', css)
         for behaviour in ("e.key === 'Escape' && drawer()", "if (!s.contains(e.target))", "b.closest('[class*=\"st-key-menu_\"]')"):
             self.assertIn(behaviour, dashboard_theme.CONNECTION_WATCH)
+
+    def test_bottom_bar_clears_community_cloud_controls_without_touching_them(self):
+        import dashboard_theme
+        watch, css = dashboard_theme.CONNECTION_WATCH, dashboard_theme.CHROME_CSS
+        # Lifted only on Streamlit Community Cloud, only at phone widths, only by the measured height of its controls.
+        self.assertIn(r"if (!/\.streamlit\.app$/.test(location.hostname) || innerWidth > 640 || window.parent === window) return 0;", watch)
+        self.assertIn('return top === Infinity ? 0 : Math.max(0, Math.ceil(fr.bottom - top) + 6);', watch)   # 0 when the controls are absent
+        self.assertIn('bottom:var(--platform-clearance,0px)', css)                                            # 0 everywhere else
+        self.assertIn('padding-bottom:calc(104px + var(--platform-clearance,0px) + env(safe-area-inset-bottom))', css)
+        self.assertIn('min-height:54px!important', css)                                                       # tap targets unchanged
+        clearance = watch[watch.index('function platformClearance'):watch.index('// Phone menu (hamburger) drawer')]
+        for change in ('.style', '.remove(', 'appendChild', 'classList', 'setAttribute', 'innerHTML'):
+            self.assertNotIn('shell' + change, clearance)   # the hosting page and its controls are only measured, never changed
+        self.assertNotRegex(clearance, r'shell\.[a-zA-Z.]*(style|remove|append|className|setAttribute|innerHTML)')

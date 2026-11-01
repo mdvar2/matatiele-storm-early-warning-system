@@ -610,7 +610,7 @@ body:has([data-testid=stSidebar][data-collapsed="false"]) [data-testid=stLayoutW
   [data-testid=stSidebar] .st-key-menu_Safety {display:none!important}
   .st-key-menu_phone_extras {display:flex!important}
   .st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar),[data-testid=stElementContainer]:has(.status-strip) {display:none!important}
-  .st-key-bottom_nav {display:flex!important;position:fixed!important;left:0;right:0;bottom:0;z-index:999990;margin:0!important;width:100%!important;
+  .st-key-bottom_nav {display:flex!important;position:fixed!important;left:0;right:0;bottom:var(--platform-clearance,0px);z-index:999990;margin:0!important;width:100%!important;
     background:var(--card);border-top:1px solid var(--card-border);box-shadow:0 -4px 18px rgba(15,23,42,.14);padding:4px 4px calc(4px + env(safe-area-inset-bottom))!important}
   .st-key-bottom_nav [data-testid=stHorizontalBlock] {flex-wrap:nowrap!important;gap:2px!important;width:100%}
   .st-key-bottom_nav [data-testid=stColumn] {flex:1 1 0!important;min-width:0!important;width:auto!important}
@@ -624,7 +624,7 @@ body:has([data-testid=stSidebar][data-collapsed="false"]) [data-testid=stLayoutW
   .st-key-bottom_nav button:focus-visible {outline:3px solid var(--accent)!important;outline-offset:-3px}
   .st-key-bottom_nav [data-testid=stPopoverButton] div[aria-hidden="true"] {display:none!important}  /* no dropdown chevron */
   .st-key-bnav_more_alert button::after {content:'';position:absolute;top:7px;right:calc(50% - 18px);width:11px;height:11px;border-radius:50%;background:#dc2626;border:2px solid var(--card)}
-  [data-testid=stMainBlockContainer],.block-container {padding-bottom:calc(104px + env(safe-area-inset-bottom))!important}  /* last content never hidden */
+  [data-testid=stMainBlockContainer],.block-container {padding-bottom:calc(104px + var(--platform-clearance,0px) + env(safe-area-inset-bottom))!important}  /* last content never hidden */
   .st-key-home_actions [data-testid=stColumn]:has(.st-key-home_safety) {display:none!important}  /* Safety is a bottom tab on phones */
 }
 @media (prefers-reduced-motion: reduce) {.bn-chip.ok i,.chip .dot,.chip:not(.stale) .dot,.bn-updated,.summary-grid.just-updated,.risk-arc.animate {animation:none!important}}
@@ -784,6 +784,34 @@ CONNECTION_WATCH = r"""
     d.body.appendChild(view);
   }
   bar.querySelector('button').onclick = openSaved;
+  // Streamlit Community Cloud draws its own floating controls (hosting badge, creator avatar) over the bottom-right of the
+  // app. They are left exactly as they are: on phones, the bottom navigation is lifted just clear of them, and only while
+  // they are present (measured in the hosting page). Elsewhere, and on wider screens, the lift is 0.
+  function platformClearance() {
+    if (!/\.streamlit\.app$/.test(location.hostname) || innerWidth > 640 || window.parent === window) return 0;
+    var shell, frame;
+    try {
+      shell = window.parent.document;
+      frame = Array.prototype.find.call(shell.querySelectorAll('iframe'), function (f) { return f.contentWindow === window; });
+    } catch (e) { return 0; }
+    if (!frame) return 0;
+    var fr = frame.getBoundingClientRect(), top = Infinity;
+    for (var x = fr.left + 4; x < fr.right; x += 20) {
+      for (var y = fr.bottom - 2; y > fr.bottom - 90; y -= 10) {
+        shell.elementsFromPoint(x, y).forEach(function (e) {
+          if (e === frame || e.contains(frame)) return;
+          var r = e.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0 && r.height < 120) top = Math.min(top, r.top);
+        });
+      }
+    }
+    return top === Infinity ? 0 : Math.max(0, Math.ceil(fr.bottom - top) + 6);
+  }
+  function applyClearance() {
+    var px = platformClearance() + 'px';
+    if (d.documentElement.style.getPropertyValue('--platform-clearance') !== px) d.documentElement.style.setProperty('--platform-clearance', px);
+  }
+  applyClearance(); window.addEventListener('resize', applyClearance); setInterval(applyClearance, 3000);
   // Phone menu (hamburger) drawer: closes after a choice, on a tap outside it, and with Escape.
   function drawer() {
     var s = d.querySelector('[data-testid=stSidebar]');
