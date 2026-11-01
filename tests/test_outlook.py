@@ -482,7 +482,7 @@ class PhoneNavigationAndSnapshot(DashboardHarness):
         self.assertEqual([labels[k] for k in ('bnav_Home', 'bnav_Risk', 'bnav_Map', 'bnav_Safety')], ['Home', 'Risk', 'Map', 'Safety'])
         for key in ('more_Alerts', 'more_Forecast', 'more_Historical Data', 'more_About', 'more_sms'):
             self.assertIn(key, labels)                                 # inside the More sheet
-        self.assertEqual(sum(b.proto.label == 'Save for offline use' for b in at.get('download_button')), 2)  # Home and More
+        self.assertEqual(sum(b.proto.label == 'Save for offline use' for b in at.get('download_button')), 3)  # Home, More and the ☰ drawer
         next(b for b in at.button if b.key == 'bnav_Risk').click().run()
         self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')
         self.assertEqual(next(b for b in at.button if b.key == 'bnav_Risk').proto.type, 'primary')   # active state
@@ -490,7 +490,7 @@ class PhoneNavigationAndSnapshot(DashboardHarness):
         self.assertEqual(at.session_state['dashboard_page'], 'ℹ️ About')
         self.assertFalse(any('warning in effect' in b.label for b in at.button))  # no warning: no badge, no invented count
         css = dashboard_theme.CHROME_CSS
-        for rule in ('.st-key-bottom_nav {display:none!important}', '.st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar)',
+        for rule in ('.st-key-bottom_nav,.st-key-menu_phone_extras {display:none!important}', '.st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar)',
                      '[data-testid=stPopoverButton] div[aria-hidden="true"] {display:none!important}', 'button[kind=primary] {background:#1d4ed8!important;color:#fff!important}',
                      'padding-bottom:calc(104px + env(safe-area-inset-bottom))', 'position:fixed!important;left:0;right:0;bottom:0'):
             self.assertIn(rule, css)
@@ -508,3 +508,57 @@ class PhoneNavigationAndSnapshot(DashboardHarness):
         self.assertIn('Saved forecast / outdated prediction', ' '.join(w.value for w in at.warning))
         saved = next(b for b in at.get('download_button') if b.proto.label == 'Save for offline use')
         self.assertFalse(saved.proto.disabled)                       # residents can still save the last good snapshot
+
+
+class StreamlitCloudNavigationHotfix(DashboardHarness):
+    """Regressions from the live deployment: a stale helper module, a missing hamburger and duplicated phone navigation."""
+
+    def test_a_redeployed_dashboard_never_runs_against_a_stale_helper_module(self):
+        import sys
+        import types
+        self.write_prediction(.05)
+        # What the Cloud server still held after the update: the previous dashboard_theme, without the new function or CSS.
+        stale = types.ModuleType('dashboard_theme'); stale.__file__ = str(self.tmp / 'dashboard_theme.py')
+        stale.theme_css = lambda mode: ''
+        with unittest.mock.patch.dict(sys.modules, {'dashboard_theme': stale}):
+            sys.modules.pop('_matatiele_code_state', None)          # a server that has not seen this code version yet
+            at = self.app().run()
+            self.assertFalse(at.exception)
+            self.assertTrue(hasattr(sys.modules['dashboard_theme'], 'connection_watch_html'))   # the current file was loaded
+            self.assertIn('.st-key-bottom_nav,.st-key-menu_phone_extras {display:none!important}', self.html(at))
+
+    def test_connection_watcher_failure_never_breaks_the_page(self):
+        import sys
+        self.write_prediction(.05)
+        at = self.app().run()                                         # loads the dashboard's own helper modules
+        theme = sys.modules['dashboard_theme']
+        with unittest.mock.patch.object(theme, 'connection_watch_html', side_effect=RuntimeError('watcher')):
+            at = self.app().run()
+        self.assertFalse(at.exception)
+        self.assertIn('NO WARNING TRIGGERED', self.html(at))
+        self.assertIn('Connection monitoring is unavailable on this page.', ' '.join(c.value for c in at.caption))
+
+    def test_tracebacks_are_never_shown_to_residents(self):
+        import tomllib
+        config = tomllib.loads((ROOT / '.streamlit' / 'config.toml').read_text(encoding='utf-8'))
+        self.assertEqual(config['client']['showErrorDetails'], 'none')
+
+    def test_one_bottom_bar_hamburger_kept_and_drawer_holds_secondary_tools(self):
+        import dashboard_theme
+        self.write_prediction(.05)
+        at = self.app().run()
+        keys = [b.key for b in at.button]
+        self.assertEqual(sum(k.startswith('bnav_') for k in keys), 4)                       # Home, Risk, Map, Safety (+ the More sheet)
+        self.assertEqual([b.label for b in at.button].count('Home'), 1)                    # no second Home control
+        self.assertIn('menu_sms', keys)                                                       # ☰ drawer: SMS service
+        self.assertIn('save_offline_menu', [b.key for b in at.get('download_button')])       # ☰ drawer: Save for offline use
+        self.assertNotIn('controlled', ' '.join(b.label.lower() for b in at.button))        # no SMS test for residents
+        source = (ROOT / '16_dashboard.py').read_text(encoding='utf-8')
+        self.assertNotIn('[data-testid=stExpandSidebarButton],[data-testid=stSidebarCollapsedControl]{display:none', source)  # ☰ restored
+        css = dashboard_theme.CHROME_CSS
+        for rule in ('[data-testid=stSidebar] .st-key-menu_Dashboard,[data-testid=stSidebar] .st-key-menu_Risk-Analysis',
+                     '.st-key-menu_phone_extras {display:flex!important}', '[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar)'):
+            self.assertIn(rule, css)
+        self.assertIn('.st-key-bottom_nav,.st-key-menu_phone_extras {display:none!important}\n@media (max-width:640px)', css)   # desktop and tablet: no phone bar
+        for behaviour in ("e.key === 'Escape' && drawer()", "if (!s.contains(e.target))", "b.closest('[class*=\"st-key-menu_\"]')"):
+            self.assertIn(behaviour, dashboard_theme.CONNECTION_WATCH)

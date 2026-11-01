@@ -29,6 +29,30 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pydeck as pdk
 from pydeck.types import String
+
+
+def _drop_stale_project_modules() -> None:
+    """Re-import this app's own modules after a code update.
+
+    Streamlit re-executes this script on every rerun but keeps already-imported modules. A redeployment that updates the
+    files without restarting the server therefore ran a new dashboard against old helper modules (an AttributeError for
+    dashboard_theme.connection_watch_html, and the old phone styling). The project's .py files are fingerprinted; when the
+    fingerprint differs from the one the loaded modules came from (or is unknown), those modules are removed from
+    sys.modules so the imports below load the current files. Only modules from this app's folder are touched.
+    """
+    import types
+    here=Path(__file__).resolve().parent
+    try:fingerprint=tuple(sorted((p.name,p.stat().st_mtime_ns,p.stat().st_size) for p in here.glob('*.py')))
+    except OSError:return
+    marker=sys.modules.setdefault('_matatiele_code_state',types.ModuleType('_matatiele_code_state'))
+    if getattr(marker,'fingerprint',None)==fingerprint:return
+    for name,module in list(sys.modules.items()):
+        source=getattr(module,'__file__',None)
+        if source and name!='__main__' and Path(source).resolve().parent==here and Path(source).resolve()!=Path(__file__).resolve():
+            del sys.modules[name]
+    marker.fingerprint=fingerprint
+
+_drop_stale_project_modules()
 from app_config import get_setting
 from forecast_timing import (local_time, six_hour_forecast, forecast_axis_order,
                              interval_label, timestamp_labels, next_complete_hour_endpoint,
@@ -466,6 +490,8 @@ with sidebar:
         label=MENU_LABELS.get(item,item.split(' ',1)[1])
         st.button(label,icon=f':material/{menu_icon}:',key='menu_'+label,width='stretch',on_click=_go,args=(item,),
                   type='primary' if st.session_state.dashboard_page==item else 'secondary')
+    # Phones: the ☰ drawer holds the secondary pages and tools (the four primary pages are bottom tabs there; CSS hides them here).
+    phone_menu_extras=st.container(key='menu_phone_extras')
     page=st.session_state.dashboard_page
     st.divider()
     # The login is shown only via ?admin=1 (or while signed in), never in the text view;
@@ -521,9 +547,6 @@ if not text_view and not portal_mode:
     with st.container(key='top_nav_bar'):  # tablets; hidden on phones, which use the bottom navigation
         st.segmented_control('Section',navigation,key='top_nav',format_func=lambda item:NAV_LABELS.get(item,item),on_change=_go_to_section,label_visibility='collapsed')
     bottom_nav=st.container(key='bottom_nav')  # phones only (CSS): fixed at the bottom, filled once the data are known
-    if not (show_admin_login or st.session_state.admin_authenticated):
-        # Every section is in the bottom navigation, so phones need no side-menu button (it stays for administrator sign-in).
-        st.html('<style>@media (max-width:640px){[data-testid=stExpandSidebarButton],[data-testid=stSidebarCollapsedControl]{display:none!important}}</style>')
 
 st.session_state.refresh_clock_count=0
 refresh_clock()
@@ -1224,7 +1247,14 @@ if not text_view and not portal_mode:
     # Losing the connection while the dashboard is open: a clear banner, and the saved offline dashboard, which this page
     # already holds (it opens with no server). Live updates resume, and "Connection restored" appears, only after a new
     # successful retrieval.
-    components.html(dashboard_theme.connection_watch_html(offline_file),height=0)
+    with phone_menu_extras:
+        save_offline_button(st,'save_offline_menu')
+        st.button('SMS service',icon=':material/sms:',key='menu_sms',on_click=open_sms_alerts,width='stretch')
+    try:components.html(dashboard_theme.connection_watch_html(offline_file),height=0)
+    except Exception:
+        # The dashboard itself never depends on the watcher: without it, only the connection-lost banner is missing.
+        logging.exception('Connection watcher unavailable.')
+        st.caption('Connection monitoring is unavailable on this page. If the connection drops, use Save for offline use while you still have signal.')
 
 st.divider()
 st.caption('Academic research prototype, not an official warning service · Official warnings: South African Weather Service (weathersa.co.za) · Times in SAST (UTC+2)')

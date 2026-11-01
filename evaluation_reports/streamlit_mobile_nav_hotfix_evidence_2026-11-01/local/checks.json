@@ -1,0 +1,515 @@
+{
+ "360_light": {
+  "first_screen": {
+   "width": 360,
+   "theme_dark": false,
+   "exceptions": 0,
+   "visible_bottom_bars": 1,
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ],
+   "nav_bg": "rgb(255, 255, 255)",
+   "items": [
+    {
+     "label": "Home",
+     "kind": "primary",
+     "bg": "rgb(29, 78, 216)",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "Risk",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "Map",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "Safety",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    },
+    {
+     "label": "More",
+     "kind": "secondary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 69
+    }
+   ],
+   "more_bg": "rgba(0, 0, 0, 0)",
+   "more_size": [
+    69,
+    54
+   ],
+   "old_top_tabs_visible": false,
+   "visible_segmented_controls": 0,
+   "top_nav_takes_height": 0,
+   "burger_visible": true,
+   "burger_box": [
+    18,
+    16
+   ],
+   "sidebar_open": false,
+   "overflow_x": false,
+   "risk_top": 509,
+   "decision_top": 838
+  },
+  "after_scroll": {
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ]
+  },
+  "last_content_clear_of_bar": true,
+  "risk_active": [
+   "tertiary",
+   "primary",
+   "tertiary",
+   "tertiary",
+   "secondary"
+  ],
+  "more_sheet": {
+   "items": [
+    "Alerts",
+    "Forecast",
+    "Historical Data",
+    "About",
+    "Save for offline use",
+    "Save for offline use",
+    "SMS service"
+   ],
+   "height": 392,
+   "width": 208
+  },
+  "more_choice_navigates_and_closes": {
+   "forecast_page": true,
+   "sheet_closed": true
+  },
+  "drawer_open": {
+   "open": true,
+   "items": [
+    "keyboard_double_arrow_left",
+    "Alerts",
+    "Forecast",
+    "Historical Data",
+    "About",
+    "Save for offline use",
+    "SMS service",
+    "Refresh weather and model"
+   ],
+   "main_top": 0,
+   "collapse_testids": [
+    "stSidebarHeader",
+    "stSidebarCollapseButton",
+    "stBaseButton-headerNoPadding"
+   ]
+  },
+  "drawer_pushes_page": false,
+  "drawer_choice": {
+   "alerts_page": true,
+   "closed": true
+  },
+  "drawer_escape_closes": true,
+  "drawer_outside_tap_closes": true
+ },
+ "390_light": {
+  "first_screen": {
+   "width": 390,
+   "theme_dark": false,
+   "exceptions": 0,
+   "visible_bottom_bars": 1,
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ],
+   "nav_bg": "rgb(255, 255, 255)",
+   "items": [
+    {
+     "label": "Home",
+     "kind": "primary",
+     "bg": "rgb(29, 78, 216)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "Risk",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "Map",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "Safety",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "More",
+     "kind": "secondary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    }
+   ],
+   "more_bg": "rgba(0, 0, 0, 0)",
+   "more_size": [
+    75,
+    54
+   ],
+   "old_top_tabs_visible": false,
+   "visible_segmented_controls": 0,
+   "top_nav_takes_height": 0,
+   "burger_visible": true,
+   "burger_box": [
+    18,
+    16
+   ],
+   "sidebar_open": false,
+   "overflow_x": false,
+   "risk_top": 280,
+   "decision_top": 591
+  },
+  "after_scroll": {
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ]
+  },
+  "last_content_clear_of_bar": true,
+  "risk_active": [
+   "tertiary",
+   "primary",
+   "tertiary",
+   "tertiary",
+   "secondary"
+  ],
+  "more_sheet": {
+   "items": [
+    "Alerts",
+    "Forecast",
+    "Historical Data",
+    "About",
+    "Save for offline use",
+    "Save for offline use",
+    "SMS service"
+   ],
+   "height": 392,
+   "width": 208
+  },
+  "more_choice_navigates_and_closes": {
+   "forecast_page": true,
+   "sheet_closed": true
+  },
+  "drawer_open": {
+   "open": true,
+   "items": [
+    "keyboard_double_arrow_left",
+    "Alerts",
+    "Forecast",
+    "Historical Data",
+    "About",
+    "Save for offline use",
+    "SMS service",
+    "Refresh weather and model"
+   ],
+   "main_top": 0,
+   "collapse_testids": [
+    "stSidebarHeader",
+    "stSidebarCollapseButton",
+    "stBaseButton-headerNoPadding"
+   ]
+  },
+  "drawer_pushes_page": false,
+  "drawer_choice": {
+   "alerts_page": true,
+   "closed": true
+  },
+  "drawer_escape_closes": true,
+  "drawer_outside_tap_closes": true
+ },
+ "390_dark": {
+  "first_screen": {
+   "width": 390,
+   "theme_dark": true,
+   "exceptions": 0,
+   "visible_bottom_bars": 1,
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ],
+   "nav_bg": "rgb(22, 35, 58)",
+   "items": [
+    {
+     "label": "Home",
+     "kind": "primary",
+     "bg": "rgb(29, 78, 216)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "Risk",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "Map",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "Safety",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    },
+    {
+     "label": "More",
+     "kind": "secondary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 75
+    }
+   ],
+   "more_bg": "rgba(0, 0, 0, 0)",
+   "more_size": [
+    75,
+    54
+   ],
+   "old_top_tabs_visible": false,
+   "visible_segmented_controls": 0,
+   "top_nav_takes_height": 0,
+   "burger_visible": true,
+   "burger_box": [
+    18,
+    16
+   ],
+   "sidebar_open": false,
+   "overflow_x": false,
+   "risk_top": 280,
+   "decision_top": 591
+  },
+  "after_scroll": {
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ]
+  },
+  "last_content_clear_of_bar": true
+ },
+ "430_light": {
+  "first_screen": {
+   "width": 430,
+   "theme_dark": false,
+   "exceptions": 0,
+   "visible_bottom_bars": 1,
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ],
+   "nav_bg": "rgb(255, 255, 255)",
+   "items": [
+    {
+     "label": "Home",
+     "kind": "primary",
+     "bg": "rgb(29, 78, 216)",
+     "clipped": false,
+     "h": 54,
+     "w": 83
+    },
+    {
+     "label": "Risk",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 83
+    },
+    {
+     "label": "Map",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 83
+    },
+    {
+     "label": "Safety",
+     "kind": "tertiary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 83
+    },
+    {
+     "label": "More",
+     "kind": "secondary",
+     "bg": "rgba(0, 0, 0, 0)",
+     "clipped": false,
+     "h": 54,
+     "w": 83
+    }
+   ],
+   "more_bg": "rgba(0, 0, 0, 0)",
+   "more_size": [
+    83,
+    54
+   ],
+   "old_top_tabs_visible": false,
+   "visible_segmented_controls": 0,
+   "top_nav_takes_height": 0,
+   "burger_visible": true,
+   "burger_box": [
+    18,
+    16
+   ],
+   "sidebar_open": false,
+   "overflow_x": false,
+   "risk_top": 280,
+   "decision_top": 591
+  },
+  "after_scroll": {
+   "position": "fixed",
+   "at_bottom": true,
+   "nav_box": [
+    737,
+    63
+   ]
+  },
+  "last_content_clear_of_bar": true
+ },
+ "tablet_820": {
+  "width": 820,
+  "theme_dark": false,
+  "exceptions": 0,
+  "visible_bottom_bars": 0,
+  "position": null,
+  "at_bottom": null,
+  "nav_box": null,
+  "nav_bg": null,
+  "items": [],
+  "more_bg": "rgb(255, 255, 255)",
+  "more_size": [
+   0,
+   0
+  ],
+  "old_top_tabs_visible": false,
+  "visible_segmented_controls": 0,
+  "top_nav_takes_height": 0,
+  "burger_visible": false,
+  "burger_box": null,
+  "sidebar_open": true,
+  "overflow_x": false,
+  "risk_top": 411,
+  "decision_top": 476
+ },
+ "tablet_1024": {
+  "width": 1024,
+  "theme_dark": false,
+  "exceptions": 0,
+  "visible_bottom_bars": 0,
+  "position": null,
+  "at_bottom": null,
+  "nav_box": null,
+  "nav_bg": null,
+  "items": [],
+  "more_bg": "rgb(255, 255, 255)",
+  "more_size": [
+   0,
+   0
+  ],
+  "old_top_tabs_visible": false,
+  "visible_segmented_controls": 0,
+  "top_nav_takes_height": 0,
+  "burger_visible": false,
+  "burger_box": null,
+  "sidebar_open": true,
+  "overflow_x": false,
+  "risk_top": 339,
+  "decision_top": 404
+ },
+ "desktop_1366": {
+  "width": 1366,
+  "theme_dark": false,
+  "exceptions": 0,
+  "visible_bottom_bars": 0,
+  "position": null,
+  "at_bottom": null,
+  "nav_box": null,
+  "nav_bg": null,
+  "items": [],
+  "more_bg": "rgb(255, 255, 255)",
+  "more_size": [
+   0,
+   0
+  ],
+  "old_top_tabs_visible": false,
+  "visible_segmented_controls": 0,
+  "top_nav_takes_height": 0,
+  "burger_visible": false,
+  "burger_box": null,
+  "sidebar_open": true,
+  "overflow_x": false,
+  "risk_top": 339,
+  "decision_top": 404
+ },
+ "offline_copy": {
+  "held": true,
+  "tabs": true,
+  "embedded": true,
+  "size_kb": 19.7
+ }
+}

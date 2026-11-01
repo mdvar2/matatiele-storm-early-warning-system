@@ -597,8 +597,12 @@ body:has([data-testid=stSidebar][aria-expanded="true"]) .st-key-top_nav_bar {dis
 /* Zero-height helpers (clock and connection scripts, the phone navigation) take no space in the page flow. */
 [data-testid=stElementContainer]:has(> iframe[data-testid=stIFrame]),[data-testid=stLayoutWrapper]:has(> .st-key-bottom_nav) {position:absolute!important}
 /* Phones: fixed bottom navigation instead of the top bar and side menu (tablets and desktop keep those). */
-.st-key-bottom_nav {display:none!important}
+.st-key-bottom_nav,.st-key-menu_phone_extras {display:none!important}
 @media (max-width:640px) {
+  /* Menu (hamburger) drawer on phones: secondary pages and tools only; Home, Risk Analysis, Map and Safety are bottom tabs. */
+  [data-testid=stSidebar] .st-key-menu_Dashboard,[data-testid=stSidebar] .st-key-menu_Risk-Analysis,[data-testid=stSidebar] .st-key-menu_Map,
+  [data-testid=stSidebar] .st-key-menu_Safety {display:none!important}
+  .st-key-menu_phone_extras {display:flex!important}
   .st-key-top_nav_bar,[data-testid=stLayoutWrapper]:has(> .st-key-top_nav_bar),[data-testid=stElementContainer]:has(.status-strip) {display:none!important}
   .st-key-bottom_nav {display:flex!important;position:fixed!important;left:0;right:0;bottom:0;z-index:999990;margin:0!important;width:100%!important;
     background:var(--card);border-top:1px solid var(--card-border);box-shadow:0 -4px 18px rgba(15,23,42,.14);padding:4px 4px calc(4px + env(safe-area-inset-bottom))!important}
@@ -774,6 +778,19 @@ CONNECTION_WATCH = r"""
     d.body.appendChild(view);
   }
   bar.querySelector('button').onclick = openSaved;
+  // Phone menu (hamburger) drawer: closes after a choice, on a tap outside it, and with Escape.
+  function drawer() { var s = d.querySelector('[data-testid=stSidebar]'); return s && innerWidth <= 640 && s.getAttribute('aria-expanded') === 'true' ? s : null; }
+  function closeDrawer() {
+    var b = d.querySelector('[data-testid=stSidebarCollapseButton] button') || d.querySelector('[data-testid=stSidebarCollapseButton]');
+    if (b) b.click();
+  }
+  d.addEventListener('click', function (e) {
+    var s = drawer(); if (!s) return;
+    if (!s.contains(e.target)) { if (!e.target.closest('[data-testid=stExpandSidebarButton]')) closeDrawer(); return; }
+    var b = e.target.closest('button');
+    if (b && b.closest('[class*="st-key-menu_"]')) setTimeout(closeDrawer, 250);
+  }, true);
+  d.addEventListener('keydown', function (e) { if (e.key === 'Escape' && drawer()) closeDrawer(); });
   d.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-testid=stPopoverBody] button');
     if (b) setTimeout(function () { d.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true})); }, 150);

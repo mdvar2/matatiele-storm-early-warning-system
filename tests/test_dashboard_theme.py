@@ -149,7 +149,8 @@ class RedesignedDashboard(rd.DashboardHarness):
         # Top bar: Home | Risk Analysis | Map | Safety. Side (☰) menu: Alerts | Forecast | Historical Data | About.
         self.assertEqual([str(o) for o in nav.options], ['Home', 'Risk Analysis', 'Map', 'Safety'])
         menu = [b for b in at.button if (b.key or '').startswith('menu_')]
-        self.assertEqual([b.label for b in menu], ['Dashboard', 'Risk Analysis', 'Map', 'Safety', 'Alerts', 'Forecast', 'Historical Data', 'About'])
+        self.assertEqual([b.label for b in menu], ['Dashboard', 'Risk Analysis', 'Map', 'Safety', 'Alerts', 'Forecast', 'Historical Data', 'About',
+                                                   'SMS service'])  # the last is phone-only (☰ drawer), hidden on desktop and tablet by CSS
         self.assertEqual(nav.value, '🏠 Dashboard')  # Home is highlighted on first load
         nav.set_value('📈 Risk Analysis').run()
         self.assertEqual(at.session_state['dashboard_page'], '📈 Risk Analysis')

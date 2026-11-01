@@ -7,3 +7,7 @@ primaryColor = "#1d4ed8"
 # Serves ./static at /app/static: the offline page (offline.html, its service worker and the last status).
 [server]
 enableStaticServing = true
+
+# The resident interface never shows Python tracebacks or exception messages (details go to the server log).
+[client]
+showErrorDetails = "none"
